@@ -143,3 +143,18 @@ for host in ALLOWED_HOSTS:
     if host and host != '*' and not host.startswith(('http://', 'https://')):
         CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
         CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+
+# Detect Render Environment
+render_url = os.environ.get('RENDER_EXTERNAL_URL')
+if render_url:
+    CSRF_TRUSTED_ORIGINS.append(render_url)
+    hostname = render_url.replace('https://', '').replace('http://', '')
+    if hostname:
+        CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
+        CSRF_TRUSTED_ORIGINS.append(f"http://{hostname}")
+
+# Guarantee origin check passes for user's specific Render domain
+CSRF_TRUSTED_ORIGINS.extend([
+    "https://erp-intrex-digital.onrender.com",
+    "http://erp-intrex-digital.onrender.com"
+])
