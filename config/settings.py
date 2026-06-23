@@ -130,3 +130,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'hrm:index'
 LOGOUT_REDIRECT_URL = 'frontend:index'
+
+# CSRF Trusted Origins Configuration
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+# Automatically add allowed hosts to CSRF trusted origins to ease deployment
+for host in ALLOWED_HOSTS:
+    if host and host != '*' and not host.startswith(('http://', 'https://')):
+        CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
