@@ -26,9 +26,16 @@ if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
             print("Firebase successfully connected using credentials file!")
         else:
-            # Fallback to default credentials (e.g., if Google Application Default Credentials are set)
-            firebase_admin.initialize_app()
-            print("Firebase connected using default credentials!")
+            # Check if running in a Google Cloud environment or GOOGLE_APPLICATION_CREDENTIALS is set
+            if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') or os.environ.get('GAE_ENV'):
+                firebase_admin.initialize_app()
+                print("Firebase connected using Google default credentials!")
+            else:
+                raise ValueError(
+                    "Firebase credentials not found. Please set the 'FIREBASE_CREDENTIALS_JSON' "
+                    "environment variable in your Render dashboard, or ensure that "
+                    f"'{os.path.basename(FIREBASE_CREDS_PATH)}' exists."
+                )
     except Exception as e:
         print(f"Error connecting to Firebase: {e}")
         raise e
