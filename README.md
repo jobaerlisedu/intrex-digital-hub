@@ -84,11 +84,18 @@ intrex_digital_hub/
 ## 🔧 Setup & Installation
 
 ### 1. Clone the project and configure environment
-Set up your local configuration variables in a `.env` file at the project root:
+Set up your local configuration variables in a `.env` file at the project root (or as environment variables in your hosting provider's dashboard):
 ```env
 DJANGO_SECRET_KEY=your_secret_key
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=*
+
+# For local development:
+FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
+
+# For cloud production environments (e.g., Render, Heroku) where gitignores prevent credential files:
+# Add an environment variable named FIREBASE_CREDENTIALS_JSON containing the full stringified JSON content of your Firebase service account key file.
+# FIREBASE_CREDENTIALS_JSON='{"type": "service_account", "project_id": "...", ...}'
 ```
 
 ### 2. Activate virtual environment
