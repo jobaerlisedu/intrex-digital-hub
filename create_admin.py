@@ -4,17 +4,19 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
+from config.firebase import db
 from django.contrib.auth.models import User
 
 try:
-    if not User.objects.filter(username='admin').exists():
+    # Check if 'admin' already exists in Firestore
+    admin_doc = db.collection('users').document('admin').get()
+    if admin_doc.exists:
+        print("INFO: 'admin' superuser already exists in Firestore. Relying on Firestore sync.")
+    elif not User.objects.filter(username='admin').exists():
         User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-        print("SUCCESS: Superuser 'admin' created.")
+        print("SUCCESS: Default superuser 'admin' created.")
     else:
-        user = User.objects.get(username='admin')
-        user.set_password('admin123')
-        user.save()
-        print("SUCCESS: Superuser 'admin' already existed, password reset to 'admin123'.")
+        print("INFO: Local 'admin' superuser already exists.")
 except Exception as e:
     print(f"ERROR: {str(e)}")
 
