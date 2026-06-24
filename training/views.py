@@ -436,11 +436,13 @@ def batch_management(request):
 
     batches = get_collection_data('learn_batches')
     courses = get_collection_data('learn_courses')
+    registrations = get_collection_data('learn_registrations')
     employees = get_collection_data('employees')
     trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
     return render(request, 'training/batch_management.html', {
         'batches': batches, 
         'courses': courses,
+        'registrations': registrations,
         'trainers': trainers
     })
 
