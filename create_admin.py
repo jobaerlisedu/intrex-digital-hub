@@ -17,3 +17,12 @@ try:
         print("SUCCESS: Superuser 'admin' already existed, password reset to 'admin123'.")
 except Exception as e:
     print(f"ERROR: {str(e)}")
+
+# Sync users from Firestore
+try:
+    from accounts.auth_backend import sync_users_from_firestore
+    print("Syncing users from Firestore...")
+    sync_users_from_firestore()
+    print("SUCCESS: Users synced successfully.")
+except Exception as e:
+    print(f"ERROR syncing users: {str(e)}")
