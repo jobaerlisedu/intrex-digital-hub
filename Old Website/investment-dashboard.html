@@ -1,0 +1,2036 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investment & Finance Portal | Intrex Digital Hub</title>
+  <link rel="icon" href="assets/images/logo/intrex-favicon.svg" type="image/svg+xml">
+  <meta name="robots" content="noindex, nofollow">
+  <script>
+    window.addEventListener('error', function (event) {
+      const errDiv = document.createElement('div');
+      errDiv.id = 'js-debug-error';
+      errDiv.style = 'position: fixed; top: 10px; left: 10px; right: 10px; background: rgba(220, 53, 69, 0.95); color: white; padding: 15px; z-index: 100000; border-radius: 5px; font-family: monospace; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+      errDiv.innerHTML = '<strong>JS Error:</strong> ' + event.message + ' at ' + event.filename + ':' + event.lineno;
+      document.body.appendChild(errDiv);
+    });
+    window.addEventListener('unhandledrejection', function (event) {
+      const errDiv = document.createElement('div');
+      errDiv.id = 'js-debug-rejection';
+      errDiv.style = 'position: fixed; top: 10px; left: 10px; right: 10px; background: rgba(220, 53, 69, 0.95); color: white; padding: 15px; z-index: 100000; border-radius: 5px; font-family: monospace; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+      errDiv.innerHTML = '<strong>Unhandled Promise Rejection:</strong> ' + (event.reason ? event.reason.message || event.reason : 'Unknown reason');
+      document.body.appendChild(errDiv);
+    });
+  </script>
+
+  <!-- ======= Google Font =======-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+
+  <!-- ======= Styles =======-->
+  <link href="assets/vendors/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendors/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="assets/vendors/aos/aos.css" rel="stylesheet">
+  <link href="assets/css/style.css" rel="stylesheet">
+  <style>
+    /* ── Split Screen Dashboard Layout (MD & Up) ── */
+    @media (min-width: 768px) {
+
+      html,
+      body {
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .site-wrap {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      section.section {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 0 !important;
+      }
+
+      section.section>.container-fluid {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding-right: 0 !important;
+      }
+
+      #dashboardSection {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .dashboard-main-row {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-wrap: nowrap;
+        margin-right: 0 !important;
+      }
+
+      .sidebar-container {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 15px;
+        overscroll-behavior: contain;
+      }
+
+      .content-container {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 24px;
+      }
+    }
+
+    /* Custom thin scrollbars */
+    .sidebar-container,
+    .content-container {
+      scrollbar-width: thin;
+      scrollbar-color: var(--bs-primary) transparent;
+      padding-bottom: 25px;
+    }
+
+    .sidebar-container::-webkit-scrollbar,
+    .content-container::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .sidebar-container::-webkit-scrollbar-track,
+    .content-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar-container::-webkit-scrollbar-thumb,
+    .content-container::-webkit-scrollbar-thumb {
+      background-color: var(--bs-primary);
+      border-radius: 10px;
+    }
+
+    /* ── Quick-fill autocomplete dropdown ── */
+    .qf-wrapper {
+      position: relative;
+    }
+
+    .qf-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: var(--bs-body-bg, #fff);
+      border: 1px solid var(--bs-border-color, #dee2e6);
+      border-radius: .5rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+      overflow: hidden;
+      display: none;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .qf-dropdown.show {
+      display: block;
+    }
+
+    .qf-item {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      padding: .45rem .85rem;
+      cursor: pointer;
+      font-size: .83rem;
+      transition: background .15s;
+      border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, .06));
+    }
+
+    .qf-item:last-child {
+      border-bottom: none;
+    }
+
+    .qf-item:hover,
+    .qf-item.active {
+      background: rgba(var(--bs-primary-rgb, 13, 110, 253), .10);
+    }
+
+    .qf-badge {
+      font-size: .72rem;
+      padding: .18em .5em;
+      border-radius: .3em;
+      background: var(--bs-primary);
+      color: #fff;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .qf-name {
+      color: var(--bs-body-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .qf-empty {
+      padding: .5rem .85rem;
+      font-size: .83rem;
+      color: var(--bs-secondary-color);
+    }
+
+    /* Premium Detail View Cards */
+    .detail-card {
+      background-color: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      height: 100%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .detail-card:hover {
+      border-color: var(--primary-color, #0d6efd);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+
+    .detail-card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--bs-secondary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .detail-card-value {
+      font-size: 0.925rem;
+      font-weight: 600;
+      color: var(--bs-heading-color);
+      word-break: break-word;
+    }
+  </style>
+
+  <script>
+    (function () {
+      const storedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-bs-theme', storedTheme);
+    })();
+  </script>
+  <!-- Teleport all modals to <body> to escape site-wrap stacking context -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.modal').forEach(function (modal) {
+        document.body.appendChild(modal);
+      });
+    });
+  </script>
+</head>
+
+<body>
+
+  <div class="site-wrap">
+
+    <!-- ======= Investment Dashboard Section =======-->
+    <section class="section py-4 py-md-5">
+      <div class="container-fluid px-md-5">
+
+        <!-- 1. LOGIN INTERFACE -->
+        <div id="loginSection" class="row justify-content-center align-items-center" style="min-height: 75vh;">
+          <div class="col-12 col-md-4 col-lg-3">
+            <div class="card p-4 rounded-4 shadow-sm border">
+              <div class="text-center mb-4">
+                <img src="assets/images/logo/intrex-logo.svg" alt="Logo" class="mb-3" style="height: 40px;">
+                <h2 class="h4 fw-bold text-heading-color">Investment Portal Login</h2>
+                <p class="text-muted small">Access the Investment & Finance Management Dashboard.</p>
+              </div>
+
+              <div id="loginError" class="alert alert-danger d-none small"></div>
+
+              <form id="loginForm">
+                <div class="mb-3">
+                  <label for="adminEmail" class="form-label small fw-semibold">Email Address <span
+                      class="text-danger">*</span></label>
+                  <input type="email" class="form-control" id="adminEmail" required
+                    placeholder="admin@intrex-digital.com">
+                </div>
+                <div class="mb-3">
+                  <label for="adminPassword" class="form-label small fw-semibold">Password <span
+                      class="text-danger">*</span></label>
+                  <input type="password" class="form-control" id="adminPassword" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-semibold py-2 mt-2">
+                  <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. DASHBOARD PANEL (HIDDEN BY DEFAULT) -->
+        <div id="dashboardSection" class="d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-3 border-bottom"
+            style="padding-right: 24px;">
+            <div class="d-flex align-items-center gap-3">
+              <button class="btn btn-light border d-md-none" type="button" data-bs-toggle="offcanvas"
+                data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+                <i class="bi bi-list fs-5"></i>
+              </button>
+              <div>
+                <span class="badge bg-primary text-white mb-1">INTREX DIGITAL HUB SYSTEM</span>
+                <h2 class="h3 fw-bold text-heading-color mb-0">Investment & Finance Dashboard</h2>
+              </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="text-muted small me-1" id="loggedInEmail"></span>
+              <button id="logoutBtn" class="btn btn-outline-danger btn-sm py-2 px-3">
+                <i class="bi bi-box-arrow-right me-1"></i> Logout
+              </button>
+            </div>
+          </div>
+
+          <!-- Sidebar Layout Row -->
+          <div class="row g-4 mt-2 dashboard-main-row">
+            <!-- Left Sidebar Tabs Navigation -->
+            <div class="col-md-3 col-lg-2 border-end pe-md-4 sidebar-container offcanvas-md offcanvas-start"
+              tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+              <div class="offcanvas-header d-md-none border-bottom mb-3">
+                <h5 class="offcanvas-title fw-bold" id="sidebarMenuLabel">Menu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu"
+                  aria-label="Close"></button>
+              </div>
+              <div class="offcanvas-body d-md-block p-3 p-md-0">
+                <div class="nav flex-column nav-pills gap-2 w-100" id="dashboardTabs" role="tablist"
+                  aria-orientation="vertical">
+                  <button class="nav-link active text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2"
+                    id="overview-tab" data-bs-toggle="tab" data-bs-target="#overviewPanel" type="button" role="tab"
+                    aria-controls="overviewPanel" aria-selected="true">
+                    <i class="bi bi-bar-chart-line"></i> Overview
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2"
+                    id="investors-tab" data-bs-toggle="tab" data-bs-target="#investorsPanel" type="button" role="tab"
+                    aria-controls="investorsPanel" aria-selected="false">
+                    <i class="bi bi-people"></i> Investors Database
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2"
+                    id="investment-tab" data-bs-toggle="tab" data-bs-target="#investmentPanel" type="button" role="tab"
+                    aria-controls="investmentPanel" aria-selected="false">
+                    <i class="bi bi-graph-up-arrow"></i> Investment Tracker
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Content Panel -->
+            <div class="col-12 col-md-9 col-lg-10 content-container">
+              <div class="tab-content" id="dashboardTabContent">
+
+                <!-- Tab 1: Overview / Analytics -->
+                <div class="tab-pane fade show active" id="overviewPanel" role="tabpanel"
+                  aria-labelledby="overview-tab">
+                  <!-- KPI Cards Row 1 -->
+                  <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Total Investors</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-people-fill"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiTotalInvestors">—</div>
+                          <div class="small opacity-75 mt-1">Enrolled records</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Total Invested</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-cash-stack"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiTotalInvested">—</div>
+                          <div class="small opacity-75 mt-1">BDT Cumulative</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Expected Returns</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-graph-up-arrow"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiExpectedReturns">—</div>
+                          <div class="small opacity-75 mt-1">BDT Estimated</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Active Investments</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-check-circle-fill"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiActiveInvestments">—</div>
+                          <div class="small opacity-75 mt-1">Running portfolios</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- KPI Cards Row 2 -->
+                  <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Corporate Investors</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-building"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiCorporateInvestors">—</div>
+                          <div class="small opacity-75 mt-1">Institutional records</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Individual Investors</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-person-fill"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiIndividualInvestors">—</div>
+                          <div class="small opacity-75 mt-1">Private individuals</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Matured Deals</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-calendar-check"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiMaturedInvestments">—</div>
+                          <div class="small opacity-75 mt-1">Closed portfolios</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100"
+                        style="background-color: var(--bs-primary) !important;">
+                        <div class="card-body p-3 text-white">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Avg. Return Rate</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                              style="width:36px;height:36px;background:rgba(255,255,255,0.15);">
+                              <i class="bi bi-percent"></i>
+                            </div>
+                          </div>
+                          <div class="h2 fw-bold mb-0 text-white" id="kpiAvgReturnRate">—</div>
+                          <div class="small opacity-75 mt-1">Yield percentage</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Charts Row 1 -->
+                  <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <h6 class="fw-bold text-heading-color mb-3"><i
+                              class="bi bi-bar-chart-fill me-2 text-primary"></i>Investment by Type</h6>
+                          <div style="position:relative;height:240px;">
+                            <canvas id="chartInvestmentByType"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <h6 class="fw-bold text-heading-color mb-3"><i
+                              class="bi bi-activity me-2 text-primary"></i>Monthly Investment Flow</h6>
+                          <div style="position:relative;height:240px;">
+                            <canvas id="chartMonthlyFlow"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Charts Row 2 -->
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <h6 class="fw-bold text-heading-color mb-3"><i
+                              class="bi bi-pie-chart-fill me-2 text-primary"></i>Portfolio Status Breakdown</h6>
+                          <div style="position:relative;height:200px;">
+                            <canvas id="chartInvestmentStatus"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <h6 class="fw-bold text-heading-color mb-3"><i
+                              class="bi bi-trophy-fill me-2 text-primary"></i>Top Investors by Amount (BDT)</h6>
+                          <div style="position:relative;height:200px;">
+                            <canvas id="chartTopInvestors"></canvas>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 2: Investors Database -->
+                <div class="tab-pane fade" id="investorsPanel" role="tabpanel" aria-labelledby="investors-tab">
+
+                  <!-- Sub-tabs Nav -->
+                  <ul class="nav nav-tabs mb-3" id="investorSubTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active fw-semibold text-primary" id="investor-form-subtab"
+                        data-bs-toggle="tab" data-bs-target="#investorFormSubPanel" type="button" role="tab"
+                        aria-controls="investorFormSubPanel" aria-selected="true">
+                        <i class="bi bi-person-plus-fill me-1"></i>Investor Form
+                      </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link fw-semibold text-primary" id="investor-list-subtab" data-bs-toggle="tab"
+                        data-bs-target="#investorListSubPanel" type="button" role="tab"
+                        aria-controls="investorListSubPanel" aria-selected="false">
+                        <i class="bi bi-people-fill me-1"></i>Investors Registry
+                      </button>
+                    </li>
+                  </ul>
+
+                  <div class="tab-content" id="investorSubTabsContent">
+                    <!-- Tab 1: Form -->
+                    <div class="tab-pane fade show active" id="investorFormSubPanel" role="tabpanel"
+                      aria-labelledby="investor-form-subtab">
+                      <div class="card p-4 rounded-4 shadow-sm border mb-4">
+                        <h3 id="investorFormTitle" class="h5 fw-bold mb-3 pb-2 border-bottom text-heading-color">
+                          <i class="bi bi-person-plus-fill me-2 text-primary"></i>Add New Investor
+                        </h3>
+
+                        <div id="investorSuccess" class="alert alert-success d-none alert-dismissible fade show small"
+                          role="alert">
+                          <span>Investor record saved successfully!</span>
+                          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        <div id="investorError" class="alert alert-danger d-none alert-dismissible fade show small"
+                          role="alert">
+                          <span>An error occurred. Please try again.</span>
+                          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+
+                        <form id="investorForm">
+                          <input type="hidden" id="editInvestorId">
+
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold mb-1" for="invFullName">Full Name <span
+                                class="text-danger">*</span></label>
+                            <input class="form-control" id="invFullName" type="text"
+                              placeholder="e.g. Al-Amin Chowdhury" required>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invEmail">Email Address <span
+                                  class="text-danger">*</span></label>
+                              <input class="form-control" id="invEmail" type="email"
+                                placeholder="e.g. alamin@domain.com" required>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invPhone">Mobile Phone <span
+                                  class="text-danger">*</span></label>
+                              <input class="form-control" id="invPhone" type="tel" placeholder="e.g. +880 1712-345678"
+                                required>
+                            </div>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invType">Investor Type</label>
+                              <select class="form-select" id="invType">
+                                <option value="Individual" selected>Individual</option>
+                                <option value="Corporate">Corporate</option>
+                                <option value="Institutional">Institutional</option>
+                              </select>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invNationality">Nationality</label>
+                              <input class="form-control" id="invNationality" type="text"
+                                placeholder="e.g. Bangladeshi">
+                            </div>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invIdNumber">ID Document
+                                Number</label>
+                              <input class="form-control" id="invIdNumber" type="text" placeholder="NID / Passport">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invRiskProfile">Risk Profile</label>
+                              <select class="form-select" id="invRiskProfile">
+                                <option value="Conservative">Conservative</option>
+                                <option value="Moderate" selected>Moderate</option>
+                                <option value="Aggressive">Aggressive</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div class="mb-4">
+                            <label class="form-label small fw-semibold mb-1" for="invNotes">Additional Notes</label>
+                            <textarea class="form-control" id="invNotes" rows="3"
+                              placeholder="Investment expectations, milestones..."></textarea>
+                          </div>
+
+                          <div class="d-flex gap-2">
+                            <button type="submit" id="submitInvestorBtn" class="btn btn-primary w-100 fw-semibold py-2">
+                              <i class="bi bi-cloud-arrow-up me-2"></i>Save Investor Record
+                            </button>
+                            <button type="button" id="cancelInvestorEditBtn"
+                              class="btn btn-outline-secondary w-50 fw-semibold py-2 d-none">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <!-- Tab 2: Registry -->
+                    <div class="tab-pane fade" id="investorListSubPanel" role="tabpanel"
+                      aria-labelledby="investor-list-subtab">
+                      <div class="card p-4 rounded-4 shadow-sm border">
+                        <div
+                          class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                          <h3 class="h5 fw-bold text-heading-color mb-0">
+                            <i class="bi bi-people-fill me-2 text-primary"></i>Investors Registry
+                          </h3>
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="text" id="searchInvestor" class="form-control form-control-sm"
+                              style="max-width: 180px;" placeholder="Search name, phone...">
+                            <select id="filterInvestorType" class="form-select form-select-sm" style="width: auto;">
+                              <option value="all">All Types</option>
+                              <option value="Individual">Individual</option>
+                              <option value="Corporate">Corporate</option>
+                              <option value="Institutional">Institutional</option>
+                            </select>
+                            <button id="exportInvestorsBtn" class="btn btn-sm btn-outline-success" type="button"
+                              title="Export to CSV">
+                              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export
+                            </button>
+                            <button id="refreshInvestorsBtn" class="btn btn-sm btn-outline-secondary" type="button"
+                              title="Refresh Registry">
+                              <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 620px; overflow-y: auto;">
+                          <table class="table table-hover align-middle mb-0" id="investorsTable">
+                            <thead class="table-light">
+                              <tr>
+                                <th class="small fw-semibold">ID</th>
+                                <th class="small fw-semibold">Full Name</th>
+                                <th class="small fw-semibold">Contact Info</th>
+                                <th class="small fw-semibold">Type</th>
+                                <th class="small fw-semibold">Risk Profile</th>
+                                <th class="small fw-semibold text-center">Status</th>
+                                <th class="small fw-semibold text-center">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody id="investorsTableBody">
+                              <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                  Loading investors...
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab 3: Investment Tracker -->
+                <div class="tab-pane fade" id="investmentPanel" role="tabpanel" aria-labelledby="investment-tab">
+
+                  <!-- Sub-tabs Nav -->
+                  <ul class="nav nav-tabs mb-3" id="investmentSubTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active fw-semibold text-primary" id="investment-form-subtab"
+                        data-bs-toggle="tab" data-bs-target="#investmentFormSubPanel" type="button" role="tab"
+                        aria-controls="investmentFormSubPanel" aria-selected="true">
+                        <i class="bi bi-graph-up-arrow me-1"></i>Investment Form
+                      </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link fw-semibold text-primary" id="investment-list-subtab" data-bs-toggle="tab"
+                        data-bs-target="#investmentListSubPanel" type="button" role="tab"
+                        aria-controls="investmentListSubPanel" aria-selected="false">
+                        <i class="bi bi-file-earmark-text-fill me-1"></i>Investments Ledger
+                      </button>
+                    </li>
+                  </ul>
+
+                  <div class="tab-content" id="investmentSubTabsContent">
+                    <!-- Tab 1: Form -->
+                    <div class="tab-pane fade show active" id="investmentFormSubPanel" role="tabpanel"
+                      aria-labelledby="investment-form-subtab">
+                      <div class="card p-4 rounded-4 shadow-sm border mb-4">
+                        <h3 id="investmentFormTitle" class="h5 fw-bold mb-3 pb-2 border-bottom text-heading-color">
+                          <i class="bi bi-graph-up-arrow me-2 text-primary"></i>Record Investment
+                        </h3>
+
+                        <div id="investmentSuccess" class="alert alert-success d-none alert-dismissible fade show small"
+                          role="alert">
+                          <span>Investment transaction recorded!</span>
+                          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        <div id="investmentError" class="alert alert-danger d-none alert-dismissible fade show small"
+                          role="alert">
+                          <span>An error occurred. Please try again.</span>
+                          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+
+                        <form id="investmentForm">
+                          <input type="hidden" id="editInvestmentId">
+
+                          <!-- Investor ID Lookup & Verification -->
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold mb-1" for="invtInvestorId">Investor ID <span
+                                class="text-danger">*</span></label>
+                            <div class="input-group">
+                              <input type="text" class="form-control" id="invtInvestorId" placeholder="e.g. INV-0001"
+                                required>
+                              <button id="lookupInvestorBtn" class="btn btn-outline-primary" type="button">
+                                <i class="bi bi-search"></i> Verify ID
+                              </button>
+                            </div>
+                            <div id="lookupInvestorFeedback" class="form-text small text-muted mt-1">Enter Investor ID
+                              to
+                              link transaction.</div>
+                          </div>
+
+                          <!-- Read-only verified name display -->
+                          <div class="mb-3">
+                            <label class="form-label small fw-semibold mb-1" for="invtInvestorName">Investor
+                              Name</label>
+                            <input type="text" class="form-control bg-body-secondary" id="invtInvestorName" readonly
+                              placeholder="Lookup verifies investor name" required>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtType">Investment Type <span
+                                  class="text-danger">*</span></label>
+                              <select class="form-select" id="invtType" required>
+                                <option value="Fixed Deposit" selected>Fixed Deposit</option>
+                                <option value="Equity">Equity</option>
+                                <option value="Bond">Bond</option>
+                                <option value="Mutual Fund">Mutual Fund</option>
+                                <option value="Real Estate">Real Estate</option>
+                                <option value="Startup">Startup</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtAmount">Amount (BDT) <span
+                                  class="text-danger">*</span></label>
+                              <input class="form-control" id="invtAmount" type="number" min="1"
+                                placeholder="e.g. 500000" required>
+                            </div>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtStartDate">Start Date <span
+                                  class="text-danger">*</span></label>
+                              <input class="form-control" id="invtStartDate" type="date" required>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtMaturityDate">Maturity
+                                Date</label>
+                              <input class="form-control" id="invtMaturityDate" type="date">
+                            </div>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtReturnRate">Return Rate (% p.a.)
+                                <span class="text-danger">*</span></label>
+                              <input class="form-control" id="invtReturnRate" type="number" step="0.01" min="0"
+                                placeholder="e.g. 8.5" required>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtReturnType">Return Type</label>
+                              <select class="form-select" id="invtReturnType">
+                                <option value="Annual" selected>Annual</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="One-time">One-time</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtStatus">Status</label>
+                              <select class="form-select" id="invtStatus">
+                                <option value="Active" selected>Active</option>
+                                <option value="Matured">Matured</option>
+                                <option value="Withdrawn">Withdrawn</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label small fw-semibold mb-1" for="invtCurrency">Currency</label>
+                              <select class="form-select" id="invtCurrency">
+                                <option value="BDT" selected>BDT</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <!-- Expected Return Indicator Box -->
+                          <div class="card bg-light border-dashed rounded-3 p-3 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                              <span class="small fw-semibold text-secondary">Calculated Est. Return:</span>
+                              <strong class="text-primary fs-5" id="lblExpectedReturn">0 BDT</strong>
+                            </div>
+                          </div>
+
+                          <div class="mb-4">
+                            <label class="form-label small fw-semibold mb-1" for="invtNotes">Transaction Remarks</label>
+                            <textarea class="form-control" id="invtNotes" rows="2"
+                              placeholder="Bank details, certificate numbers, references..."></textarea>
+                          </div>
+
+                          <div class="d-flex gap-2">
+                            <button type="submit" id="submitInvestmentBtn"
+                              class="btn btn-primary w-100 fw-semibold py-2">
+                              <i class="bi bi-plus-circle me-2"></i>Record Investment
+                            </button>
+                            <button type="button" id="cancelInvestmentEditBtn"
+                              class="btn btn-outline-secondary w-50 fw-semibold py-2 d-none">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <!-- Tab 2: Ledger -->
+                    <div class="tab-pane fade" id="investmentListSubPanel" role="tabpanel"
+                      aria-labelledby="investment-list-subtab">
+                      <div class="card p-4 rounded-4 shadow-sm border">
+                        <div
+                          class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                          <h3 class="h5 fw-bold text-heading-color mb-0">
+                            <i class="bi bi-file-earmark-text-fill me-2 text-primary"></i>Investments Ledger
+                          </h3>
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <input type="text" id="searchInvestment" class="form-control form-control-sm"
+                              style="max-width: 180px;" placeholder="Search ID, investor name...">
+                            <select id="filterInvestmentStatus" class="form-select form-select-sm" style="width: auto;">
+                              <option value="all">All Statuses</option>
+                              <option value="Active">Active</option>
+                              <option value="Matured">Matured</option>
+                              <option value="Withdrawn">Withdrawn</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <button id="exportInvestmentsBtn" class="btn btn-sm btn-outline-success" type="button"
+                              title="Export Ledger">
+                              <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export
+                            </button>
+                            <button id="refreshInvestmentsBtn" class="btn btn-sm btn-outline-secondary" type="button"
+                              title="Refresh Ledger">
+                              <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div class="table-responsive" style="max-height: 620px; overflow-y: auto;">
+                          <table class="table table-hover align-middle mb-0" id="investmentsTable">
+                            <thead class="table-light">
+                              <tr>
+                                <th class="small fw-semibold">ID</th>
+                                <th class="small fw-semibold">Investor Name</th>
+                                <th class="small fw-semibold">Investment Type</th>
+                                <th class="small fw-semibold text-end">Amount</th>
+                                <th class="small fw-semibold text-center">Rate</th>
+                                <th class="small fw-semibold text-end">Est. Return</th>
+                                <th class="small fw-semibold text-center">Status</th>
+                                <th class="small fw-semibold text-center">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody id="investmentsTableBody">
+                              <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                  Loading ledger...
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- View Investor Details Modal                                   -->
+  <!-- ============================================================ -->
+  <div class="modal fade" id="viewInvestorModal" tabindex="-1" aria-labelledby="viewInvestorModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+        <div class="modal-header border-0 px-4 pt-4 pb-3" style="background-color: #1a4f7c;">
+          <div>
+            <span class="badge bg-white text-primary fw-bold mb-2 px-3 py-1"
+              style="font-size:0.7rem; border-radius:30px;">INVESTOR PROFILE</span>
+            <h5 class="modal-title fw-bold text-white mb-0" id="viewInvestorModalLabel">
+              <i class="bi bi-person-badge-fill me-2"></i>Investor Details
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"
+            aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Investor ID</div>
+                <div class="detail-card-value text-primary font-monospace" id="detInvId">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Full Name</div>
+                <div class="detail-card-value" id="detInvName">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Investor Type</div>
+                <div class="detail-card-value" id="detInvType">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Email Address</div>
+                <div class="detail-card-value" id="detInvEmail">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Phone Number</div>
+                <div class="detail-card-value" id="detInvPhone">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Risk Profile</div>
+                <div class="detail-card-value" id="detInvRisk">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Nationality</div>
+                <div class="detail-card-value" id="detInvNationality">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Document ID</div>
+                <div class="detail-card-value" id="detInvIdNumber">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="detail-card">
+                <div class="detail-card-label">Enrollment Status</div>
+                <div class="detail-card-value" id="detInvStatus">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-uppercase text-secondary mb-1">Administrative Notes</label>
+            <div class="p-3 border rounded bg-light small text-muted" id="detInvNotes" style="min-height: 60px;">None
+              recorded.</div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="fw-bold mb-3"><i class="bi bi-cash-stack me-2 text-primary"></i>Investment Portfolio History</h6>
+          <div class="table-responsive border rounded bg-white shadow-sm" style="max-height: 250px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th class="small fw-semibold py-2">ID</th>
+                  <th class="small fw-semibold py-2">Investment Type</th>
+                  <th class="small fw-semibold py-2 text-end">Amount</th>
+                  <th class="small fw-semibold py-2 text-center">Rate</th>
+                  <th class="small fw-semibold py-2 text-end">Est. Return</th>
+                  <th class="small fw-semibold py-2 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="detInvInvestmentsTableBody">
+                <!-- Filled dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-top-0 p-3 bg-light-subtle rounded-bottom-4 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary px-4 fw-semibold rounded-3"
+            data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- View Investment Details Modal                                 -->
+  <!-- ============================================================ -->
+  <div class="modal fade" id="viewInvestmentModal" tabindex="-1" aria-labelledby="viewInvestmentModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+        <div class="modal-header border-0 px-4 pt-4 pb-3" style="background-color: #1a4f7c;">
+          <div>
+            <span class="badge bg-white text-primary fw-bold mb-2 px-3 py-1"
+              style="font-size:0.7rem; border-radius:30px;">LEDGER RECORD</span>
+            <h5 class="modal-title fw-bold text-white mb-0" id="viewInvestmentModalLabel">
+              <i class="bi bi-cash-stack me-2"></i>Investment Details
+            </h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"
+            aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Investment ID</div>
+                <div class="detail-card-value text-primary font-monospace" id="detInvtId">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Investor ID & Name</div>
+                <div class="detail-card-value" id="detInvtInvestorName">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Investment Type</div>
+                <div class="detail-card-value" id="detInvtType">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Principal Amount</div>
+                <div class="detail-card-value text-dark fw-bold" id="detInvtAmount">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Annual Yield Rate</div>
+                <div class="detail-card-value" id="detInvtYield">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Return Type</div>
+                <div class="detail-card-value" id="detInvtReturnType">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Start Date</div>
+                <div class="detail-card-value" id="detInvtStartDate">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Maturity Date</div>
+                <div class="detail-card-value" id="detInvtMaturityDate">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Estimated Returns</div>
+                <div class="detail-card-value text-success fw-bold" id="detInvtExpectedReturn">—</div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="detail-card">
+                <div class="detail-card-label">Current Status</div>
+                <div class="detail-card-value" id="detInvtStatus">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-1">
+            <label class="form-label small fw-bold text-uppercase text-secondary mb-1">Transaction remarks</label>
+            <div class="p-3 border rounded bg-light small text-muted" id="detInvtNotes" style="min-height: 60px;">None
+              recorded.</div>
+          </div>
+        </div>
+        <div class="modal-footer border-top px-4 py-3 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= Javascripts =======-->
+  <script src="assets/vendors/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module">
+    import {
+      loginAdmin,
+      logoutAdmin,
+      onAdminAuthStateChanged,
+      addInvestor,
+      getAllInvestors,
+      updateInvestor,
+      deleteInvestor,
+      addInvestment,
+      getAllInvestments,
+      updateInvestment,
+      deleteInvestment,
+      addAuditLog,
+      getAllAuditLogs
+    } from "./assets/js/investment.js";
+
+    // Global arrays to store data in memory for filtering & charts
+    let allInvestors = [];
+    let allInvestments = [];
+    let currentAdmin = null;
+
+    // Chart global instances
+    let chartTypeInst = null;
+    let chartFlowInst = null;
+    let chartStatusInst = null;
+    let chartTopInst = null;
+
+    // Autocomplete search states
+    let searchSelectedInvestor = null;
+
+    // Initialization check on DOM load
+    document.addEventListener("DOMContentLoaded", () => {
+      // Bind Authentication handlers
+      const loginForm = document.getElementById("loginForm");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      if (loginForm) {
+        loginForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const email = document.getElementById("adminEmail").value.trim();
+          const password = document.getElementById("adminPassword").value;
+          const loginError = document.getElementById("loginError");
+
+          loginError.classList.add("d-none");
+          try {
+            const user = await loginAdmin(email, password);
+            if (!user) {
+              loginError.textContent = "Unable to authenticate. Check settings.";
+              loginError.classList.remove("d-none");
+            }
+          } catch (err) {
+            loginError.textContent = err.message || "Failed to sign in.";
+            loginError.classList.remove("d-none");
+          }
+        });
+      }
+
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          try {
+            await logoutAdmin();
+          } catch (err) {
+            console.error("Logout error:", err);
+          }
+        });
+      }
+
+      // Check user authentication state changes
+      onAdminAuthStateChanged((user) => {
+        const loginSection = document.getElementById("loginSection");
+        const dashboardSection = document.getElementById("dashboardSection");
+
+        if (user) {
+          currentAdmin = user;
+          const emailEl = document.getElementById('loggedInEmail');
+          if(emailEl) emailEl.textContent = user.email || "admin@intrex-digital.com";
+          loginSection.classList.add("d-none");
+          dashboardSection.classList.remove("d-none");
+          loadDashboardData();
+        } else {
+          currentAdmin = null;
+          loginSection.classList.remove("d-none");
+          dashboardSection.classList.add("d-none");
+          destroyCharts();
+        }
+      });
+
+      // Bind dynamic form validation/calculators
+      bindFormsAndCalculations();
+
+      // Bind Search / Filters and Reset Buttons
+      bindFiltersAndControls();
+    });
+
+    // Helper functions for expected return calculation (local replica for real-time validation)
+    function calculateReturnLocal(amount, rate, returnType, startDate, maturityDate) {
+      if (!amount || !rate) return 0;
+      if (startDate && maturityDate) {
+        const start = new Date(startDate);
+        const end = new Date(maturityDate);
+        const diffMs = end - start;
+        if (diffMs > 0) {
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          const years = diffDays / 365;
+          return Math.round(amount * (rate / 100) * years);
+        }
+      }
+      return Math.round(amount * (rate / 100));
+    }
+
+    function updateExpectedReturnLabel() {
+      const amount = Number(document.getElementById("invtAmount").value) || 0;
+      const rate = Number(document.getElementById("invtReturnRate").value) || 0;
+      const returnType = document.getElementById("invtReturnType").value;
+      const startDate = document.getElementById("invtStartDate").value;
+      const maturityDate = document.getElementById("invtMaturityDate").value;
+
+      const expected = calculateReturnLocal(amount, rate, returnType, startDate, maturityDate);
+      document.getElementById("lblExpectedReturn").textContent = `${expected.toLocaleString()} BDT`;
+    }
+
+    function bindFormsAndCalculations() {
+      // Listen to change events on investment input fields to update return forecast in real-time
+      const amountInp = document.getElementById("invtAmount");
+      const rateInp = document.getElementById("invtReturnRate");
+      const returnTypeInp = document.getElementById("invtReturnType");
+      const startInp = document.getElementById("invtStartDate");
+      const matInp = document.getElementById("invtMaturityDate");
+
+      [amountInp, rateInp, returnTypeInp, startInp, matInp].forEach(el => {
+        if (el) {
+          el.addEventListener("input", updateExpectedReturnLabel);
+          el.addEventListener("change", updateExpectedReturnLabel);
+        }
+      });
+
+      // Investor Form Submission handler
+      const investorForm = document.getElementById("investorForm");
+      investorForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const editId = document.getElementById("editInvestorId").value;
+        const name = document.getElementById("invFullName").value.trim();
+        const email = document.getElementById("invEmail").value.trim();
+        const phone = document.getElementById("invPhone").value.trim();
+        const type = document.getElementById("invType").value;
+        const nationality = document.getElementById("invNationality").value.trim();
+        const idNum = document.getElementById("invIdNumber").value.trim();
+        const risk = document.getElementById("invRiskProfile").value;
+        const notes = document.getElementById("invNotes").value.trim();
+
+        const successDiv = document.getElementById("investorSuccess");
+        const errorDiv = document.getElementById("investorError");
+
+        successDiv.classList.add("d-none");
+        errorDiv.classList.add("d-none");
+
+        const data = {
+          fullName: name,
+          email: email,
+          phone: phone,
+          investorType: type,
+          nationality: nationality,
+          idNumber: idNum,
+          riskProfile: risk,
+          notes: notes
+        };
+
+        try {
+          if (editId) {
+            // Edit existing
+            await updateInvestor(editId, data);
+            await addAuditLog({
+              user_email: currentAdmin.email,
+              action_type: "UPDATE_INVESTOR",
+              collection_name: "inv_investors",
+              record_id: editId,
+              details: `Updated investor profile for ID: ${editId}`
+            });
+            successDiv.querySelector("span").textContent = "Investor profile updated successfully!";
+          } else {
+            // Create new
+            const newId = await addInvestor(data);
+            await addAuditLog({
+              user_email: currentAdmin.email,
+              action_type: "CREATE_INVESTOR",
+              collection_name: "inv_investors",
+              record_id: newId,
+              details: `Enrolled new investor: ${name} (${newId})`
+            });
+            successDiv.querySelector("span").textContent = "New investor enrolled successfully!";
+          }
+          successDiv.classList.remove("d-none");
+          resetInvestorForm();
+          await loadDashboardData();
+        } catch (err) {
+          errorDiv.querySelector("span").textContent = err.message || "An error occurred saving investor.";
+          errorDiv.classList.remove("d-none");
+        }
+      });
+
+      const cancelInvestorEditBtn = document.getElementById("cancelInvestorEditBtn");
+      cancelInvestorEditBtn.addEventListener("click", resetInvestorForm);
+
+      // Investment Form Submission handler
+      const investmentForm = document.getElementById("investmentForm");
+      investmentForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const editId = document.getElementById("editInvestmentId").value;
+        const investorId = document.getElementById("invtInvestorId").value.trim().toUpperCase();
+        const investorName = document.getElementById("invtInvestorName").value.trim();
+        const type = document.getElementById("invtType").value;
+        const amount = Number(document.getElementById("invtAmount").value);
+        const currency = document.getElementById("invtCurrency").value;
+        const startDate = document.getElementById("invtStartDate").value;
+        const maturityDate = document.getElementById("invtMaturityDate").value;
+        const rate = Number(document.getElementById("invtReturnRate").value);
+        const returnType = document.getElementById("invtReturnType").value;
+        const status = document.getElementById("invtStatus").value;
+        const notes = document.getElementById("invtNotes").value.trim();
+
+        const successDiv = document.getElementById("investmentSuccess");
+        const errorDiv = document.getElementById("investmentError");
+
+        successDiv.classList.add("d-none");
+        errorDiv.classList.add("d-none");
+
+        if (!investorId || !investorName) {
+          errorDiv.querySelector("span").textContent = "Please verify the Investor ID first.";
+          errorDiv.classList.remove("d-none");
+          return;
+        }
+
+        const data = {
+          investorId: investorId,
+          investorName: investorName,
+          investmentType: type,
+          amount: amount,
+          currency: currency,
+          startDate: startDate,
+          maturityDate: maturityDate,
+          returnRate: rate,
+          returnType: returnType,
+          status: status,
+          notes: notes
+        };
+
+        try {
+          if (editId) {
+            // Calc expected return before saving update
+            data.expectedReturn = calculateReturnLocal(amount, rate, returnType, startDate, maturityDate);
+            await updateInvestment(editId, data);
+            await addAuditLog({
+              user_email: currentAdmin.email,
+              action_type: "UPDATE_INVESTMENT",
+              collection_name: "inv_investments",
+              record_id: editId,
+              details: `Updated investment parameters for ID: ${editId}`
+            });
+            successDiv.querySelector("span").textContent = "Investment transaction updated successfully!";
+          } else {
+            const newId = await addInvestment(data);
+            await addAuditLog({
+              user_email: currentAdmin.email,
+              action_type: "CREATE_INVESTMENT",
+              collection_name: "inv_investments",
+              record_id: newId,
+              details: `Recorded investment of ${amount} ${currency} for ${investorName} (${investorId})`
+            });
+            successDiv.querySelector("span").textContent = "Investment ledger record added!";
+          }
+          successDiv.classList.remove("d-none");
+          resetInvestmentForm();
+          await loadDashboardData();
+        } catch (err) {
+          errorDiv.querySelector("span").textContent = err.message || "An error occurred saving investment.";
+          errorDiv.classList.remove("d-none");
+        }
+      });
+
+      const cancelInvestmentEditBtn = document.getElementById("cancelInvestmentEditBtn");
+      cancelInvestmentEditBtn.addEventListener("click", resetInvestmentForm);
+
+      // Investor ID Verification Lookup logic
+      const lookupBtn = document.getElementById("lookupInvestorBtn");
+      const invIdInput = document.getElementById("invtInvestorId");
+      const invNameInput = document.getElementById("invtInvestorName");
+      const feedbackDiv = document.getElementById("lookupInvestorFeedback");
+
+      async function verifyInvestorId() {
+        const id = invIdInput.value.trim().toUpperCase();
+        feedbackDiv.innerHTML = "";
+        invNameInput.value = "";
+
+        if (!id) {
+          feedbackDiv.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i> Please enter an Investor ID.</span>`;
+          return;
+        }
+
+        const match = allInvestors.find(x => x.investorId.toUpperCase() === id);
+        if (match) {
+          invNameInput.value = match.fullName;
+          feedbackDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Verified: <strong>${match.fullName}</strong></span>`;
+        } else {
+          feedbackDiv.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i> Investor ID not found!</span>`;
+        }
+      }
+
+      lookupBtn.addEventListener("click", verifyInvestorId);
+      invIdInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          verifyInvestorId();
+        }
+      });
+    }
+
+    function resetInvestorForm() {
+      document.getElementById("editInvestorId").value = "";
+      document.getElementById("investorForm").reset();
+      document.getElementById("investorFormTitle").innerHTML = `<i class="bi bi-person-plus-fill me-2 text-primary"></i>Add New Investor`;
+      document.getElementById("submitInvestorBtn").innerHTML = `<i class="bi bi-cloud-arrow-up me-2"></i>Save Investor Record`;
+      document.getElementById("cancelInvestorEditBtn").classList.add("d-none");
+      document.getElementById("investor-list-subtab")?.click();
+    }
+
+    function resetInvestmentForm() {
+      document.getElementById("editInvestmentId").value = "";
+      document.getElementById("investmentForm").reset();
+      const invIdInput = document.getElementById("invtInvestorId");
+      invIdInput.disabled = false;
+      invIdInput.readOnly = false;
+
+      document.getElementById("invtInvestorName").value = "";
+      document.getElementById("lookupInvestorFeedback").innerHTML = "Enter Investor ID to link transaction.";
+
+      document.getElementById("lblExpectedReturn").textContent = "0 BDT";
+      document.getElementById("investmentFormTitle").innerHTML = `<i class="bi bi-graph-up-arrow me-2 text-primary"></i>Record Investment`;
+      document.getElementById("submitInvestmentBtn").innerHTML = `<i class="bi bi-plus-circle me-2"></i>Record Investment`;
+      document.getElementById("cancelInvestmentEditBtn").classList.add("d-none");
+      document.getElementById("investment-list-subtab")?.click();
+    }
+
+    function bindFiltersAndControls() {
+      // Search registry
+      const searchInv = document.getElementById("searchInvestor");
+      const filterInvType = document.getElementById("filterInvestorType");
+      const refreshInv = document.getElementById("refreshInvestorsBtn");
+      const exportInv = document.getElementById("exportInvestorsBtn");
+
+      searchInv.addEventListener("input", renderInvestorsTable);
+      filterInvType.addEventListener("change", renderInvestorsTable);
+      refreshInv.addEventListener("click", async () => {
+        refreshInv.disabled = true;
+        await loadDashboardData();
+        refreshInv.disabled = false;
+      });
+      exportInv.addEventListener("click", () => exportToCSV("investors"));
+
+      // Search investments
+      const searchInvt = document.getElementById("searchInvestment");
+      const filterInvtStatus = document.getElementById("filterInvestmentStatus");
+      const refreshInvt = document.getElementById("refreshInvestmentsBtn");
+      const exportInvt = document.getElementById("exportInvestmentsBtn");
+
+      searchInvt.addEventListener("input", renderInvestmentsTable);
+      filterInvtStatus.addEventListener("change", renderInvestmentsTable);
+      refreshInvt.addEventListener("click", async () => {
+        refreshInvt.disabled = true;
+        await loadDashboardData();
+        refreshInvt.disabled = false;
+      });
+      exportInvt.addEventListener("click", () => exportToCSV("investments"));
+    }
+
+    // Load Data from Firebase
+    async function loadDashboardData() {
+      try {
+        allInvestors = await getAllInvestors();
+        allInvestments = await getAllInvestments();
+
+        renderInvestorsTable();
+        renderInvestmentsTable();
+        calculateKPIs();
+        renderOverviewCharts();
+      } catch (err) {
+        console.error("Error loading dashboard data:", err);
+      }
+    }
+
+    // Render Investors Grid
+    function renderInvestorsTable() {
+      const tbody = document.getElementById("investorsTableBody");
+      const searchQuery = document.getElementById("searchInvestor").value.toLowerCase().trim();
+      const typeFilter = document.getElementById("filterInvestorType").value;
+
+      tbody.innerHTML = "";
+
+      let filtered = allInvestors;
+
+      if (typeFilter !== "all") {
+        filtered = filtered.filter(x => x.investorType === typeFilter);
+      }
+
+      if (searchQuery) {
+        filtered = filtered.filter(x => {
+          return x.fullName.toLowerCase().includes(searchQuery) ||
+            x.phone.includes(searchQuery) ||
+            x.email.toLowerCase().includes(searchQuery) ||
+            x.investorId.toLowerCase().includes(searchQuery);
+        });
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No investors matching criteria.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(x => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><code class="text-primary font-monospace">${x.investorId}</code></td>
+          <td><strong>${x.fullName}</strong></td>
+          <td class="small">
+            <i class="bi bi-envelope-open me-1 opacity-75"></i> ${x.email}<br>
+            <i class="bi bi-telephone me-1 opacity-75"></i> ${x.phone}
+          </td>
+          <td><span class="badge bg-secondary-subtle text-secondary">${x.investorType}</span></td>
+          <td><span class="badge ${x.riskProfile === 'Conservative' ? 'bg-info-subtle text-info' : x.riskProfile === 'Aggressive' ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning'}">${x.riskProfile}</span></td>
+          <td class="text-center"><span class="badge rounded-pill ${x.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${x.status}</span></td>
+          <td class="text-center">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary btn-view" title="View details"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-outline-secondary btn-edit" title="Edit"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-outline-danger btn-delete" title="Delete"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        `;
+
+        // Bind Row actions
+        tr.querySelector(".btn-view").addEventListener("click", () => showInvestorDetails(x));
+        tr.querySelector(".btn-edit").addEventListener("click", () => editInvestor(x));
+        tr.querySelector(".btn-delete").addEventListener("click", () => deleteInvestorRecord(x.investorId, x.fullName));
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Render Investments Ledger Grid
+    function renderInvestmentsTable() {
+      const tbody = document.getElementById("investmentsTableBody");
+      const searchQuery = document.getElementById("searchInvestment").value.toLowerCase().trim();
+      const statusFilter = document.getElementById("filterInvestmentStatus").value;
+
+      tbody.innerHTML = "";
+
+      let filtered = allInvestments;
+
+      if (statusFilter !== "all") {
+        filtered = filtered.filter(x => x.status === statusFilter);
+      }
+
+      if (searchQuery) {
+        filtered = filtered.filter(x => {
+          return x.investmentId.toLowerCase().includes(searchQuery) ||
+            x.investorName.toLowerCase().includes(searchQuery) ||
+            x.investorId.toLowerCase().includes(searchQuery) ||
+            x.investmentType.toLowerCase().includes(searchQuery);
+        });
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted">No investments matching criteria.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(x => {
+        const tr = document.createElement("tr");
+        const returnVal = x.expectedReturn || 0;
+        tr.innerHTML = `
+          <td><code class="text-primary font-monospace">${x.investmentId}</code></td>
+          <td><strong>${x.investorName}</strong><br><small class="text-muted font-monospace">${x.investorId}</small></td>
+          <td><span class="badge bg-light text-dark border">${x.investmentType}</span></td>
+          <td class="text-end fw-bold">${x.amount.toLocaleString()} ${x.currency}</td>
+          <td class="text-center text-secondary">${x.returnRate}% <small>${x.returnType[0]}</small></td>
+          <td class="text-end text-success fw-bold">${returnVal.toLocaleString()} BDT</td>
+          <td class="text-center"><span class="badge rounded-pill ${x.status === 'Active' ? 'bg-success' :
+            x.status === 'Matured' ? 'bg-primary' :
+              x.status === 'Withdrawn' ? 'bg-warning text-dark' : 'bg-danger'
+          }">${x.status}</span></td>
+          <td class="text-center">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary btn-view" title="View details"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-outline-secondary btn-edit" title="Edit"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-outline-danger btn-delete" title="Delete"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        `;
+
+        tr.querySelector(".btn-view").addEventListener("click", () => showInvestmentDetails(x));
+        tr.querySelector(".btn-edit").addEventListener("click", () => editInvestment(x));
+        tr.querySelector(".btn-delete").addEventListener("click", () => deleteInvestmentRecord(x.investmentId));
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Calculate Dashboard KPIs
+    function calculateKPIs() {
+      // 1. Total Investors count
+      document.getElementById("kpiTotalInvestors").textContent = allInvestors.length;
+
+      // 2. Aggregate Investment sums (BDT only)
+      let totalInvested = 0;
+      let expectedReturn = 0;
+      let activeInvestCount = 0;
+      let maturedInvestCount = 0;
+      let ratesTotal = 0;
+
+      allInvestments.forEach(x => {
+        if (x.currency === "BDT") {
+          totalInvested += x.amount;
+          expectedReturn += (x.expectedReturn || 0);
+        }
+        if (x.status === "Active") {
+          activeInvestCount++;
+        } else if (x.status === "Matured") {
+          maturedInvestCount++;
+        }
+        ratesTotal += x.returnRate;
+      });
+
+      document.getElementById("kpiTotalInvested").textContent = `${totalInvested.toLocaleString()} BDT`;
+      document.getElementById("kpiExpectedReturns").textContent = `${expectedReturn.toLocaleString()} BDT`;
+      document.getElementById("kpiActiveInvestments").textContent = activeInvestCount;
+      document.getElementById("kpiMaturedInvestments").textContent = maturedInvestCount;
+
+      // 3. Demographics
+      let corporate = 0;
+      let individual = 0;
+
+      allInvestors.forEach(x => {
+        if (x.investorType === "Corporate") corporate++;
+        if (x.investorType === "Individual") individual++;
+      });
+
+      document.getElementById("kpiCorporateInvestors").textContent = corporate;
+      document.getElementById("kpiIndividualInvestors").textContent = individual;
+
+      // 4. Yield Average
+      const avgRate = allInvestments.length > 0 ? (ratesTotal / allInvestments.length).toFixed(2) : 0;
+      document.getElementById("kpiAvgReturnRate").textContent = `${avgRate}%`;
+    }
+
+    // Rebuild Charts
+    function renderOverviewCharts() {
+      destroyCharts();
+
+      // Chart 1: Investment by Type
+      const typeAmounts = {};
+      allInvestments.forEach(x => {
+        typeAmounts[x.investmentType] = (typeAmounts[x.investmentType] || 0) + x.amount;
+      });
+
+      const typeCtx = document.getElementById("chartInvestmentByType").getContext("2d");
+      chartTypeInst = new Chart(typeCtx, {
+        type: "bar",
+        data: {
+          labels: Object.keys(typeAmounts),
+          datasets: [{
+            label: "Total Invested (BDT)",
+            data: Object.values(typeAmounts),
+            backgroundColor: "#2b5c8f",
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      // Chart 2: Monthly Investment Flow
+      // Group allocations by year-month start date
+      const flowGroups = {};
+      allInvestments.forEach(x => {
+        if (x.startDate && x.startDate.length >= 7) {
+          const ym = x.startDate.substring(0, 7); // YYYY-MM
+          flowGroups[ym] = (flowGroups[ym] || 0) + x.amount;
+        }
+      });
+      const sortedYMs = Object.keys(flowGroups).sort();
+      const sortedFlows = sortedYMs.map(ym => flowGroups[ym]);
+
+      const flowCtx = document.getElementById("chartMonthlyFlow").getContext("2d");
+      chartFlowInst = new Chart(flowCtx, {
+        type: "line",
+        data: {
+          labels: sortedYMs,
+          datasets: [{
+            label: "Monthly Allocation Volume (BDT)",
+            data: sortedFlows,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.1)",
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      // Chart 3: Investment Status Breakdown
+      const statusCounts = { Active: 0, Matured: 0, Withdrawn: 0, Cancelled: 0 };
+      allInvestments.forEach(x => {
+        if (statusCounts[x.status] !== undefined) {
+          statusCounts[x.status]++;
+        }
+      });
+
+      const statusCtx = document.getElementById("chartInvestmentStatus").getContext("2d");
+      chartStatusInst = new Chart(statusCtx, {
+        type: "doughnut",
+        data: {
+          labels: Object.keys(statusCounts),
+          datasets: [{
+            data: Object.values(statusCounts),
+            backgroundColor: ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } }
+        }
+      });
+
+      // Chart 4: Top Investors by Volume
+      const investorSums = {};
+      allInvestments.forEach(x => {
+        investorSums[x.investorName] = (investorSums[x.investorName] || 0) + x.amount;
+      });
+      const sortedInvestors = Object.keys(investorSums).sort((a, b) => investorSums[b] - investorSums[a]).slice(0, 5);
+      const sortedAmounts = sortedInvestors.map(name => investorSums[name]);
+
+      const topCtx = document.getElementById("chartTopInvestors").getContext("2d");
+      chartTopInst = new Chart(topCtx, {
+        type: "bar",
+        data: {
+          labels: sortedInvestors,
+          datasets: [{
+            label: "Cumulative Investments (BDT)",
+            data: sortedAmounts,
+            backgroundColor: "#4f46e5",
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function destroyCharts() {
+      if (chartTypeInst) chartTypeInst.destroy();
+      if (chartFlowInst) chartFlowInst.destroy();
+      if (chartStatusInst) chartStatusInst.destroy();
+      if (chartTopInst) chartTopInst.destroy();
+    }
+
+    // View Modal Detailed Data
+    function showInvestorDetails(inv) {
+      document.getElementById("detInvId").textContent = inv.investorId;
+      document.getElementById("detInvName").textContent = inv.fullName;
+      document.getElementById("detInvType").textContent = inv.investorType;
+      document.getElementById("detInvEmail").textContent = inv.email;
+      document.getElementById("detInvPhone").textContent = inv.phone;
+      document.getElementById("detInvRisk").textContent = inv.riskProfile;
+      document.getElementById("detInvNationality").textContent = inv.nationality || "N/A";
+      document.getElementById("detInvIdNumber").textContent = inv.idNumber || "N/A";
+      document.getElementById("detInvStatus").innerHTML = `<span class="badge ${inv.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${inv.status}</span>`;
+      document.getElementById("detInvNotes").textContent = inv.notes || "No extra remarks.";
+
+      // Load specific portfolio ledger
+      const tbody = document.getElementById("detInvInvestmentsTableBody");
+      tbody.innerHTML = "";
+      const filtered = allInvestments.filter(x => x.investorId === inv.investorId);
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-3 text-muted">No investments recorded under this investor.</td></tr>`;
+      } else {
+        filtered.forEach(x => {
+          tbody.innerHTML += `
+            <tr>
+              <td><code class="font-monospace">${x.investmentId}</code></td>
+              <td>${x.investmentType}</td>
+              <td class="text-end fw-bold">${x.amount.toLocaleString()} ${x.currency}</td>
+              <td class="text-center">${x.returnRate}%</td>
+              <td class="text-end text-success">${(x.expectedReturn || 0).toLocaleString()} BDT</td>
+              <td class="text-center"><span class="badge ${x.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${x.status}</span></td>
+            </tr>
+          `;
+        });
+      }
+
+      const modal = new bootstrap.Modal(document.getElementById("viewInvestorModal"));
+      modal.show();
+    }
+
+    function showInvestmentDetails(invt) {
+      document.getElementById("detInvtId").textContent = invt.investmentId;
+      document.getElementById("detInvtInvestorName").textContent = `${invt.investorName} (${invt.investorId})`;
+      document.getElementById("detInvtType").textContent = invt.investmentType;
+      document.getElementById("detInvtAmount").textContent = `${invt.amount.toLocaleString()} ${invt.currency}`;
+      document.getElementById("detInvtYield").textContent = `${invt.returnRate}% (${invt.returnType})`;
+      document.getElementById("detInvtReturnType").textContent = invt.returnType;
+      document.getElementById("detInvtStartDate").textContent = invt.startDate || "N/A";
+      document.getElementById("detInvtMaturityDate").textContent = invt.maturityDate || "N/A";
+      document.getElementById("detInvtExpectedReturn").textContent = `${(invt.expectedReturn || 0).toLocaleString()} BDT`;
+      document.getElementById("detInvtStatus").innerHTML = `<span class="badge rounded-pill ${invt.status === 'Active' ? 'bg-success' : 'bg-secondary'}">${invt.status}</span>`;
+      document.getElementById("detInvtNotes").textContent = invt.notes || "None recorded.";
+
+      const modal = new bootstrap.Modal(document.getElementById("viewInvestmentModal"));
+      modal.show();
+    }
+
+    // CRUD Edits Toggles
+    function editInvestor(inv) {
+      document.getElementById("editInvestorId").value = inv.investorId;
+      document.getElementById("invFullName").value = inv.fullName;
+      document.getElementById("invEmail").value = inv.email;
+      document.getElementById("invPhone").value = inv.phone;
+      document.getElementById("invType").value = inv.investorType;
+      document.getElementById("invNationality").value = inv.nationality;
+      document.getElementById("invIdNumber").value = inv.idNumber;
+      document.getElementById("invRiskProfile").value = inv.riskProfile;
+      document.getElementById("invNotes").value = inv.notes;
+
+      document.getElementById("investorFormTitle").innerHTML = `<i class="bi bi-pencil-square me-2 text-warning"></i>Modify Investor: ${inv.investorId}`;
+      document.getElementById("submitInvestorBtn").innerHTML = `<i class="bi bi-cloud-arrow-up me-2"></i>Update Investor Record`;
+      document.getElementById("cancelInvestorEditBtn").classList.remove("d-none");
+      document.getElementById("investor-form-subtab")?.click();
+
+      // Scroll form into view for users
+      document.getElementById("investorFormTitle").scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function editInvestment(invt) {
+      document.getElementById("editInvestmentId").value = invt.investmentId;
+      document.getElementById("invtType").value = invt.investmentType;
+      document.getElementById("invtAmount").value = invt.amount;
+      document.getElementById("invtCurrency").value = invt.currency;
+      document.getElementById("invtStartDate").value = invt.startDate;
+      document.getElementById("invtMaturityDate").value = invt.maturityDate;
+      document.getElementById("invtReturnRate").value = invt.returnRate;
+      document.getElementById("invtReturnType").value = invt.returnType;
+      document.getElementById("invtStatus").value = invt.status;
+      document.getElementById("invtNotes").value = invt.notes;
+
+      // Populate selected investor fields manually
+      document.getElementById("invtInvestorId").value = invt.investorId;
+      document.getElementById("invtInvestorName").value = invt.investorName;
+      document.getElementById("invtInvestorId").disabled = true;
+      document.getElementById("lookupInvestorFeedback").innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Linked Investor</span>`;
+
+      updateExpectedReturnLabel();
+
+      document.getElementById("investmentFormTitle").innerHTML = `<i class="bi bi-pencil-square me-2 text-warning"></i>Edit Transaction: ${invt.investmentId}`;
+      document.getElementById("submitInvestmentBtn").innerHTML = `<i class="bi bi-cloud-arrow-up me-2"></i>Update Record`;
+      document.getElementById("cancelInvestmentEditBtn").classList.remove("d-none");
+      document.getElementById("investment-form-subtab")?.click();
+
+      document.getElementById("investmentFormTitle").scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // CRUD Delete Triggers
+    async function deleteInvestorRecord(id, name) {
+      if (!confirm(`Are you sure you want to permanently delete investor: ${name} (${id})?\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await deleteInvestor(id);
+        await addAuditLog({
+          user_email: currentAdmin.email,
+          action_type: "DELETE_INVESTOR",
+          collection_name: "inv_investors",
+          record_id: id,
+          details: `Deleted investor record for ${name} (${id})`
+        });
+        await loadDashboardData();
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+
+    async function deleteInvestmentRecord(id) {
+      if (!confirm(`Are you sure you want to permanently delete investment record: ${id}?\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await deleteInvestment(id);
+        await addAuditLog({
+          user_email: currentAdmin.email,
+          action_type: "DELETE_INVESTMENT",
+          collection_name: "inv_investments",
+          record_id: id,
+          details: `Deleted investment transaction ID: ${id}`
+        });
+        await loadDashboardData();
+      } catch (err) {
+        alert("Delete failed: " + err.message);
+      }
+    }
+
+    // CSV Exporter Utility
+    function exportToCSV(type) {
+      let csvContent = "";
+      let filename = "";
+
+      if (type === "investors") {
+        filename = `investors_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        const headers = ["Investor ID", "Full Name", "Email", "Phone", "Type", "Nationality", "Risk Profile", "Status", "Notes"];
+        csvContent = headers.join(",") + "\n";
+
+        allInvestors.forEach(row => {
+          const line = [
+            `"${row.investorId}"`,
+            `"${row.fullName.replace(/"/g, '""')}"`,
+            `"${row.email}"`,
+            `"${row.phone}"`,
+            `"${row.investorType}"`,
+            `"${row.nationality || ''}"`,
+            `"${row.riskProfile}"`,
+            `"${row.status}"`,
+            `"${(row.notes || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+          ];
+          csvContent += line.join(",") + "\n";
+        });
+      } else if (type === "investments") {
+        filename = `investments_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        const headers = ["Investment ID", "Investor ID", "Investor Name", "Type", "Amount", "Currency", "Rate", "Expected Return", "Start Date", "Maturity Date", "Status", "Notes"];
+        csvContent = headers.join(",") + "\n";
+
+        allInvestments.forEach(row => {
+          const line = [
+            `"${row.investmentId}"`,
+            `"${row.investorId}"`,
+            `"${row.investorName.replace(/"/g, '""')}"`,
+            `"${row.investmentType}"`,
+            row.amount,
+            `"${row.currency}"`,
+            row.returnRate,
+            row.expectedReturn || 0,
+            `"${row.startDate}"`,
+            `"${row.maturityDate || ''}"`,
+            `"${row.status}"`,
+            `"${(row.notes || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+          ];
+          csvContent += line.join(",") + "\n";
+        });
+      }
+
+      // Download trigger
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+
+</html>

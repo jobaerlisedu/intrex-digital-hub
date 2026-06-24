@@ -1,0 +1,293 @@
+{% extends 'erp_base.html' %}
+{% block title %}Tuition Payment Term Plans - Intrex ERP{% endblock %}
+{% block content %}
+
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Student Tuition Installment Plans</h2>
+</div>
+
+<!-- Trainee Installments Table -->
+<div class="glass-card" style="min-height: 500px; margin-bottom: 32px;">
+    <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px;">
+        <i class="fa-solid fa-credit-card" style="color: var(--accent-color);"></i> Installment & Payments Tracking
+    </h3>
+    <table class="data-table" style="margin-top: 20px;">
+        <thead>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid var(--sidebar-border);">
+                <th style="font-weight: 600; color: var(--text-primary);">Student Details</th>
+                <th style="font-weight: 600; color: var(--text-primary);">Course & Batch</th>
+                <th style="font-weight: 600; color: var(--text-primary);">Financial Summary</th>
+                <th style="font-weight: 600; color: var(--text-primary);">Installment Schedules</th>
+                <th style="font-weight: 600; color: var(--text-primary);">Status</th>
+                <th style="font-weight: 600; color: var(--text-primary);">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>
+                    <div style="font-weight: 600; color: var(--text-primary);">{{ p.studentName }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Student ID: {{ p.studentId }}</div>
+                </td>
+                <td>
+                    <div>{{ p.courseName }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Batch: {{ p.batch }}</div>
+                </td>
+                <td>
+                    <div>Total Fee: ৳{{ p.totalFee|floatformat:0 }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Discount: ৳{{ p.discount|floatformat:0 }} | Paid: ৳{{ p.amountPaid|floatformat:0 }}</div>
+                    <div style="font-weight: 600; color: #ef4444; font-size: 0.85rem;">Due: ৳{{ p.dueAmount|floatformat:0 }}</div>
+                </td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        {% for inst in p.installments %}
+                        <div style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                            <span class="badge {% if inst.status == 'Paid' or inst.status == 'paid' %}success{% else %}danger{% endif %}" style="padding: 2px 6px; font-size: 0.7rem;">
+                                {{ inst.status|upper }}
+                            </span>
+                            <span style="color: var(--text-primary);">৳{{ inst.amount|floatformat:0 }}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.8rem;">(Due: {{ inst.dueDate }})</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge {% if p.status == 'Fully Paid' %}success{% elif p.status == 'Partially Paid' %}warning{% else %}danger{% endif %}">
+                        {{ p.status }}
+                    </span>
+                </td>
+                <td>
+                    <button type="button" onclick="openPaymentModal('{{ p.id }}')" class="btn-submit" style="padding: 6px 12px; font-size: 0.8rem; background: #215c5c;">
+                        <i class="fa-solid fa-file-pen me-1"></i> Edit Plan
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 48px;">No tuition installment plans found in database.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Edit Payment Term & Installments Modal -->
+<div id="payment-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div class="glass-card" style="width: 700px; max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--sidebar-border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 12px; margin-bottom: 20px;">
+            <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">
+                <i class="fa-solid fa-credit-card text-primary me-2"></i> Update Trainee Payment Plan
+            </h4>
+            <button onclick="closePaymentModal()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+        </div>
+
+        <form method="POST" action="{% url 'training:installment_plan' %}" id="modal-payment-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_payment">
+            <input type="hidden" name="doc_id" id="modal-doc-id">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">Student Name</label>
+                    <input type="text" id="modal-studentName" class="form-control" readonly style="background: rgba(0,0,0,0.1);">
+                </div>
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--text-secondary);">Course Title</label>
+                    <input type="text" id="modal-courseName" class="form-control" readonly style="background: rgba(0,0,0,0.1);">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+                <div class="form-group">
+                    <label>Discount Amount (BDT)</label>
+                    <input type="number" name="discount" id="modal-discount" class="form-control" oninput="calculateModalDues()">
+                </div>
+                <div class="form-group">
+                    <label>Total Amount Paid (BDT)</label>
+                    <input type="number" name="amount_paid" id="modal-amountPaid" class="form-control" oninput="calculateModalDues()">
+                </div>
+                <div class="form-group">
+                    <label>Remaining Due (BDT)</label>
+                    <input type="number" id="modal-dueAmount" class="form-control" readonly style="background: rgba(0,0,0,0.1);">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select name="payment_type" id="modal-paymentType" class="form-control" onchange="toggleModalTxBlock()">
+                        <option value="Cash">Cash</option>
+                        <option value="bKash">bKash</option>
+                        <option value="Nagad">Nagad</option>
+                        <option value="Rocket">Rocket</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
+                <div class="form-group" id="modal-tx-id-group">
+                    <label>Transaction ID / Ref</label>
+                    <input type="text" name="transaction_id" id="modal-transactionId" class="form-control">
+                </div>
+            </div>
+
+            <!-- Installments Scheduling Editor -->
+            <div style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Installments Schedule</h5>
+                    <button type="button" onclick="addModalInstallmentRow()" class="btn-submit" style="padding: 4px 10px; font-size: 0.75rem; background: #28a745;">
+                        <i class="fa-solid fa-plus me-1"></i> Add Row
+                    </button>
+                </div>
+                <table class="data-table" style="margin-top: 0;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.1);">
+                            <th>Installment</th>
+                            <th>Amount (BDT)</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-installment-rows">
+                        <!-- Added dynamically -->
+                    </tbody>
+                </table>
+                <input type="hidden" name="installments" id="modal-installments-json">
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;">
+                <button type="submit" class="btn-submit" style="padding: 10px 24px;">Save Updates</button>
+                <button type="button" onclick="closePaymentModal()" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 10px 24px;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Serialize page payments records
+    const pagePayments = [
+        {% for p in payments %}
+        {
+            id: "{{ p.id }}",
+            studentName: "{{ p.studentName }}",
+            courseName: "{{ p.courseName }}",
+            totalFee: {{ p.totalFee|default:0 }},
+            discount: {{ p.discount|default:0 }},
+            amountPaid: {{ p.amountPaid|default:0 }},
+            dueAmount: {{ p.dueAmount|default:0 }},
+            paymentType: "{{ p.paymentType }}",
+            transactionId: "{{ p.transactionId }}",
+            installments: [
+                {% for inst in p.installments %}
+                {
+                    amount: {{ inst.amount|default:0 }},
+                    dueDate: "{{ inst.dueDate }}",
+                    status: "{{ inst.status }}"
+                },
+                {% endfor %}
+            ]
+        },
+        {% endfor %}
+    ];
+
+    function openPaymentModal(docId) {
+        const item = pagePayments.find(p => p.id === docId);
+        if (!item) return;
+
+        document.getElementById("modal-doc-id").value = item.id;
+        document.getElementById("modal-studentName").value = item.studentName;
+        document.getElementById("modal-courseName").value = item.courseName;
+        document.getElementById("modal-discount").value = item.discount;
+        document.getElementById("modal-amountPaid").value = item.amountPaid;
+        document.getElementById("modal-dueAmount").value = item.dueAmount;
+        document.getElementById("modal-paymentType").value = item.paymentType || 'Cash';
+        document.getElementById("modal-transactionId").value = item.transactionId || '';
+
+        toggleModalTxBlock();
+
+        // Populate installments rows
+        const container = document.getElementById("modal-installment-rows");
+        container.innerHTML = '';
+        if (item.installments && item.installments.length > 0) {
+            item.installments.forEach(inst => {
+                addModalInstallmentRow(inst.amount, inst.dueDate, inst.status);
+            });
+        }
+
+        document.getElementById("payment-modal").style.display = 'flex';
+    }
+
+    function closePaymentModal() {
+        document.getElementById("payment-modal").style.display = 'none';
+    }
+
+    function calculateModalDues() {
+        const select = document.getElementById("modal-doc-id").value;
+        const item = pagePayments.find(p => p.id === select);
+        const total = item ? item.totalFee : 0;
+
+        const disc = parseFloat(document.getElementById("modal-discount").value) || 0;
+        const paid = parseFloat(document.getElementById("modal-amountPaid").value) || 0;
+        const due = Math.max(0, total - disc - paid);
+        document.getElementById("modal-dueAmount").value = due;
+    }
+
+    function toggleModalTxBlock() {
+        const pType = document.getElementById("modal-paymentType").value;
+        const group = document.getElementById("modal-tx-id-group");
+        if (pType === 'Cash') {
+            group.style.display = 'none';
+            document.getElementById("modal-transactionId").value = '';
+        } else {
+            group.style.display = 'block';
+        }
+    }
+
+    function addModalInstallmentRow(amount = 0, date = '', status = 'Unpaid') {
+        const container = document.getElementById("modal-installment-rows");
+        const idx = container.children.length + 1;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><strong style="color: var(--text-primary);">Installment #${idx}</strong></td>
+            <td><input type="number" class="form-control m-inst-amount" value="${amount}" oninput="serializeModalInstallments()" style="height:32px; padding:4px 8px; width:100%;"></td>
+            <td><input type="date" class="form-control m-inst-date" value="${date}" onchange="serializeModalInstallments()" style="height:32px; padding:4px 8px; width:100%;"></td>
+            <td>
+                <select class="form-control m-inst-status" onchange="serializeModalInstallments()" style="height:32px; padding:4px; font-size:0.85rem; width:100%;">
+                    <option value="Unpaid" ${status === 'Unpaid' ? 'selected' : ''}>Unpaid</option>
+                    <option value="Paid" ${status === 'Paid' ? 'selected' : ''}>Paid</option>
+                </select>
+            </td>
+            <td>
+                <button type="button" onclick="removeModalInstallmentRow(this)" class="btn-action delete" style="padding: 4px 8px;"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+        container.appendChild(row);
+        serializeModalInstallments();
+    }
+
+    function removeModalInstallmentRow(btn) {
+        btn.closest("tr").remove();
+        const container = document.getElementById("modal-installment-rows");
+        Array.from(container.children).forEach((row, i) => {
+            row.querySelector("strong").innerText = `Installment #${i + 1}`;
+        });
+        serializeModalInstallments();
+    }
+
+    function serializeModalInstallments() {
+        const rows = document.querySelectorAll("#modal-installment-rows tr");
+        const arr = [];
+        rows.forEach(r => {
+            const amount = parseFloat(r.querySelector(".m-inst-amount").value) || 0;
+            const dueDate = r.querySelector(".m-inst-date").value;
+            const status = r.querySelector(".m-inst-status").value;
+            arr.push({ amount, dueDate, status });
+        });
+        document.getElementById("modal-installments-json").value = JSON.stringify(arr);
+    }
+
+    // Modal form submit handler
+    document.getElementById("modal-payment-form").addEventListener("submit", function() {
+        serializeModalInstallments();
+    });
+</script>
+{% endblock %}

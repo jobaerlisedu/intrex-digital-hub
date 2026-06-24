@@ -1,0 +1,328 @@
+{% extends 'erp_base.html' %}
+{% block title %}Certificates Verification Registry - Intrex ERP{% endblock %}
+{% block content %}
+
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Issued Certificates Registry</h2>
+</div>
+
+<div style="display: grid; grid-template-columns: 1.2fr 2fr; gap: 24px; align-items: start;">
+    <!-- Issue Certificate Form -->
+    <div class="glass-card">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-award" style="color: var(--accent-color);"></i> Issue Certificate
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'training:certificates' %}" id="certificate-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Select Student Enrollment <span style="color: #ef4444;">*</span></label>
+                <select name="student_doc_key" id="cert-student-select" class="form-control" required onchange="checkStudentEligibility()">
+                    <option value="" disabled selected>Select Student...</option>
+                    {% for student in students %}
+                    <option value="{{ student.studentId }}_{{ student.course|slugify }}" data-sid="{{ student.studentId }}" data-name="{{ student.fullName }}" data-course="{{ student.course }}" data-batch="{{ student.batch }}">
+                        {{ student.fullName }} (ID: {{ student.studentId }} - {{ student.course }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Auto populated hidden fields -->
+            <input type="hidden" name="studentId" id="cert-studentId">
+            <input type="hidden" name="studentName" id="cert-studentName">
+            <input type="hidden" name="courseName" id="cert-courseName">
+            <input type="hidden" name="batch" id="cert-batch">
+
+            <!-- Eligibility Alert Area -->
+            <div id="eligibility-alert" style="margin: 20px 0; padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; display: none;">
+                <div style="font-weight: 700; margin-bottom: 4px;" id="elig-title">Checking Eligibility...</div>
+                <div id="elig-details" style="font-size: 0.85rem;"></div>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Issue Date <span style="color: #ef4444;">*</span></label>
+                <input type="date" name="issueDate" id="cert-issueDate" class="form-control" required>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Grade / Performance</label>
+                <input type="text" name="grade" id="cert-grade" class="form-control" placeholder="e.g. A+ or Outstanding" readonly style="background: rgba(0,0,0,0.1);">
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Certificate ID (Auto Generated)</label>
+                <input type="text" name="certificateId" id="cert-certificateId" class="form-control" required readonly style="background: rgba(0,0,0,0.1); font-family: monospace;">
+            </div>
+
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; padding: 12px;">Issue Certificate</button>
+        </form>
+    </div>
+
+    <!-- Certificates Directory List -->
+    <div class="glass-card" style="min-height: 500px;">
+        <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+            <i class="fa-solid fa-award" style="color: var(--accent-color);"></i> Active Credentials Database
+        </h3>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-bottom: 1px solid var(--sidebar-border);">
+                    <th style="font-weight: 600; color: var(--text-primary);">Certificate ID</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Student Details</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Course Title</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Issue Date</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cert in certificates %}
+                <tr>
+                    <td style="font-weight: 700; color: var(--accent-color); font-family: monospace;">{{ cert.certificateId }}</td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-primary);">{{ cert.studentName }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">Student ID: {{ cert.studentId }} | Batch: {{ cert.batch }}</div>
+                    </td>
+                    <td>{{ cert.courseName }}</td>
+                    <td>{{ cert.issueDate }}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-action view" onclick="printCertificate('{{ cert.studentName }}', '{{ cert.courseName }}', '{{ cert.certificateId }}', '{{ cert.issueDate }}', '{{ cert.grade }}')" title="Print Certificate"><i class="fa-solid fa-print"></i></button>
+                            <form method="POST" action="{% url 'training:certificates' %}" style="margin:0;" onsubmit="return confirm('Are you sure you want to delete this certificate record?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="doc_id" value="{{ cert.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 48px;">No certificates issued.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Parse eligibility JSON
+    const eligibilityMap = JSON.parse('{{ eligibility_json|escapejs }}');
+
+    function checkStudentEligibility() {
+        const select = document.getElementById("cert-student-select");
+        const selectedOpt = select.options[select.selectedIndex];
+        
+        if (!selectedOpt.value) return;
+
+        const sId = selectedOpt.getAttribute("data-sid");
+        const sName = selectedOpt.getAttribute("data-name");
+        const sCourse = selectedOpt.getAttribute("data-course");
+        const sBatch = selectedOpt.getAttribute("data-batch");
+
+        // Set hidden forms fields
+        document.getElementById("cert-studentId").value = sId;
+        document.getElementById("cert-studentName").value = sName;
+        document.getElementById("cert-courseName").value = sCourse;
+        document.getElementById("cert-batch").value = sBatch;
+
+        // Auto-generate Cert ID matching INTREX-CERT-studentId-courseCode
+        const cleanCourse = sCourse.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+        document.getElementById("cert-certificateId").value = `INTREX-CERT-${sId}-${cleanCourse}`;
+
+        // Get key for map lookup (remove special characters from course to match python key generator)
+        const pythonCleanCourse = sCourse.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const lookupKey = `${sId}_${pythonCleanCourse}`;
+        const elig = eligibilityMap[lookupKey];
+
+        const alertDiv = document.getElementById("eligibility-alert");
+        const eligTitle = document.getElementById("elig-title");
+        const eligDetails = document.getElementById("elig-details");
+        const gradeInput = document.getElementById("cert-grade");
+
+        alertDiv.style.display = 'block';
+
+        if (elig) {
+            gradeInput.value = elig.grade || 'Passed';
+            if (elig.eligible) {
+                alertDiv.style.background = 'rgba(16, 185, 129, 0.1)';
+                alertDiv.style.border = '1px solid #10b981';
+                alertDiv.style.color = '#10b981';
+                eligTitle.innerHTML = `<i class="fa-solid fa-circle-check"></i> Eligible for Certificate`;
+                eligDetails.innerHTML = `Payment: <strong>Fully Paid</strong> | Assessment Status: <strong>Passed</strong> (Grade: ${elig.grade})`;
+            } else {
+                alertDiv.style.background = 'rgba(239, 68, 68, 0.1)';
+                alertDiv.style.border = '1px solid #ef4444';
+                alertDiv.style.color = '#ef4444';
+                eligTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Warning: Not Eligible`;
+                eligDetails.innerHTML = `Payment: <strong>${elig.paymentStatus}</strong> | Assessment Status: <strong>${elig.assessmentStatus}</strong>`;
+            }
+        } else {
+            gradeInput.value = 'Passed';
+            alertDiv.style.background = 'rgba(245, 158, 11, 0.1)';
+            alertDiv.style.border = '1px solid #f59e0b';
+            alertDiv.style.color = '#f59e0b';
+            eligTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> No Grade/Payment Record`;
+            eligDetails.innerHTML = `This student enrollment record has no financial or grade evaluation entries yet. Proceed with caution.`;
+        }
+    }
+
+    // Set today as default issue date
+    document.addEventListener("DOMContentLoaded", function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById("cert-issueDate").value = today;
+    });
+
+    // Client-side printable certificate generation window
+    function printCertificate(name, course, id, date, grade) {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Print Certificate - ${name}</title>
+                <style>
+                    body {
+                        font-family: 'Georgia', serif;
+                        background-color: #fff;
+                        color: #1a1a1a;
+                        margin: 0;
+                        padding: 0;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                    }
+                    .certificate-border {
+                        border: 15px double #215c5c;
+                        padding: 40px;
+                        width: 800px;
+                        height: 550px;
+                        text-align: center;
+                        position: relative;
+                        background: #fffdf9;
+                        box-sizing: border-box;
+                    }
+                    .logo {
+                        font-family: 'Arial', sans-serif;
+                        font-weight: bold;
+                        font-size: 28px;
+                        letter-spacing: 2px;
+                        color: #215c5c;
+                        margin-top: 10px;
+                    }
+                    .logo-sub {
+                        font-family: 'Arial', sans-serif;
+                        font-size: 11px;
+                        letter-spacing: 4px;
+                        color: #666;
+                        text-transform: uppercase;
+                        margin-top: 2px;
+                    }
+                    .title {
+                        font-size: 40px;
+                        font-weight: normal;
+                        color: #1a1a1a;
+                        margin-top: 30px;
+                        font-family: 'Times New Roman', serif;
+                        font-style: italic;
+                    }
+                    .subtitle {
+                        font-size: 15px;
+                        text-transform: uppercase;
+                        letter-spacing: 2px;
+                        color: #666;
+                        margin-top: 20px;
+                    }
+                    .student-name {
+                        font-size: 34px;
+                        font-weight: bold;
+                        color: #215c5c;
+                        margin: 15px 0;
+                        border-bottom: 2px solid #ccc;
+                        display: inline-block;
+                        padding-bottom: 5px;
+                        min-width: 300px;
+                    }
+                    .course-text {
+                        font-size: 16px;
+                        line-height: 1.6;
+                        max-width: 600px;
+                        margin: 15px auto;
+                    }
+                    .course-name {
+                        font-weight: bold;
+                        color: #1a1a1a;
+                    }
+                    .footer {
+                        margin-top: 50px;
+                        display: flex;
+                        justify-content: space-around;
+                        align-items: flex-end;
+                    }
+                    .signature-block {
+                        border-top: 1px solid #999;
+                        padding-top: 5px;
+                        width: 180px;
+                        font-size: 12px;
+                        color: #666;
+                    }
+                    .credential-info {
+                        position: absolute;
+                        bottom: 15px;
+                        left: 40px;
+                        font-family: 'Courier New', monospace;
+                        font-size: 11px;
+                        color: #777;
+                    }
+                    .issue-date {
+                        position: absolute;
+                        bottom: 15px;
+                        right: 40px;
+                        font-family: 'Courier New', monospace;
+                        font-size: 11px;
+                        color: #777;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="certificate-border">
+                    <div class="logo">INTREX DIGITAL ACADEMY</div>
+                    <div class="logo-sub">Honorable Achievement & Professional Certification</div>
+                    
+                    <div class="title">Certificate of Completion</div>
+                    <div class="subtitle">This credential is proudly presented to</div>
+                    
+                    <div class="student-name">${name}</div>
+                    
+                    <div class="course-text">
+                        who has successfully fulfilled all academic curriculum requirements and successfully passed assessments with grade of <span class="course-name">${grade}</span> for the course training
+                        <br><span class="course-name" style="font-size:18px; display:inline-block; margin-top:8px;">${course}</span>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="signature-block">
+                            <strong>Academic Director</strong><br>
+                            Intrex Digital Academy
+                        </div>
+                        <div class="signature-block">
+                            <strong>Managing Partner</strong><br>
+                            Intrex Digital Hub
+                        </div>
+                    </div>
+                    
+                    <div class="credential-info">ID: ${id}</div>
+                    <div class="issue-date">Issued: ${date}</div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    }
+                <\/script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
+</script>
+{% endblock %}

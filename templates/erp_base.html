@@ -556,12 +556,132 @@
                 </a>
             </li>
             {% endif %}
+            <!-- Training Dropdown -->
             {% if 'training' in user_modules %}
-            <li>
-                <a href="{% url 'training:index' %}" class="nav-link {% if request.resolver_match.namespace == 'training' %}active{% endif %}">
-                    <i class="fa-solid fa-graduation-cap"></i>
-                    <span>Training</span>
+            <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'training' %}active open{% endif %}">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'training-dropdown')">
+                    <span style="display: flex; align-items: center; gap: 14px;">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <span>Training Module</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down dropdown-caret"></i>
                 </a>
+                <ul id="training-dropdown" class="submenu-links {% if request.resolver_match.namespace == 'training' %}show{% endif %}">
+                    <li>
+                        <a href="{% url 'training:overview' %}" class="submenu-link {% if request.resolver_match.url_name == 'overview' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-simple"></i>
+                            <span>Overview</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:inquiries' %}" class="submenu-link {% if request.resolver_match.url_name == 'inquiries' %}active{% endif %}">
+                            <i class="fa-regular fa-envelope"></i>
+                            <span>Inquiries</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:employee_database' %}" class="submenu-link {% if request.resolver_match.url_name == 'employee_database' %}active{% endif %}">
+                            <i class="fa-solid fa-address-card"></i>
+                            <span>Employee Database</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:trainer_database' %}" class="submenu-link {% if request.resolver_match.url_name == 'trainer_database' %}active{% endif %}">
+                            <i class="fa-solid fa-chalkboard-user"></i>
+                            <span>Trainer Database</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:contact_directory' %}" class="submenu-link {% if request.resolver_match.url_name == 'contact_directory' %}active{% endif %}">
+                            <i class="fa-solid fa-address-book"></i>
+                            <span>Contact Directory</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:brand_ambassadors' %}" class="submenu-link {% if request.resolver_match.url_name == 'brand_ambassadors' %}active{% endif %}">
+                            <i class="fa-solid fa-bullhorn"></i>
+                            <span>Brand Ambassadors</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:course_creation' %}" class="submenu-link {% if request.resolver_match.url_name == 'course_creation' %}active{% endif %}">
+                            <i class="fa-solid fa-book-open"></i>
+                            <span>Course Creation</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:batch_management' %}" class="submenu-link {% if request.resolver_match.url_name == 'batch_management' %}active{% endif %}">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span>Batch Management</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:class_calendar' %}" class="submenu-link {% if request.resolver_match.url_name == 'class_calendar' %}active{% endif %}">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span>Class Calendar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:student_list' %}" class="submenu-link {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">
+                            <i class="fa-solid fa-user-graduate"></i>
+                            <span>Student List</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:installment_plan' %}" class="submenu-link {% if request.resolver_match.url_name == 'installment_plan' %}active{% endif %}">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span>Installment Plan</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:revenue_tracker' %}" class="submenu-link {% if request.resolver_match.url_name == 'revenue_tracker' %}active{% endif %}">
+                            <i class="fa-solid fa-money-bill-trend-up"></i>
+                            <span>Revenue Tracker</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:expense_tracker' %}" class="submenu-link {% if request.resolver_match.url_name == 'expense_tracker' %}active{% endif %}">
+                            <i class="fa-solid fa-wallet"></i>
+                            <span>Expense Tracker</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:sales_management' %}" class="submenu-link {% if request.resolver_match.url_name == 'sales_management' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Sales Management</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:course_assessments' %}" class="submenu-link {% if request.resolver_match.url_name == 'course_assessments' %}active{% endif %}">
+                            <i class="fa-solid fa-clipboard-question"></i>
+                            <span>Course Assessments</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:certificates' %}" class="submenu-link {% if request.resolver_match.url_name == 'certificates' %}active{% endif %}">
+                            <i class="fa-solid fa-award"></i>
+                            <span>Certificates</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:job_placement' %}" class="submenu-link {% if request.resolver_match.url_name == 'job_placement' %}active{% endif %}">
+                            <i class="fa-solid fa-briefcase"></i>
+                            <span>Job Placement</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:reports' %}" class="submenu-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'training:system_audit_logs' %}" class="submenu-link {% if request.resolver_match.url_name == 'system_audit_logs' %}active{% endif %}">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>System Audit Logs</span>
+                        </a>
+                    </li>
+                </ul>
             </li>
             {% endif %}
 

@@ -1,0 +1,3536 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>HR Management Dashboard | Intrex Digital Hub</title>
+  <link rel="icon" href="assets/images/logo/intrex-favicon.svg" type="image/svg+xml">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- ======= Google Font =======-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+
+  <!-- ======= Styles =======-->
+  <link href="assets/vendors/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendors/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="assets/vendors/aos/aos.css" rel="stylesheet">
+  <link href="assets/css/style.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #215C5C;
+      --primary-hover: #174242;
+      --primary-light: rgba(33, 92, 92, 0.08);
+    }
+
+    .nav-pills .nav-link.active,
+    .nav-pills .show>.nav-link {
+      background-color: var(--primary-color) !important;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color) !important;
+      border-color: var(--primary-color) !important;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover) !important;
+      border-color: var(--primary-hover) !important;
+    }
+
+    .text-primary {
+      color: var(--primary-color) !important;
+    }
+
+    .badge-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .qf-wrapper .btn {
+      border-top-right-radius: 0.375rem !important;
+      border-bottom-right-radius: 0.375rem !important;
+    }
+
+    .form-text {
+      font-size: 0.775rem;
+      opacity: 0.8;
+    }
+
+    /* ── Split Screen Dashboard Layout (MD & Up) ── */
+    @media (min-width: 768px) {
+
+      html,
+      body {
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .site-wrap {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      section.section {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 0 !important;
+      }
+
+      section.section>.container-fluid {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding-right: 0 !important;
+      }
+
+      #dashboardSection {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .dashboard-main-row {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-wrap: nowrap;
+        margin-right: 0 !important;
+      }
+
+      .sidebar-container {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 15px;
+        overscroll-behavior: contain;
+      }
+
+      .content-container {
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 24px;
+      }
+    }
+
+    /* Custom thin scrollbars and bottom padding for scroll breathing room */
+    .sidebar-container,
+    .content-container {
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary-color) transparent;
+      padding-bottom: 25px;
+    }
+
+    .sidebar-container::-webkit-scrollbar,
+    .content-container::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .sidebar-container::-webkit-scrollbar-track,
+    .content-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar-container::-webkit-scrollbar-thumb,
+    .content-container::-webkit-scrollbar-thumb {
+      background-color: var(--primary-color);
+      border-radius: 10px;
+    }
+
+    /* Premium Detail View Cards CSS */
+    .detail-card {
+      background-color: var(--bs-body-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      height: 100%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .detail-card:hover {
+      border-color: var(--primary-color);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+
+    .detail-card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--bs-secondary-color);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .detail-card-value {
+      font-size: 0.925rem;
+      font-weight: 600;
+      color: var(--bs-heading-color);
+      word-break: break-word;
+    }
+
+    /* Attendance Grid */
+    .att-table th, .att-table td { font-size: 0.72rem; padding: 4px 6px; text-align: center; white-space: nowrap; }
+    .att-table thead th { background: var(--primary-color); color: #fff; font-weight: 600; }
+    .att-table .emp-name-cell { text-align: left; font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+    .att-cell { cursor: pointer; border-radius: 4px; min-width: 28px; transition: opacity 0.15s; }
+    .att-cell:hover { opacity: 0.75; }
+    .att-P { background: #d1fae5; color: #065f46; }
+    .att-A { background: #fee2e2; color: #991b1b; }
+    .att-L { background: #fef3c7; color: #92400e; }
+    .att-H { background: #dbeafe; color: #1e40af; }
+    .att-O { background: #f3f4f6; color: #6b7280; }
+
+    /* Payslip */
+    .payslip-card { border: 2px solid var(--primary-color); border-radius: 16px; padding: 32px; }
+    .payslip-header { border-bottom: 2px solid var(--primary-color); padding-bottom: 16px; margin-bottom: 20px; }
+    .payslip-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; }
+    .payslip-total { background: var(--primary-color); color: white; border-radius: 8px; padding: 12px 16px; }
+    @media print {
+      body * { visibility: hidden !important; }
+      #payslipPrintArea, #payslipPrintArea * { visibility: visible !important; }
+      #payslipPrintArea { position: fixed; top: 0; left: 0; width: 100%; }
+    }
+
+    /* Roster Grid */
+    .roster-table th, .roster-table td { font-size: 0.72rem; padding: 5px 4px; text-align: center; }
+    .roster-table thead th { background: var(--primary-color); color: #fff; }
+    .roster-select { font-size: 0.68rem; padding: 2px 4px; border-radius: 4px; border: 1px solid #d1d5db; min-width: 64px; }
+    .shift-M { background: #dbeafe; color: #1e40af; }
+    .shift-E { background: #fef3c7; color: #92400e; }
+    .shift-N { background: #ede9fe; color: #5b21b6; }
+    .shift-O { background: #f3f4f6; color: #6b7280; }
+
+    /* Leave badges */
+    .badge-pending  { background: #fef3c7; color: #92400e; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+    .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+    .sidebar-nav .nav-link { color: var(--bs-body-color); border-radius: 8px; font-size: 0.87rem; transition: background 0.15s, color 0.15s; }
+    .sidebar-nav .nav-link:hover:not(.active) { background: var(--primary-light); color: var(--primary-color); }
+    .sidebar-nav .nav-link.active { color: #fff !important; }
+
+    .tab-pane.show.active { animation: fadeSlideIn 0.25s ease; }
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Stepper Styling */
+    .stepper-header { display: flex; align-items: flex-start; justify-content: space-between; position: relative; margin-bottom: 2.5rem; padding: 0 20px; }
+    .stepper-header::before { content: ''; position: absolute; top: 20px; left: 40px; right: 40px; height: 2px; background: #e5e7eb; z-index: 1; }
+    .stepper-step { position: relative; z-index: 2; text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+    .stepper-circle { width: 42px; height: 42px; border-radius: 50%; background: #e5e7eb; color: #9ca3af; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; transition: all 0.3s; border: 3px solid #fff; }
+    .stepper-step.active .stepper-circle, .stepper-step.completed .stepper-circle { background: var(--primary-color); color: #fff; }
+    .stepper-label { font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; max-width: 90px; text-align: center; line-height: 1.2; }
+    .stepper-step.active .stepper-label, .stepper-step.completed .stepper-label { color: var(--primary-color); }
+    .stepper-content { display: none; animation: fadeSlideIn 0.25s ease; }
+        .stepper-content.active { display: block; }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 2rem;
+      row-gap: 0.25rem;
+    }
+    .form-grid-full { grid-column: 1 / -1; }
+    .row-span-2 { grid-row: span 2; }
+    @media (max-width: 768px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .row-span-2 { grid-row: auto; }
+    }
+
+    /* Loading spinner overlay */
+    #loadingOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 9998; display: flex; align-items: center; justify-content: center; }
+    #loadingOverlay .spinner-border { width: 3rem; height: 3rem; border-width: 0.3em; }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="d-none">
+    <div class="spinner-border text-light" role="status"><span class="visually-hidden">Loading…</span></div>
+  </div>
+
+  <div class="site-wrap">
+    <section class="section py-4 py-md-5">
+      <div class="container-fluid px-md-5">
+
+        <!-- ======= LOGIN ======= -->
+        <div id="loginSection" class="row justify-content-center align-items-center" style="min-height: 75vh;">
+          <div class="col-12 col-md-4 col-lg-3">
+            <div class="card p-4 rounded-4 shadow-sm border">
+              <div class="text-center mb-4">
+                <img src="assets/images/logo/intrex-logo.svg" alt="Logo" class="mb-3" style="height: 40px;" onerror="this.style.display='none'">
+                <h2 class="h4 fw-bold text-heading-color">HR Portal Login</h2>
+                <p class="text-muted small">Access the Employee, Payroll, & Operations Dashboard.</p>
+              </div>
+
+              <div id="loginError" class="alert alert-danger d-none small"></div>
+
+              <form id="loginForm">
+                <div class="mb-3">
+                  <label for="hrEmail" class="form-label small fw-semibold">Email Address</label>
+                  <input type="email" class="form-control" id="hrEmail" required
+                    placeholder="hr@intrex-digital.com" autocomplete="email">
+                </div>
+                <div class="mb-3">
+                  <label for="hrPassword" class="form-label small fw-semibold">Password</label>
+                  <input type="password" class="form-control" id="hrPassword" required placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <button type="submit" id="loginBtn" class="btn btn-primary w-100 fw-semibold py-2 mt-2">
+                  <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= DASHBOARD ======= -->
+        <div id="dashboardSection" class="d-none">
+
+          <!-- Header -->
+          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-3 border-bottom" style="padding-right:24px;">
+            <div class="d-flex align-items-center gap-3">
+              <button class="btn btn-light border d-md-none" type="button" data-bs-toggle="offcanvas"
+                data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+                <i class="bi bi-list fs-5"></i>
+              </button>
+              <div>
+                <span class="badge bg-primary text-white mb-1">INTREX DIGITAL HUB — HR OPERATIONS</span>
+                <h2 class="h3 fw-bold text-heading-color mb-0">Human Resource Management</h2>
+              </div>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <span class="text-muted small me-1" id="loggedInEmail"></span>
+              <button id="logoutBtn" class="btn btn-outline-danger btn-sm py-2 px-3">
+                <i class="bi bi-box-arrow-right me-1"></i>Logout
+              </button>
+            </div>
+          </div>
+
+          <!-- Main Row -->
+          <div class="row g-4 mt-1 dashboard-main-row">
+
+            <!-- SIDEBAR -->
+            <div class="col-md-3 col-lg-2 border-end pe-md-4 sidebar-container offcanvas-md offcanvas-start" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+              <div class="offcanvas-header d-md-none border-bottom mb-3">
+                <h5 class="offcanvas-title fw-bold" id="sidebarMenuLabel">Menu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu" aria-label="Close"></button>
+              </div>
+              <div class="offcanvas-body d-md-block p-3 p-md-0">
+                <div class="nav flex-column nav-pills gap-2 w-100 sidebar-nav" id="hrTabs" role="tablist" aria-orientation="vertical">
+                  <button class="nav-link active text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-overview" data-bs-toggle="tab" data-bs-target="#panel-overview" type="button">
+                    <i class="bi bi-speedometer2"></i> Overview
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-recruitment" data-bs-toggle="tab" data-bs-target="#panel-recruitment" type="button">
+                    <i class="bi bi-person-lines-fill"></i> Recruitment
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-department" data-bs-toggle="tab" data-bs-target="#panel-department" type="button">
+                    <i class="bi bi-diagram-3-fill"></i> Department
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-employee-db" data-bs-toggle="tab" data-bs-target="#panel-employee-db" type="button">
+                    <i class="bi bi-people-fill"></i> Employee Database
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-attendance-mgmt" data-bs-toggle="tab" data-bs-target="#panel-attendance-mgmt" type="button">
+                    <i class="bi bi-calendar-check-fill"></i> Attendance Management
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-leave-mgmt" data-bs-toggle="tab" data-bs-target="#panel-leave-mgmt" type="button">
+                    <i class="bi bi-calendar-check"></i> Leave Management
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-payroll-mgmt" data-bs-toggle="tab" data-bs-target="#panel-payroll-mgmt" type="button">
+                    <i class="bi bi-cash-stack"></i> Payroll Management
+                  </button>
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-report-gen" data-bs-toggle="tab" data-bs-target="#panel-report-gen" type="button">
+                    <i class="bi bi-bar-chart-line-fill"></i> Report Generator
+                  </button>
+
+                  <button class="nav-link text-start py-2 px-3 fw-semibold d-flex align-items-center gap-2" id="tab-system-logs" data-bs-toggle="tab" data-bs-target="#panel-system-logs" type="button">
+                    <i class="bi bi-shield-check"></i> System Audit Logs
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONTENT PANE -->
+            <div class="col-md-9 col-lg-10 content-container">
+              <div class="tab-content" id="hrTabContent">
+
+                <!-- ═══ 0. OVERVIEW ═══ -->
+                <div class="tab-pane fade show active" id="panel-overview" role="tabpanel">
+                  <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100 bg-primary text-white">
+                        <div class="card-body p-3">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Total Employees</span>
+                            <i class="bi bi-people-fill fs-4"></i>
+                          </div>
+                          <div class="h2 fw-bold mb-0" style="color: #ffffff !important;" id="kpiHeadcount">—</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100 bg-primary text-white">
+                        <div class="card-body p-3">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Today's Attendance</span>
+                            <i class="bi bi-graph-up-arrow fs-4"></i>
+                          </div>
+                          <div class="h2 fw-bold mb-0" style="color: #ffffff !important;" id="kpiAttRate">—</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100 bg-primary text-white">
+                        <div class="card-body p-3">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Monthly Payroll</span>
+                            <i class="bi bi-cash-stack fs-4"></i>
+                          </div>
+                          <div class="h2 fw-bold mb-0" style="color: #ffffff !important;" id="kpiPayrollTotal">—</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <div class="card border-0 rounded-4 shadow-sm h-100 bg-primary text-white">
+                        <div class="card-body p-3">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-semibold opacity-75">Pending Leaves</span>
+                            <i class="bi bi-calendar-event fs-4"></i>
+                          </div>
+                          <div class="h2 fw-bold mb-0" style="color: #ffffff !important;" id="kpiPendingLeaves">—</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <div class="row g-4 mb-4">
+                  <div class="col-md-5">
+                    <div class="card border-0 rounded-4 shadow-sm h-100">
+                      <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Department Distribution</h6>
+                        <div style="position:relative;height:220px;"><canvas id="chartDepts"></canvas></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-7">
+                    <div class="card border-0 rounded-4 shadow-sm h-100">
+                      <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>This Month's Attendance</h6>
+                        <div style="position:relative;height:220px;"><canvas id="chartAttSummary"></canvas></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card border-0 rounded-4 shadow-sm">
+                  <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Leave Requests</h6>
+                    <div class="table-responsive">
+                      <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th></tr></thead>
+                        <tbody id="overviewLeaveBody"><tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
+
+                <!-- ═══ 3. RECRUITMENT ═══ -->
+                <div class="tab-pane fade" id="panel-recruitment" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <ul class="nav nav-pills gap-2" id="recruitmentSubTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="subtab-cand-list" data-bs-toggle="pill" data-bs-target="#subpanel-cand-list" type="button" role="tab">
+                          <i class="bi bi-list-ul me-1"></i> Candidate List
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-cand-shortlist" data-bs-toggle="pill" data-bs-target="#subpanel-cand-shortlist" type="button" role="tab">
+                          <i class="bi bi-person-check-fill me-1"></i> Candidate Shortlist
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-interview" data-bs-toggle="pill" data-bs-target="#subpanel-interview" type="button" role="tab">
+                          <i class="bi bi-mic-fill me-1"></i> Interview
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-cand-selection" data-bs-toggle="pill" data-bs-target="#subpanel-cand-selection" type="button" role="tab">
+                          <i class="bi bi-award-fill me-1"></i> Candidate Selection
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="tab-content" id="recruitmentSubTabContent">
+                    
+                    <!-- Sub-Panel: Candidate list -->
+                    <div class="tab-pane fade show active" id="subpanel-cand-list" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Candidate</h6>
+                              <form id="formAddCand">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Candidate Name *</label>
+                                  <input type="text" class="form-control" placeholder="e.g. John Doe" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Applied Position *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Position...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Status *</label>
+                                  <select class="form-select" required>
+                                    <option value="New">New</option>
+                                    <option value="Reviewed">Reviewed</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Notes</label>
+                                  <textarea class="form-control" rows="3" placeholder="Details..."></textarea>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Candidate</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>Candidate Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" class="form-control form-control-sm" placeholder="Search candidate..." style="max-width: 180px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>ID</th><th>Name</th><th>Applied Position</th><th>Date Applied</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No candidates found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Candidate shortlist -->
+                    <div class="tab-pane fade" id="subpanel-cand-shortlist" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-person-check me-2 text-primary"></i>Shortlist Candidate</h6>
+                              <form id="formShortlistCand">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Select Candidate *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Candidate...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Rating *</label>
+                                  <select class="form-select" required>
+                                    <option value="5">5 - Excellent</option>
+                                    <option value="4">4 - Good</option>
+                                    <option value="3">3 - Average</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Experience Details</label>
+                                  <textarea class="form-control" rows="3" placeholder="Experience summary..."></textarea>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Add to Shortlist</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-person-check-fill me-2 text-primary"></i>Shortlisted Candidates</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" class="form-control form-control-sm" placeholder="Search shortlist..." style="max-width: 180px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Name</th><th>Position</th><th>Experience</th><th>Rating</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No shortlisted candidates yet.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Interview -->
+                    <div class="tab-pane fade" id="subpanel-interview" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-calendar-plus me-2 text-primary"></i>Schedule Interview</h6>
+                              <form id="formInterview">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Candidate *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Candidate...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Interviewer *</label>
+                                  <input type="text" class="form-control" placeholder="e.g. Jane Smith" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Date & Time *</label>
+                                  <input type="datetime-local" class="form-control" required>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Status</label>
+                                  <select class="form-select">
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Completed">Completed</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Schedule</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-mic-fill me-2 text-primary"></i>Interview Schedule</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="date" class="form-control form-control-sm" style="max-width: 140px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Candidate</th><th>Position</th><th>Interviewer</th><th>Date & Time</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No upcoming interviews.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Candidate Selection -->
+                    <div class="tab-pane fade" id="subpanel-cand-selection" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-check-circle me-2 text-primary"></i>Make Selection</h6>
+                              <form id="formSelection">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Candidate *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Candidate...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Offer Status *</label>
+                                  <select class="form-select" required>
+                                    <option value="Offered">Offered</option>
+                                    <option value="Hired">Hired</option>
+                                    <option value="Rejected">Rejected</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Offer Date</label>
+                                  <input type="date" class="form-control">
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Selection</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-award-fill me-2 text-primary"></i>Final Selections</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <select class="form-select form-select-sm" style="max-width: 150px;">
+                                    <option value="">Filter Status</option>
+                                    <option value="Offered">Offered</option>
+                                    <option value="Hired">Hired</option>
+                                    <option value="Rejected">Rejected</option>
+                                  </select>
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Candidate</th><th>Selected Position</th><th>Offer Date</th><th>Offer Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No selections made.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+
+                <!-- ═══ 1. DEPARTMENT CONFIG ═══ -->
+                <div class="tab-pane fade" id="panel-department" role="tabpanel">
+                  
+                  <!-- Sub Tabs -->
+                  <ul class="nav nav-pills mb-4 gap-2" id="deptSubTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active fw-semibold" id="subtab-dept" data-bs-toggle="pill" data-bs-target="#subpanel-dept" type="button" role="tab">
+                        <i class="bi bi-building me-1"></i> Department
+                      </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link fw-semibold" id="subtab-subdept" data-bs-toggle="pill" data-bs-target="#subpanel-subdept" type="button" role="tab">
+                        <i class="bi bi-diagram-2 me-1"></i> Sub Department
+                      </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link fw-semibold" id="subtab-position" data-bs-toggle="pill" data-bs-target="#subpanel-position" type="button" role="tab">
+                        <i class="bi bi-person-badge me-1"></i> Position
+                      </button>
+                    </li>
+                  </ul>
+
+                  <div class="tab-content" id="deptSubTabContent">
+                    
+                    <!-- Sub-Panel: Department -->
+                    <div class="tab-pane fade show active" id="subpanel-dept" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Department</h6>
+                              <form id="formAddDept">
+                                <input type="hidden" name="id" id="hidden_dept_id">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Department Name *</label>
+                                  <input type="text" class="form-control" name="name" id="dept_name" placeholder="e.g. Human Resources" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Linked Dashboard *</label>
+                                  <select class="form-select" name="linkedDashboard" id="dept_linked_dashboard" required>
+                                    <option value="All">All Dashboards</option>
+                                    <option value="Training">Training Dashboard</option>
+                                    <option value="Solutions">Solutions Dashboard</option>
+                                    <option value="HR">HR Dashboard</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Status *</label>
+                                  <select class="form-select" name="status" id="dept_status" required>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Additional Notes</label>
+                                  <textarea class="form-control" name="notes" id="dept_notes" rows="3" placeholder="Details about this department..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Department</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-building me-2 text-primary"></i>Department Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" id="searchDept" class="form-control form-control-sm" placeholder="Search name..." style="max-width: 150px;">
+                                  <select id="filterDeptStatus" class="form-select form-select-sm" style="max-width: 120px;">
+                                    <option value="">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                  <button id="refreshDeptBtn" class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Department Name</th><th>Linked Dashboard</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="4" class="text-center text-muted py-4">No departments found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                              <!-- Pagination -->
+                              <div id="deptPagination" class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Sub Department -->
+                    <div class="tab-pane fade" id="subpanel-subdept" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Sub Department</h6>
+                              <form id="formAddSubDept">
+                                <input type="hidden" name="id" id="hidden_subdept_id">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Sub Department Name *</label>
+                                  <input type="text" class="form-control" name="name" id="subdept_name" placeholder="e.g. Recruitment" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Parent Department *</label>
+                                  <select class="form-select" name="parentDept" id="subdept_parent" required>
+                                    <option value="" disabled selected>Select Parent...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Status *</label>
+                                  <select class="form-select" name="status" id="subdept_status" required>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Additional Notes</label>
+                                  <textarea class="form-control" name="notes" id="subdept_notes" rows="3" placeholder="Details..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Sub Department</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-diagram-2 me-2 text-primary"></i>Sub Department Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" id="searchSubDept" class="form-control form-control-sm" placeholder="Search..." style="max-width: 150px;">
+                                  <select id="filterSubDeptStatus" class="form-select form-select-sm" style="max-width: 120px;">
+                                    <option value="">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                  <button id="refreshSubDeptBtn" class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Sub Dept Name</th><th>Parent Department</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="4" class="text-center text-muted py-4">No sub departments found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                              <!-- Pagination -->
+                              <div id="subDeptPagination" class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Position -->
+                    <div class="tab-pane fade" id="subpanel-position" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Position</h6>
+                              <form id="formAddPosition">
+                                <input type="hidden" name="id" id="hidden_position_id">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Position Title *</label>
+                                  <input type="text" class="form-control" name="title" id="pos_title" placeholder="e.g. Software Engineer" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Department *</label>
+                                  <select class="form-select" name="department" id="pos_dept" required>
+                                    <option value="" disabled selected>Select Department...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Sub Department *</label>
+                                  <select class="form-select" name="subDepartment" id="pos_subdept" required>
+                                    <option value="" disabled selected>Select Sub Department...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Status *</label>
+                                  <select class="form-select" name="status" id="pos_status" required>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Position</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>Position Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" id="searchPosition" class="form-control form-control-sm" placeholder="Search..." style="max-width: 150px;">
+                                  <select id="filterPositionStatus" class="form-select form-select-sm" style="max-width: 120px;">
+                                    <option value="">All Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                  </select>
+                                  <button id="refreshPositionBtn" class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Title</th><th>Department</th><th>Sub Dept</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No positions found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                              <!-- Pagination -->
+                              <div id="positionPagination" class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+
+                <!-- ═══ 2. EMPLOYEE DATABASE ═══ -->
+                <div class="tab-pane fade" id="panel-employee-db" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <ul class="nav nav-pills gap-2" id="empDbSubTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="subtab-emp-entry" data-bs-toggle="pill" data-bs-target="#subpanel-emp-entry" type="button" role="tab">
+                          <i class="bi bi-person-plus me-1"></i> Employee Entry
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-emp-list" data-bs-toggle="pill" data-bs-target="#subpanel-emp-list" type="button" role="tab">
+                          <i class="bi bi-list-ul me-1"></i> Employee List
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="tab-content" id="empDbSubTabContent">
+                    <!-- Sub-Panel: Employee Entry -->
+                    <div class="tab-pane fade show active" id="subpanel-emp-entry" role="tabpanel">
+                      <div class="card border-0 rounded-4 shadow-sm">
+                        <div class="card-body p-4 p-md-5">
+                          
+                          <!-- Stepper Header -->
+                          <div class="stepper-header" id="empStepper">
+                            <!-- JS will populate the steps -->
+                          </div>
+
+                          <form id="formEmployeeWizard">
+<input type="hidden" name="emp_id" id="hidden_emp_id">
+                            <!-- Step 1: Basic Info -->
+                            <div class="stepper-content active" id="step-1">
+                              <h5 class="fw-bold mb-4">Basic Info:</h5>
+                              <div class="form-grid">
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">First Name *</label><input type="text" class="form-control" required name="firstName"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Last Name *</label><input type="text" class="form-control" required name="lastName"></div>
+                                
+
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Email *</label><input type="email" class="form-control" required name="email"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Phone *</label><input type="tel" class="form-control" required name="phone"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Alternate Phone</label><input type="tel" class="form-control" name="altPhone"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">National ID No</label><input type="text" class="form-control" name="nationalId"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">City</label><input type="text" class="form-control" name="city"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Zip</label><input type="text" class="form-control" name="zip"></div>
+
+                              </div>
+                              <div class="d-flex justify-content-end mt-4 pt-3 border-top"><button type="button" class="btn btn-primary px-4 btn-next">Next</button></div>
+                            </div>
+
+                            <!-- Step 2: Salary and bank info -->
+                            <div class="stepper-content" id="step-2">
+                              <h5 class="fw-bold mb-4">Salary And Bank Info:</h5>
+                              <div class="form-grid">
+                                <div class="mb-3"><label class="form-label small fw-semibold">Account Holder Name</label><input type="text" class="form-control" name="accountHolderName"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Account Number</label><input type="text" class="form-control" name="accountNumber"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Branch Name</label><input type="text" class="form-control" name="branchName"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Bank Name</label><input type="text" class="form-control" name="bankName"></div>
+                                
+                                <div class="form-grid-full"><h6 class="fw-bold mt-4 mb-2">Salary Structure:</h6></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Gross Salary *</label><input type="number" class="form-control" id="inpGrossSalary" readonly placeholder="Auto-calculated" name="grossSalary"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Basic Salary *</label><input type="number" class="form-control" id="inpBasicSalary" required placeholder="Enter Basic Salary" name="basicSalary"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">House Rent (50% of Basic)</label><input type="number" class="form-control" id="inpHouseRent" readonly placeholder="Auto-calculated" name="houseRent"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Medical Allowance (20% of Basic)</label><input type="number" class="form-control" id="inpMedical" readonly placeholder="Auto-calculated" name="medical"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Conveyance Allowance (20% of Basic)</label><input type="number" class="form-control" id="inpConveyance" readonly placeholder="Auto-calculated" name="conveyance"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Utility (10% of Basic)</label><input type="number" class="form-control" id="inpUtility" readonly placeholder="Auto-calculated" name="utility"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Mobile Bill</label><input type="number" class="form-control" id="inpMobile" value="1000" readonly name="mobileBill"></div>
+                                <div></div>
+                              </div>
+                              <div class="d-flex justify-content-end mt-4 pt-3 border-top gap-2"><button type="button" class="btn btn-outline-secondary px-4 btn-prev">Previous</button><button type="button" class="btn btn-primary px-4 btn-next">Next</button></div>
+                            </div>
+
+                            <!-- Step 3: Personal information -->
+                            <div class="stepper-content" id="step-3">
+                              <h5 class="fw-bold mb-4">Personal Information:</h5>
+                              <div class="form-grid">
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Department *</label><select class="form-select" required name="department"><option value="">Select department</option><option value="HR">HR</option><option value="Engineering">Engineering</option><option value="Sales">Sales</option><option value="Marketing">Marketing</option></select></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Sub Department</label><select class="form-select" name="subDepartment"><option value="">Select sub-department</option><option value="Development">Development</option><option value="QA">QA</option><option value="Design">Design</option></select></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Position *</label><select class="form-select" required name="position"><option value="">Select position</option><option value="Manager">Manager</option><option value="Developer">Developer</option><option value="Analyst">Analyst</option></select></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Employee Type</label><select class="form-select" name="employeeType"><option value="Permanent">Permanent</option><option value="Intern">Intern</option><option value="Contractual">Contractual</option></select></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Joining Date *</label><input type="date" class="form-control" required name="joiningDate"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Employment Status</label>
+                                  <select class="form-select" name="employmentStatus">
+                                    <option value="Active">Active</option>
+                                    <option value="Resigned">Resigned</option>
+                                    <option value="Terminated">Terminated</option>
+                                    <option value="Job Left">Job Left</option>
+                                  </select>
+                                </div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Exit Date</label><input type="date" class="form-control" name="exitDate"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Exit Type</label>
+                                  <select class="form-select" name="exitType">
+                                    <option value="">Select Exit Type</option>
+                                    <option value="Resignation">Resignation</option>
+                                    <option value="Termination">Termination</option>
+                                    <option value="Retirement">Retirement</option>
+                                    <option value="Contract Expiry">Contract Expiry</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                </div>
+                                
+                                <div class="mb-3 form-grid-full d-flex flex-column" style="grid-column: span 2;"><label class="form-label small fw-semibold">Exit Reason (Resignation/Termination/Job Left)</label><textarea class="form-control flex-grow-1" style="min-height: 80px; resize: none;" name="exitReason"></textarea></div>
+                              </div>
+                              <div class="d-flex justify-content-end mt-4 pt-3 border-top gap-2"><button type="button" class="btn btn-outline-secondary px-4 btn-prev">Previous</button><button type="button" class="btn btn-primary px-4 btn-next">Next</button></div>
+                            </div>
+
+                            <!-- Step 4: Biological info contact -->
+                            <div class="stepper-content" id="step-4">
+                              <div class="form-grid">
+                                <div class="form-grid-full"><h5 class="fw-bold mb-4">Biological Info:</h5></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Date Of Birth *</label><input type="date" class="form-control" required name="dob"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold text-danger">Gender *</label><select class="form-select" required name="gender"><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Marital Status</label><select class="form-select" name="maritalStatus"><option value="">Select status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Divorced">Divorced</option></select></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Religion</label><input type="text" class="form-control" name="religion"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Profile Image</label><input type="file" class="form-control" name="profileImage"><div class="form-text">Attached passport size photo</div></div>
+                                <div></div>
+                                
+                                <div class="form-grid-full"><h5 class="fw-bold mt-2 mb-4">Emergency Contact:</h5></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Primary Contact Name</label><input type="text" class="form-control" name="primaryContactName"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Secondary Contact Name</label><input type="text" class="form-control" name="secondaryContactName"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Primary Relationship</label><input type="text" class="form-control" name="primaryRelationship"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Secondary Relationship</label><input type="text" class="form-control" name="secondaryRelationship"></div>
+                                
+                                <div class="mb-3"><label class="form-label small fw-semibold">Primary Mobile Number</label><input type="tel" class="form-control" name="primaryMobile"></div>
+                                <div class="mb-3"><label class="form-label small fw-semibold">Secondary Mobile Number</label><input type="tel" class="form-control" name="secondaryMobile"></div>
+                              </div>
+                              <div class="d-flex justify-content-end mt-4 pt-3 border-top gap-2"><button type="button" class="btn btn-outline-secondary px-4 btn-prev">Previous</button><button type="submit" class="btn btn-success px-4"><i class="bi bi-check-circle me-2"></i>Submit</button></div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Employee List -->
+                    <div class="tab-pane fade" id="subpanel-emp-list" role="tabpanel">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-people-fill me-2 text-primary"></i>Employee Directory</h6>
+                            <div class="d-flex gap-2 align-items-center">
+                              <input type="text" class="form-control form-control-sm" placeholder="Search name or ID..." style="max-width: 180px;">
+                              <select class="form-select form-select-sm" style="max-width: 140px;">
+                                <option value="">All Departments</option>
+                              </select>
+                              <select class="form-select form-select-sm" style="max-width: 120px;">
+                                <option value="">All Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                              </select>
+                              <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                            </div>
+                          </div>
+                          <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                              <thead class="table-light">
+                                <tr><th>ID</th><th>Name</th><th>Position</th><th>Department</th><th>Status</th><th class="text-end">Actions</th></tr>
+                              </thead>
+                              <tbody>
+                                <tr><td colspan="6" class="text-center text-muted py-4">No employees found in database.</td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ═══ 3.5. ATTENDANCE MANAGEMENT ═══ -->
+                <div class="tab-pane fade" id="panel-attendance-mgmt" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <ul class="nav nav-pills gap-2" id="attendanceMgmtSubTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="subtab-attendance-form" data-bs-toggle="pill" data-bs-target="#subpanel-attendance-form" type="button" role="tab">
+                          <i class="bi bi-clipboard-check me-1"></i> Attendance Form
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-monthly-attendance" data-bs-toggle="pill" data-bs-target="#subpanel-monthly-attendance" type="button" role="tab">
+                          <i class="bi bi-calendar3 me-1"></i> Monthly Attendance
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-missing-attendance" data-bs-toggle="pill" data-bs-target="#subpanel-missing-attendance" type="button" role="tab">
+                          <i class="bi bi-exclamation-triangle me-1"></i> Missing Attendance
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="tab-content" id="attendanceMgmtSubTabContent">
+                    
+                    <!-- Sub-Panel: Attendance Form -->
+                    <div class="tab-pane fade show active" id="subpanel-attendance-form" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-clipboard-plus me-2 text-primary"></i>Record Attendance</h6>
+                              <form id="formAttendance">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Employee *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Employee...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Date *</label>
+                                  <input type="date" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold">Check-in Time</label>
+                                  <input type="time" class="form-control">
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold">Check-out Time</label>
+                                  <input type="time" class="form-control">
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Status</label>
+                                  <select class="form-select">
+                                    <option value="Present">Present</option>
+                                    <option value="Absent">Absent</option>
+                                    <option value="Late">Late</option>
+                                    <option value="Half Day">Half Day</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Attendance</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-card-checklist me-2 text-primary"></i>Today's Attendance</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="date" class="form-control form-control-sm" style="max-width: 150px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Employee</th><th>Date</th><th>Check-in</th><th>Check-out</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No records found for today.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Monthly Attendance -->
+                    <div class="tab-pane fade" id="subpanel-monthly-attendance" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-filter me-2 text-primary"></i>Filter Monthly Data</h6>
+                              <form id="formMonthlyAttendance">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Select Month *</label>
+                                  <select class="form-select" required>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <!-- Add more options if needed -->
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold text-danger">Select Year *</label>
+                                  <select class="form-select" required>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-search me-2"></i>Generate Report</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2 text-primary"></i>Monthly Attendance Overview</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <button class="btn btn-sm btn-outline-success py-1 px-2"><i class="bi bi-file-earmark-excel"></i> Export</button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Employee</th><th>Present</th><th>Absent</th><th>Late</th><th>Half Day</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Generate report to view data.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Missing Attendance -->
+                    <div class="tab-pane fade" id="subpanel-missing-attendance" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-shield-exclamation me-2 text-warning"></i>Resolve Missing Records</h6>
+                              <form id="formMissingAttendance">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Employee *</label>
+                                  <input type="text" class="form-control" readonly placeholder="Select from table...">
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Missing Date *</label>
+                                  <input type="date" class="form-control" required>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Corrected Status</label>
+                                  <select class="form-select">
+                                    <option value="Present">Present</option>
+                                    <option value="Absent">Absent</option>
+                                    <option value="Off">Day Off</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-warning w-100 fw-semibold text-dark"><i class="bi bi-wrench me-2"></i>Update Record</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-exclamation-octagon me-2 text-danger"></i>Missing Attendance Log</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="month" class="form-control form-control-sm" style="max-width: 150px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Employee</th><th>Date</th><th>Expected Shift</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="4" class="text-center text-muted py-4">No missing records found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                  </div>
+                </div>
+
+
+                <!-- ═══ 4. LEAVE MANAGEMENT ═══ -->
+                <div class="tab-pane fade" id="panel-leave-mgmt" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <ul class="nav nav-pills gap-2" id="leaveMgmtSubTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="subtab-holidays" data-bs-toggle="pill" data-bs-target="#subpanel-holidays" type="button" role="tab">
+                          <i class="bi bi-calendar-event me-1"></i> Holidays
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-leave-app" data-bs-toggle="pill" data-bs-target="#subpanel-leave-app" type="button" role="tab">
+                          <i class="bi bi-file-earmark-medical me-1"></i> Leave Application
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-weekend-setup" data-bs-toggle="pill" data-bs-target="#subpanel-weekend-setup" type="button" role="tab">
+                          <i class="bi bi-calendar-week me-1"></i> Weekend Setup
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="tab-content" id="leaveMgmtSubTabContent">
+                    
+                    <!-- Sub-Panel: Holidays -->
+                    <div class="tab-pane fade show active" id="subpanel-holidays" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Holiday</h6>
+                              <form id="formHoliday">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Holiday Name *</label>
+                                  <input type="text" class="form-control" placeholder="e.g. Eid-ul-Fitr" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Date *</label>
+                                  <input type="date" class="form-control" required>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold text-danger">Type *</label>
+                                  <select class="form-select" required>
+                                    <option value="Public">Public</option>
+                                    <option value="Company">Company</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Holiday</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-calendar-event me-2 text-primary"></i>Holidays Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Holiday Name</th><th>Date</th><th>Type</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="4" class="text-center text-muted py-4">No holidays found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Leave Application -->
+                    <div class="tab-pane fade" id="subpanel-leave-app" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Apply Leave</h6>
+                              <form id="formLeave">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Employee *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Employee...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Leave Type *</label>
+                                  <select class="form-select" required>
+                                    <option value="Annual">Annual Leave</option>
+                                    <option value="Sick">Sick Leave</option>
+                                    <option value="Casual">Casual Leave</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">From Date *</label>
+                                  <input type="date" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">To Date *</label>
+                                  <input type="date" class="form-control" required>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Reason</label>
+                                  <textarea class="form-control" rows="2" placeholder="Leave reason..."></textarea>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Submit Application</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-medical me-2 text-primary"></i>Leave Applications Directory</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" class="form-control form-control-sm" placeholder="Search employee..." style="max-width: 180px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Employee</th><th>Leave Type</th><th>Duration</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No leave applications found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Weekend Setup -->
+                    <div class="tab-pane fade" id="subpanel-weekend-setup" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-gear-fill me-2 text-primary"></i>Define Weekend</h6>
+                              <form id="formWeekendSetup">
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold text-danger">Select Weekend Days *</label>
+                                  <div class="d-flex flex-column gap-2 mt-2">
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Sunday" id="wdSun">
+                                      <label class="form-check-label" for="wdSun">Sunday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Monday" id="wdMon">
+                                      <label class="form-check-label" for="wdMon">Monday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Tuesday" id="wdTue">
+                                      <label class="form-check-label" for="wdTue">Tuesday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Wednesday" id="wdWed">
+                                      <label class="form-check-label" for="wdWed">Wednesday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Thursday" id="wdThu">
+                                      <label class="form-check-label" for="wdThu">Thursday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Friday" id="wdFri">
+                                      <label class="form-check-label" for="wdFri">Friday</label>
+                                    </div>
+                                    <div class="form-check">
+                                      <input class="form-check-input weekend-day-cb" type="checkbox" value="Saturday" id="wdSat">
+                                      <label class="form-check-label" for="wdSat">Saturday</label>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Setup</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-info-circle-fill me-2 text-primary"></i>Current Setup</h6>
+                              </div>
+                              <div class="bg-light p-4 rounded-4 text-center mt-4">
+                                <i class="bi bi-calendar2-week text-primary opacity-50 mb-3 d-block" style="font-size: 3rem;"></i>
+                                <h5 class="fw-bold mb-2">Active Weekend Policy</h5>
+                                <p class="text-muted mb-0">The system considers <span class="fw-bold text-dark">Saturday, Sunday</span> as weekends.</p>
+                                <p class="small text-muted mt-2 mb-0"><i class="bi bi-lightbulb text-warning me-1"></i> Employees will automatically be marked "Off" on these days.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <!-- ═══ 5. PAYROLL MANAGEMENT ═══ -->
+                <div class="tab-pane fade" id="panel-payroll-mgmt" role="tabpanel">
+                  <div class="d-flex justify-content-between align-items-center mb-4">
+                    <ul class="nav nav-pills gap-2" id="payrollMgmtSubTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="subtab-advance-salary" data-bs-toggle="pill" data-bs-target="#subpanel-advance-salary" type="button" role="tab">
+                          <i class="bi bi-cash me-1"></i> Advance Salary
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-salary-generate" data-bs-toggle="pill" data-bs-target="#subpanel-salary-generate" type="button" role="tab">
+                          <i class="bi bi-calculator me-1"></i> Salary Generate
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="subtab-payslip" data-bs-toggle="pill" data-bs-target="#subpanel-payslip" type="button" role="tab">
+                          <i class="bi bi-receipt me-1"></i> Payslip
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="tab-content" id="payrollMgmtSubTabContent">
+                    
+                    <!-- Sub-Panel: Advance Salary -->
+                    <div class="tab-pane fade show active" id="subpanel-advance-salary" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-plus-square me-2 text-primary"></i>Add Advance Salary</h6>
+                              <form id="formAdvanceSalary">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Employee *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Employee...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Amount *</label>
+                                  <input type="number" class="form-control" required placeholder="0.00">
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Deduction Month *</label>
+                                  <input type="month" class="form-control" required>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold">Reason</label>
+                                  <textarea class="form-control" rows="2" placeholder="Reason..."></textarea>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-save me-2"></i>Save Record</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>Advance Salary Records</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <input type="text" class="form-control form-control-sm" placeholder="Search..." style="max-width: 180px;">
+                                  <button class="btn btn-sm btn-primary py-1 px-2"><i class="bi bi-arrow-clockwise"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Employee</th><th>Amount</th><th>Deduct Month</th><th>Status</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr><td colspan="5" class="text-center text-muted py-4">No advance salary records found.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Salary Generate -->
+                    <div class="tab-pane fade" id="subpanel-salary-generate" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-gear-fill me-2 text-primary"></i>Generate Salary</h6>
+                              <form id="formGenerateSalary">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Select Month *</label>
+                                  <select class="form-select" id="payrollMonth" required></select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold text-danger">Select Year *</label>
+                                  <select class="form-select" id="payrollYear" required></select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold" id="generatePayrollBtn"><i class="bi bi-calculator me-2"></i>Generate Payroll</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory (Preview and Saving) -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100" id="payrollPreviewCard" style="display:none;">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0" id="payrollPreviewTitle"><i class="bi bi-eye-fill me-2 text-primary"></i>Payroll Preview</h6>
+                                <button class="btn btn-sm btn-success fw-semibold" id="confirmSavePayrollBtn"><i class="bi bi-check-circle me-2"></i>Confirm & Save</button>
+                              </div>
+                              <div class="row text-center mb-3 g-2">
+                                <div class="col-3"><div class="p-2 bg-light rounded"><small class="text-muted d-block">Basic</small><strong id="pfBasic">0</strong></div></div>
+                                <div class="col-3"><div class="p-2 bg-light rounded"><small class="text-muted d-block">Allow</small><strong id="pfAllow">0</strong></div></div>
+                                <div class="col-3"><div class="p-2 bg-light rounded"><small class="text-muted d-block">Deduct</small><strong id="pfDeduct">0</strong></div></div>
+                                <div class="col-3"><div class="p-2 bg-primary text-white rounded"><small class="d-block opacity-75">Net Pay</small><strong id="pfNet">0</strong></div></div>
+                              </div>
+                              <div class="table-responsive" style="max-height:300px;overflow-y:auto;">
+                                <table class="table table-sm table-hover align-middle mb-0" style="font-size:0.85rem;">
+                                  <thead class="table-light sticky-top">
+                                    <tr><th>ID</th><th>Name</th><th>Basic</th><th>Allow</th><th>Deduct</th><th>Net</th></tr>
+                                  </thead>
+                                  <tbody id="payrollPreviewBody"></tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div class="card border-0 rounded-4 shadow-sm h-100 mt-0" id="payrollRecordsCard">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Saved Payroll Records</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                  <select class="form-select form-select-sm" id="payrollRecMonth"></select>
+                                  <select class="form-select form-select-sm" id="payrollRecYear"></select>
+                                  <button class="btn btn-sm btn-primary py-1 px-2" id="loadPayrollRecBtn"><i class="bi bi-search"></i></button>
+                                </div>
+                              </div>
+                              <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                  <thead class="table-light">
+                                    <tr><th>Period</th><th>Employees</th><th>Total Net Pay</th><th class="text-end">Actions</th></tr>
+                                  </thead>
+                                  <tbody id="payrollRecBody">
+                                    <tr><td colspan="4" class="text-center text-muted py-4">Select period to load records.</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Panel: Payslip -->
+                    <div class="tab-pane fade" id="subpanel-payslip" role="tabpanel">
+                      <div class="row g-4">
+                        <!-- Left Form -->
+                        <div class="col-lg-4">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-search me-2 text-primary"></i>Find Payslip</h6>
+                              <form id="formPayslip">
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Select Employee *</label>
+                                  <select class="form-select" required>
+                                    <option value="" disabled selected>Select Employee...</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3">
+                                  <label class="form-label small fw-semibold text-danger">Select Month *</label>
+                                  <select class="form-select" required>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                  </select>
+                                </div>
+                                <div class="mb-4">
+                                  <label class="form-label small fw-semibold text-danger">Select Year *</label>
+                                  <select class="form-select" required>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                  </select>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 fw-semibold"><i class="bi bi-file-earmark-text me-2"></i>View Payslip</button>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- Right Directory/Payslip -->
+                        <div class="col-lg-8">
+                          <div class="card border-0 rounded-4 shadow-sm h-100">
+                            <div class="card-body p-4">
+                              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                                <h6 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-primary"></i>Payslip Preview</h6>
+                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer"></i> Print</button>
+                              </div>
+                              <div id="payslipPrintArea" class="border p-4 rounded bg-light d-none">
+                                <div class="text-center border-bottom pb-3 mb-3">
+                                  <h4 class="fw-bold mb-1">Company Name</h4>
+                                  <p class="mb-0 text-muted small">Payslip for <span id="ps_period" class="fw-bold"></span></p>
+                                </div>
+                                <div class="row mb-4">
+                                  <div class="col-sm-6">
+                                    <p class="mb-1 small text-muted">Employee Name:</p>
+                                    <h6 class="fw-bold mb-2" id="ps_name"></h6>
+                                    <p class="mb-1 small text-muted">Employee ID: <span class="text-dark fw-semibold" id="ps_empid"></span></p>
+                                    <p class="mb-0 small text-muted">Department: <span class="text-dark fw-semibold" id="ps_dept"></span></p>
+                                  </div>
+                                </div>
+                                <table class="table table-bordered mb-4">
+                                  <thead class="table-light"><tr><th>Earnings</th><th>Amount</th><th>Deductions</th><th>Amount</th></tr></thead>
+                                  <tbody>
+                                    <tr>
+                                      <td>Basic Salary</td><td id="ps_basic">0.00</td>
+                                      <td>Tax/Provident Fund</td><td id="ps_deduct">0.00</td>
+                                    </tr>
+                                    <tr>
+                                      <td>Allowances</td><td id="ps_allow">0.00</td>
+                                      <td>Other Deductions</td><td>0.00</td>
+                                    </tr>
+                                    <tr>
+                                      <td>Extra</td><td id="ps_extra">0.00</td>
+                                      <td></td><td></td>
+                                    </tr>
+                                  </tbody>
+                                  <tfoot class="table-light fw-bold">
+                                    <tr><td colspan="3" class="text-end">Net Pay:</td><td id="ps_net" class="text-success fs-5">0.00</td></tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                              <div class="text-center text-muted py-5" id="payslipEmptyState">
+                                <i class="bi bi-file-earmark-x fs-1 d-block mb-3"></i>
+                                <p>Select an employee and period to view their payslip.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                  </div>
+                </div>
+
+                <!-- ═══ 6. REPORT GENERATOR ═══ -->
+                <div class="tab-pane fade" id="panel-report-gen" role="tabpanel">
+                  <div class="row g-4">
+                    <!-- Left Form: Report Parameters -->
+                    <div class="col-lg-4">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <h6 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-sliders me-2 text-primary"></i>Report Configuration</h6>
+                          <form id="formReportGenerator">
+                            <div class="mb-3">
+                              <label class="form-label small fw-semibold text-danger">Report Type *</label>
+                              <select class="form-select" required>
+                                <option value="" disabled selected>Select Report...</option>
+                                <option value="attendance">Attendance Summary</option>
+                                <option value="payroll">Payroll Summary</option>
+                                <option value="leave">Leave History</option>
+                                <option value="employee">Employee Directory</option>
+                              </select>
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label small fw-semibold">Department Filter</label>
+                              <select class="form-select">
+                                <option value="all">All Departments</option>
+                              </select>
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label small fw-semibold">Start Date</label>
+                              <input type="date" class="form-control">
+                            </div>
+                            <div class="mb-4">
+                              <label class="form-label small fw-semibold">End Date</label>
+                              <input type="date" class="form-control">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100 fw-semibold mb-2"><i class="bi bi-file-earmark-bar-graph me-2"></i>Generate Preview</button>
+                            <button type="button" class="btn btn-outline-success w-100 fw-semibold"><i class="bi bi-download me-2"></i>Export as CSV</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Right Directory: Report Preview -->
+                    <div class="col-lg-8">
+                      <div class="card border-0 rounded-4 shadow-sm h-100">
+                        <div class="card-body p-4">
+                          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-eye-fill me-2 text-primary"></i>Report Preview</h6>
+                            <div class="d-flex gap-2 align-items-center">
+                              <button class="btn btn-sm btn-outline-danger py-1 px-2"><i class="bi bi-file-earmark-pdf"></i> PDF</button>
+                              <button class="btn btn-sm btn-outline-primary py-1 px-2"><i class="bi bi-printer"></i> Print</button>
+                            </div>
+                          </div>
+                          
+                          <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <!-- Placeholder table -->
+                            <table class="table table-hover align-middle table-sm border">
+                              <thead class="table-light">
+                                <tr><th>ID</th><th>Data Point 1</th><th>Data Point 2</th><th>Data Point 3</th><th>Status</th></tr>
+                              </thead>
+                              <tbody>
+                                <tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-bar-chart text-muted opacity-50 d-block mb-3" style="font-size: 2rem;"></i>Select report parameters and click Generate to see the preview.</td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <!-- ═══ 7. SYSTEM AUDIT LOGS ═══ -->
+                <div class="tab-pane fade" id="panel-system-logs" role="tabpanel">
+                  <div class="card border-0 rounded-4 shadow-sm h-100">
+                    <div class="card-body p-4">
+                      <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                        <h6 class="fw-bold mb-0">
+                          <i class="bi bi-shield-check me-2 text-primary"></i>System Audit Logs
+                        </h6>
+                        <button id="refreshLogsBtn" class="btn btn-sm btn-outline-primary py-2 px-3 d-flex align-items-center gap-2" type="button" title="Refresh Logs">
+                          <i class="bi bi-arrow-clockwise"></i> Refresh Logs
+                        </button>
+                      </div>
+                      <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="logsTable">
+                          <thead class="table-light sticky-top">
+                            <tr>
+                              <th class="small fw-semibold" style="min-width: 100px;">Log ID</th>
+                              <th class="small fw-semibold" style="min-width: 140px;">Timestamp</th>
+                              <th class="small fw-semibold" style="min-width: 160px;">User Email</th>
+                              <th class="small fw-semibold" style="min-width: 100px;">Action Type</th>
+                              <th class="small fw-semibold" style="min-width: 120px;">Collection</th>
+                              <th class="small fw-semibold" style="min-width: 100px;">Record ID</th>
+                              <th class="small fw-semibold" style="min-width: 250px;">Details</th>
+                            </tr>
+                          </thead>
+                          <tbody id="logsTableBody">
+                            <tr>
+                              <td colspan="7" class="text-center py-4 text-muted">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                Loading logs...
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+            </div><!-- /tab-content -->
+
+
+
+          </div><!-- /content-container -->
+        </div><!-- /row -->
+      </div><!-- /dashboardSection -->
+
+    </div>
+  </section>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toastEl" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toastMsg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content rounded-4 shadow">
+      <div class="modal-body p-4 text-center">
+        <i class="bi bi-exclamation-triangle-fill text-danger fs-1 mb-3 d-block"></i>
+        <h6 class="fw-bold mb-1">Confirm Delete</h6>
+        <p class="text-muted small mb-3" id="deleteModalMsg">Are you sure?</p>
+        <div class="d-flex gap-2 justify-content-center">
+          <button type="button" class="btn btn-danger fw-semibold px-4" id="confirmDeleteBtn">Delete</button>
+          <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/vendors/bootstrap/bootstrap.bundle.min.js"></script>
+
+<!-- ═══ MAIN APPLICATION SCRIPT ═══ -->
+<script type="module">
+import {
+  hrLogin, hrLogout, onHrAuthState,
+  saveEmployee, getAllEmployees, deleteEmployee,
+  addAuditLog, getAllAuditLogs,
+  setAttendance, getAttendanceByMonth, batchSaveAttendance,
+  saveLeave, getAllLeaves, updateLeaveStatus, deleteLeave,
+  savePayrollRecords, deletePayrollByMonth, getAllPayroll, getPayrollByMonth,
+  batchSaveRoster, getRosterByWeek,
+  saveDepartment, getAllDepartments, deleteDepartment,
+  saveSubDepartment, getAllSubDepartments, deleteSubDepartment,
+  savePosition, getAllPositions, deletePosition
+} from './assets/js/hr.js';
+
+// ────────────────────────────────────────────
+// CONSTANTS
+// ────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const ATT_CYCLE = ['P','A','L','H','O'];
+const ATT_LABELS = { P:'Present', A:'Absent', L:'Late', H:'Half Day', O:'Off' };
+const SHIFTS = ['M','E','N','O'];
+const MAX_LEAVE = { Annual: 20, Sick: 10, Casual: 7 };
+
+// In-memory cache (refreshed from Firestore)
+let empCache = [], leaveCache = [], payrollCache = [], attCache = [], rosterCache = {};
+let deptCache = [], subDeptCache = [], positionCache = [];
+let payrollPreviewData = [], curPayMonth = null, curPayYear = null;
+let deleteCallback = null;
+let chartDepts = null, chartAtt = null;
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ────────────────────────────────────────────
+// UI HELPERS
+// ────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toastEl');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toastMsg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 2800 }).show();
+}
+function loading(show) {
+  document.getElementById('loadingOverlay').classList.toggle('d-none', !show);
+}
+function confirmDelete(msg, cb) {
+  document.getElementById('deleteModalMsg').textContent = msg;
+  deleteCallback = cb;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteModal')).show();
+}
+document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+  if (deleteCallback) deleteCallback();
+  deleteCallback = null;
+  bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+});
+
+// ────────────────────────────────────────────
+// AUTH
+// ────────────────────────────────────────────
+onHrAuthState(user => {
+  if (user) {
+    document.getElementById('loginSection').classList.add('d-none');
+    document.getElementById('dashboardSection').classList.remove('d-none');
+    document.getElementById('loggedInEmail').textContent = user.email;
+    initDashboard();
+  } else {
+    document.getElementById('loginSection').classList.remove('d-none');
+    document.getElementById('dashboardSection').classList.add('d-none');
+  }
+});
+
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = document.getElementById('hrEmail').value.trim();
+  const pass  = document.getElementById('hrPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Logging in…';
+  errEl.classList.add('d-none');
+  try {
+    await hrLogin(email, pass);
+  } catch (err) {
+    let msg = 'Login failed. Check your credentials.';
+    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') msg = 'Invalid email or password.';
+    else if (err.code === 'auth/user-not-found') msg = 'No account found with this email.';
+    else if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Try later.';
+    errEl.textContent = msg;
+    errEl.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Login to HR Portal';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  try { await hrLogout(); } catch {}
+});
+
+// ────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────
+async function initDashboard() {
+  await loadAllData();
+  initOverview();
+
+  // Tab refresh listeners
+  document.getElementById('tab-overview').addEventListener('shown.bs.tab', refreshOverview);
+}
+
+async function loadAllData() {
+  loading(true);
+  try {
+    [empCache, leaveCache, payrollCache, deptCache, subDeptCache, positionCache] = await Promise.all([
+      getAllEmployees(),
+      getAllLeaves(),
+      getAllPayroll(),
+      getAllDepartments(),
+      getAllSubDepartments(),
+      getAllPositions()
+    ]);
+    renderOverview();
+    renderDeptTable();
+    renderSubDeptTable();
+    renderPositionTable();
+    populateDeptDropdowns();
+  } catch (err) {
+    console.error(err);
+    showToast('Error loading data from Firebase.', 'danger');
+  } finally {
+    loading(false);
+  }
+}
+
+// ────────────────────────────────────────────
+// OVERVIEW
+// ────────────────────────────────────────────
+function initOverview() { renderOverview(); }
+
+function renderOverview() {
+  const activeEmps = empCache.filter(e => e.employmentStatus === 'Active' || e.employmentStatus === 'On Leave');
+  document.getElementById('kpiHeadcount').textContent = empCache.length;
+
+  // Today attendance from attCache
+  const today = new Date().toISOString().slice(0, 10);
+  const todayAtt = attCache.filter(a => a.date === today);
+  const present = todayAtt.filter(a => ['P','L','H'].includes(a.status)).length;
+  document.getElementById('kpiAttRate').textContent = `${present}/${activeEmps.length}`;
+
+  // Payroll total — sum of all net from payrollCache
+  const totalNet = payrollCache.reduce((s, p) => s + (p.net || 0), 0);
+  document.getElementById('kpiPayrollTotal').textContent = '৳ ' + totalNet.toLocaleString('en-BD');
+
+  // Pending leaves
+  const pending = leaveCache.filter(l => l.status === 'Pending').length;
+  document.getElementById('kpiPendingLeaves').textContent = pending;
+
+  // Dept doughnut
+  const depts = {};
+  empCache.forEach(e => { depts[e.department] = (depts[e.department] || 0) + 1; });
+  const dColors = ['#215C5C','#059669','#7c3aed','#d97706','#dc2626','#2563eb','#db2777','#0891b2','#65a30d'];
+  const ctx1 = document.getElementById('chartDepts').getContext('2d');
+  if (chartDepts) chartDepts.destroy();
+  chartDepts = new Chart(ctx1, {
+    type: 'doughnut',
+    data: { labels: Object.keys(depts), datasets: [{ data: Object.values(depts), backgroundColor: dColors, borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
+  });
+
+  // Attendance bar — current month
+  const now = new Date();
+  const mStr = String(now.getMonth() + 1).padStart(2, '0');
+  const monthAtt = attCache.filter(a => a.date?.startsWith(`${now.getFullYear()}-${mStr}`));
+  const ctx2 = document.getElementById('chartAttSummary').getContext('2d');
+  if (chartAtt) chartAtt.destroy();
+  chartAtt = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: ['Present', 'Absent', 'Late', 'Half Day'],
+      datasets: [{
+        label: 'Days',
+        data: [
+          monthAtt.filter(a => a.status === 'P').length,
+          monthAtt.filter(a => a.status === 'A').length,
+          monthAtt.filter(a => a.status === 'L').length,
+          monthAtt.filter(a => a.status === 'H').length
+        ],
+        backgroundColor: ['#d1fae5','#fee2e2','#fef3c7','#dbeafe'],
+        borderColor: ['#059669','#dc2626','#d97706','#2563eb'],
+        borderWidth: 2, borderRadius: 6
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  // Recent leaves
+  const empMap = buildEmpMap();
+  const recent = leaveCache.slice(-5).reverse();
+  const tbody = document.getElementById('overviewLeaveBody');
+  if (!recent.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No leave requests.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = recent.map(l => `
+    <tr>
+      <td class="fw-semibold">${empMap[l.empId]?.name || l.empId}</td>
+      <td>${l.type}</td><td>${l.from}</td><td>${l.to}</td>
+      <td><span class="badge badge-${l.status.toLowerCase()} rounded-pill px-2">${l.status}</span></td>
+    </tr>`).join('');
+}
+
+function refreshOverview() { renderOverview(); }
+
+// ────────────────────────────────────────────
+// EMPLOYEES
+// ────────────────────────────────────────────
+function buildEmpMap() {
+  const m = {};
+  empCache.forEach(e => m[e.emp_id] = e);
+  return m;
+}
+
+function empStatusBadge(s) {
+  const map = { Active: 'success', 'On Leave': 'warning', Inactive: 'secondary', Resigned: 'danger' };
+  return `<span class="badge text-bg-${map[s] || 'secondary'} rounded-pill">${s}</span>`;
+}
+
+function renderEmpTable() {
+  const search = (document.getElementById('empSearch')?.value || '').toLowerCase();
+  const deptF  = document.getElementById('empDeptFilter')?.value || '';
+  const tbody  = document.getElementById('empTableBody');
+  const filtered = empCache.filter(e =>
+    (!search || e.name?.toLowerCase().includes(search) || e.emp_id?.toLowerCase().includes(search)) &&
+    (!deptF  || e.department === deptF)
+  );
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No employees found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td><span class="badge bg-primary-soft text-primary fw-semibold">${e.emp_id}</span></td>
+      <td class="fw-semibold">${e.name}</td>
+      <td>${e.position}</td>
+      <td><span class="badge text-bg-secondary rounded-pill">${e.department}</span></td>
+      <td>${e.phone || e.altPhone || '—'}</td>
+      <td class="fw-semibold">৳ ${Number(e.basicSalary || 0).toLocaleString()}</td>
+      <td>${empStatusBadge(e.employmentStatus)}</td>
+      <td class="text-center" style="white-space:nowrap;">
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="window._editEmp('${e.emp_id}')"><i class="bi bi-pencil-fill"></i></button>
+        <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="window._deleteEmp('${e.emp_id}')"><i class="bi bi-trash-fill"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+function populateEmpDeptFilter() {
+  const depts = [...new Set(empCache.map(e => e.department).filter(Boolean))];
+  const sel = document.getElementById('empDeptFilter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Departments</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+
+window._editEmp = id => {
+  const e = empCache.find(emp => emp.emp_id === id);
+  if (!e) return;
+  
+  const form = document.getElementById('formEmployeeWizard');
+  if (!form) return;
+  
+  form.reset();
+  document.getElementById('hidden_emp_id').value = e.emp_id;
+  
+  // Populate all matching name inputs
+  for (const key in e) {
+    const input = form.querySelector(`[name="${key}"]`);
+    if (input && input.type !== 'file') {
+      input.value = e[key] || '';
+    }
+  }
+  
+  // Custom updates for dropdowns
+  const deptSelect = form.querySelector('[name="department"]');
+  if (deptSelect) {
+    deptSelect.value = e.department || '';
+    deptSelect.dispatchEvent(new Event('change'));
+  }
+  
+  const subDeptSelect = form.querySelector('[name="subDepartment"]');
+  if (subDeptSelect) {
+    subDeptSelect.value = e.subDepartment || '';
+    subDeptSelect.dispatchEvent(new Event('change'));
+  }
+
+  const posSelect = form.querySelector('[name="position"]');
+  if (posSelect) {
+    posSelect.value = e.position || '';
+  }
+
+  // Recalculate salary
+  const basicSalaryInput = document.getElementById('inpBasicSalary');
+  if (basicSalaryInput) {
+    basicSalaryInput.dispatchEvent(new Event('input'));
+  }
+
+  // Switch tab
+  const tabEl = document.getElementById('subtab-emp-entry');
+  if (tabEl) {
+    bootstrap.Tab.getOrCreateInstance(tabEl).show();
+  }
+
+  currentStep = 1;
+  renderStepper();
+};
+
+window._deleteEmp = id => {
+  confirmDelete(`Delete employee ${id}? Attendance and leave records are kept.`, async () => {
+    loading(true);
+    try {
+      await deleteEmployee(id);
+      empCache = await getAllEmployees();
+      renderEmpTable();
+      populateEmpDeptFilter();
+      renderOverview();
+      showToast('Employee deleted.', 'danger');
+    } catch { showToast('Error deleting employee.', 'danger'); }
+    finally { loading(false); }
+  });
+};
+
+// ────────────────────────────────────────────
+// ATTENDANCE
+// ────────────────────────────────────────────
+// In-page attendance changes before Save
+let attChanges = {}; // { "EMP-001_2026-06-15": "P" }
+
+function fillMonthYearSelects(mId, yId) {
+  const mSel = document.getElementById(mId);
+  const ySel = document.getElementById(yId);
+  if (!mSel || !ySel) return;
+  const now = new Date();
+  mSel.innerHTML = MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+  ySel.innerHTML = '';
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
+    ySel.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+  mSel.value = now.getMonth() + 1;
+  ySel.value = now.getFullYear();
+}
+
+function initAttendanceControls() {
+  document.getElementById('loadAttBtn').addEventListener('click', loadAndBuildAttGrid);
+  document.getElementById('saveAttBtn').addEventListener('click', saveAttendance);
+  buildAttGrid();
+}
+
+async function loadAndBuildAttGrid() {
+  const month = parseInt(document.getElementById('attMonth').value);
+  const year  = parseInt(document.getElementById('attYear').value);
+  loading(true);
+  try {
+    attCache = await getAttendanceByMonth(year, month);
+    attChanges = {};
+    buildAttGrid();
+  } catch { showToast('Error loading attendance.', 'danger'); }
+  finally { loading(false); }
+}
+
+function buildAttGrid() {
+  const month = parseInt(document.getElementById('attMonth').value);
+  const year  = parseInt(document.getElementById('attYear').value);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const emps = empCache.filter(e => e.employmentStatus === 'Active' || e.employmentStatus === 'On Leave');
+
+  // Build lookup from cache + in-page changes
+  const lookup = {};
+  attCache.forEach(a => { lookup[`${a.empId}_${a.date}`] = a.status; });
+  Object.assign(lookup, attChanges);
+
+  const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  document.getElementById('attGridHead').innerHTML = `<tr>
+    <th style="position:sticky;left:0;z-index:2;min-width:130px;">Employee</th>
+    ${days.map(d => {
+      const dow = new Date(year, month - 1, d).getDay();
+      return `<th class="${dow===5||dow===6?'text-warning':''}" style="min-width:30px;">${d}<br><small>${dayNames[dow]}</small></th>`;
+    }).join('')}
+    <th>P</th><th>A</th><th>L</th><th>H</th>
+  </tr>`;
+
+  if (!emps.length) {
+    document.getElementById('attGridBody').innerHTML =
+      `<tr><td colspan="${daysInMonth + 5}" class="text-center py-4 text-muted">No active employees.</td></tr>`;
+    return;
+  }
+
+  document.getElementById('attGridBody').innerHTML = emps.map(emp => {
+    const cells = days.map(d => {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(year, month - 1, d).getDay();
+      const isWeekend = dow === 5 || dow === 6;
+      const status = lookup[`${emp.emp_id}_${dateStr}`] || (isWeekend ? 'O' : '');
+      return `<td class="att-cell att-${status}" data-empid="${emp.emp_id}" data-date="${dateStr}" data-status="${status}" title="${dateStr}: ${ATT_LABELS[status]||'Not Marked'}">${status||'·'}</td>`;
+    });
+    let P=0, A=0, L=0, H=0;
+    days.forEach(d => {
+      const ds = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const s = lookup[`${emp.emp_id}_${ds}`] || '';
+      if(s==='P')P++; else if(s==='A')A++; else if(s==='L')L++; else if(s==='H')H++;
+    });
+    return `<tr>
+      <td class="emp-name-cell fw-semibold" style="position:sticky;left:0;z-index:1;background:var(--bs-body-bg);" title="${emp.emp_id}">
+        ${emp.name.length > 18 ? emp.name.slice(0,17)+'…' : emp.name}
+      </td>
+      ${cells.join('')}
+      <td class="fw-bold text-success">${P}</td>
+      <td class="fw-bold text-danger">${A}</td>
+      <td class="fw-bold text-warning">${L}</td>
+      <td class="fw-bold text-info">${H}</td>
+    </tr>`;
+  }).join('');
+
+  // Click to cycle
+  document.querySelectorAll('.att-cell').forEach(cell => {
+    cell.addEventListener('click', function () {
+      const empId = this.dataset.empid;
+      const date  = this.dataset.date;
+      const cur   = this.dataset.status || '';
+      const idx   = ATT_CYCLE.indexOf(cur);
+      const next  = ATT_CYCLE[(idx + 1) % ATT_CYCLE.length];
+      this.dataset.status = next;
+      this.textContent = next;
+      this.className = `att-cell att-${next}`;
+      attChanges[`${empId}_${date}`] = next;
+      // Update summary row counts in-place
+      buildAttSummary(emps, month, year, daysInMonth, lookup);
+    });
+  });
+
+  buildAttSummary(emps, month, year, daysInMonth, lookup);
+}
+
+async function saveAttendance() {
+  if (!Object.keys(attChanges).length) { showToast('No changes to save.', 'warning'); return; }
+  loading(true);
+  try {
+    const records = Object.entries(attChanges).map(([key, status]) => {
+      const [empId, date] = key.split(/_(.+)/); // split on first _
+      return { empId: key.slice(0, key.lastIndexOf('_')), date: key.slice(key.lastIndexOf('_') + 1), status };
+    });
+    // More reliable split:
+    const recs = Object.entries(attChanges).map(([key, status]) => {
+      const parts = key.split('_');
+      const date  = parts.pop();
+      const empId = parts.join('_');
+      return { empId, date, status };
+    });
+    await batchSaveAttendance(recs);
+    attCache = await getAttendanceByMonth(
+      parseInt(document.getElementById('attYear').value),
+      parseInt(document.getElementById('attMonth').value)
+    );
+    attChanges = {};
+    showToast(`Attendance saved to Firebase (${recs.length} entries)!`);
+    renderOverview();
+  } catch (err) {
+    showToast('Error saving attendance: ' + err.message, 'danger');
+  } finally { loading(false); }
+}
+
+function buildAttSummary(emps, month, year, daysInMonth, lookup) {
+  const tbody = document.getElementById('attSummaryBody');
+  if (!emps.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No employees.</td></tr>'; return; }
+  const workDays = Array.from({ length: daysInMonth }, (_, i) => {
+    const dow = new Date(year, month - 1, i + 1).getDay();
+    return dow !== 5 && dow !== 6;
+  }).filter(Boolean).length;
+
+  tbody.innerHTML = emps.map(emp => {
+    let P=0, A=0, L=0, H=0;
+    for (let d=1; d<=daysInMonth; d++) {
+      const ds = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const s = lookup?.[`${emp.emp_id}_${ds}`] || attChanges[`${emp.emp_id}_${ds}`] || '';
+      if(s==='P')P++; else if(s==='A')A++; else if(s==='L')L++; else if(s==='H')H++;
+    }
+    const attPct = workDays > 0 ? Math.round((P + 0.5*H + 0.5*L) / workDays * 100) : 0;
+    const pctColor = attPct >= 90 ? 'success' : attPct >= 70 ? 'warning' : 'danger';
+    return `<tr>
+      <td class="fw-semibold">${emp.name}</td>
+      <td>${emp.dept}</td>
+      <td class="text-success fw-bold">${P}</td>
+      <td class="text-danger fw-bold">${A}</td>
+      <td class="text-warning fw-bold">${L}</td>
+      <td class="text-info fw-bold">${H}</td>
+      <td>${workDays}</td>
+      <td><span class="badge text-bg-${pctColor} rounded-pill">${attPct}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────
+// LEAVE MANAGEMENT
+// ────────────────────────────────────────────
+function initLeaveControls() {
+  ['leave_from','leave_to'].forEach(id => document.getElementById(id).addEventListener('change', calcLeaveDuration));
+  document.getElementById('leaveForm').addEventListener('submit', submitLeave);
+  document.getElementById('leaveStatusFilter').addEventListener('change', renderLeaveTable);
+  document.getElementById('cancelLeaveEditBtn').addEventListener('click', resetLeaveForm);
+  document.getElementById('refreshLeavesBtn').addEventListener('click', async () => {
+    loading(true);
+    try { leaveCache = await getAllLeaves(); renderLeaveTable(); renderLeaveBalance(); }
+    catch { showToast('Refresh failed.', 'danger'); }
+    finally { loading(false); }
+  });
+  renderLeaveTable();
+}
+
+function populateLeaveEmpSelect() {
+  const emps = empCache.filter(e => e.employmentStatus === 'Active' || e.employmentStatus === 'On Leave');
+  const sel = document.getElementById('leave_emp_id');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="" disabled>Select employee</option>' +
+    emps.map(e => `<option value="${e.emp_id}">${e.name} (${e.emp_id})</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function calcLeaveDuration() {
+  const f = document.getElementById('leave_from').value;
+  const t = document.getElementById('leave_to').value;
+  if (f && t) {
+    const diff = (new Date(t) - new Date(f)) / 86400000 + 1;
+    document.getElementById('leaveDuration').textContent = diff > 0 ? `${diff} day(s)` : 'Invalid range';
+  } else document.getElementById('leaveDuration').textContent = '— days';
+}
+
+async function submitLeave(e) {
+  e.preventDefault();
+  loading(true);
+  const editId = document.getElementById('leave_edit_id').value;
+  const data = {
+    id: editId || undefined,
+    empId: document.getElementById('leave_emp_id').value,
+    type: document.getElementById('leave_type').value,
+    from: document.getElementById('leave_from').value,
+    to: document.getElementById('leave_to').value,
+    reason: document.getElementById('leave_reason').value.trim(),
+    status: editId ? (leaveCache.find(l => l.id === editId)?.status || 'Pending') : 'Pending'
+  };
+  try {
+    await saveLeave(data);
+    leaveCache = await getAllLeaves();
+    resetLeaveForm();
+    renderLeaveTable();
+    renderLeaveBalance();
+    renderOverview();
+    showToast(editId ? 'Leave updated!' : 'Leave application submitted!');
+  } catch (err) { showToast(err.message || 'Error saving leave.', 'danger'); }
+  finally { loading(false); }
+}
+
+function resetLeaveForm() {
+  document.getElementById('leaveForm').reset();
+  document.getElementById('leave_edit_id').value = '';
+  document.getElementById('leaveDuration').textContent = '— days';
+  document.getElementById('cancelLeaveEditBtn').classList.add('d-none');
+}
+
+function renderLeaveTable() {
+  const empMap = buildEmpMap();
+  const filter = document.getElementById('leaveStatusFilter').value;
+  let leaves = filter ? leaveCache.filter(l => l.status === filter) : leaveCache;
+  leaves = [...leaves].reverse();
+  const tbody = document.getElementById('leaveTableBody');
+  if (!leaves.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No leave requests.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = leaves.map(l => {
+    const days = Math.max(0, (new Date(l.to) - new Date(l.from)) / 86400000 + 1);
+    return `<tr>
+      <td class="fw-semibold">${empMap[l.empId]?.name || l.empId}</td>
+      <td><span class="badge text-bg-info rounded-pill">${l.type}</span></td>
+      <td>${l.from}</td><td>${l.to}</td>
+      <td class="fw-bold">${days}</td>
+      <td class="text-muted small" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${l.reason}">${l.reason || '—'}</td>
+      <td><span class="badge badge-${l.status.toLowerCase()} px-2 py-1">${l.status}</span></td>
+      <td class="text-center" style="white-space:nowrap;">
+        ${l.status === 'Pending' ? `
+          <button class="btn btn-sm btn-outline-success py-1 px-2 me-1" onclick="window._approveLeave('${l.id}')" title="Approve"><i class="bi bi-check-lg"></i></button>
+          <button class="btn btn-sm btn-outline-danger py-1 px-2 me-1" onclick="window._rejectLeave('${l.id}')" title="Reject"><i class="bi bi-x-lg"></i></button>
+        ` : ''}
+        <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="window._deleteLeave('${l.id}')" title="Delete"><i class="bi bi-trash-fill"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window._approveLeave = async id => {
+  loading(true);
+  try { await updateLeaveStatus(id, 'Approved'); leaveCache = await getAllLeaves(); renderLeaveTable(); renderLeaveBalance(); renderOverview(); showToast('Leave approved!'); }
+  catch { showToast('Error.', 'danger'); } finally { loading(false); }
+};
+window._rejectLeave = async id => {
+  loading(true);
+  try { await updateLeaveStatus(id, 'Rejected'); leaveCache = await getAllLeaves(); renderLeaveTable(); renderLeaveBalance(); renderOverview(); showToast('Leave rejected.', 'warning'); }
+  catch { showToast('Error.', 'danger'); } finally { loading(false); }
+};
+window._deleteLeave = id => {
+  confirmDelete('Delete this leave record?', async () => {
+    loading(true);
+    try { await deleteLeave(id); leaveCache = await getAllLeaves(); renderLeaveTable(); renderLeaveBalance(); renderOverview(); showToast('Leave deleted.', 'danger'); }
+    catch { showToast('Error.', 'danger'); } finally { loading(false); }
+  });
+};
+
+function renderLeaveBalance() {
+  const approved = leaveCache.filter(l => l.status === 'Approved');
+  const tbody = document.getElementById('leaveBalanceBody');
+  if (!empCache.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No employees.</td></tr>'; return; }
+  tbody.innerHTML = empCache.map(emp => {
+    const empLeaves = approved.filter(l => l.empId === emp.emp_id);
+    const count = type => empLeaves.filter(l => l.type === type)
+      .reduce((s, l) => s + Math.max(0, (new Date(l.to) - new Date(l.from)) / 86400000 + 1), 0);
+    const annual = count('Annual'), sick = count('Sick'), casual = count('Casual');
+    const total = empLeaves.reduce((s, l) => s + Math.max(0, (new Date(l.to) - new Date(l.from)) / 86400000 + 1), 0);
+    const badge = (used, max) => `<span class="badge text-bg-${used < max ? 'success' : 'danger'} rounded-pill">${used}/${max}</span>`;
+    return `<tr>
+      <td class="fw-semibold">${emp.name}</td><td>${emp.dept}</td>
+      <td>${badge(annual, MAX_LEAVE.Annual)}</td>
+      <td>${badge(sick, MAX_LEAVE.Sick)}</td>
+      <td>${badge(casual, MAX_LEAVE.Casual)}</td>
+      <td class="fw-bold">${total} days</td>
+      <td>${empLeaves.length} request(s)</td>
+    </tr>`;
+  }).join('');
+}
+
+// ────────────────────────────────────────────
+// PAYROLL
+// ────────────────────────────────────────────
+function initPayrollControls() {
+  fillMonthYearSelects('payrollMonth', 'payrollYear');
+  fillMonthYearSelects('payrollRecMonth', 'payrollRecYear');
+  document.getElementById('generatePayrollBtn').addEventListener('click', generatePayroll);
+  document.getElementById('confirmSavePayrollBtn').addEventListener('click', confirmSavePayroll);
+  document.getElementById('loadPayrollRecBtn').addEventListener('click', renderPayrollRecords);
+  renderPayrollRecords();
+}
+
+async function generatePayroll() {
+  const month = parseInt(document.getElementById('payrollMonth').value);
+  const year  = parseInt(document.getElementById('payrollYear').value);
+  const emps  = empCache.filter(e => e.employmentStatus === 'Active' || e.employmentStatus === 'On Leave');
+  if (!emps.length) { showToast('No active employees.', 'warning'); return; }
+
+  loading(true);
+  try {
+    const monthStr = String(month).padStart(2, '0');
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const monthAtt = await getAttendanceByMonth(year, month);
+    const attLookup = {};
+    monthAtt.forEach(a => { attLookup[`${a.empId}_${a.date}`] = a.status; });
+
+    const workDays = Array.from({ length: daysInMonth }, (_, i) => {
+      const dow = new Date(year, month - 1, i + 1).getDay();
+      return dow !== 5 && dow !== 6;
+    }).filter(Boolean).length;
+
+    payrollPreviewData = emps.map(emp => {
+      let absentDays = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = `${year}-${monthStr}-${String(d).padStart(2,'0')}`;
+        const dow = new Date(year, month - 1, d).getDay();
+        if (dow === 5 || dow === 6) continue;
+        if (attLookup[`${emp.emp_id}_${ds}`] === 'A') absentDays++;
+      }
+      const perDay = workDays > 0 ? (emp.basic || 0) / workDays : 0;
+      const extraDeduction = Math.round(perDay * absentDays);
+      const net = Math.max(0, (emp.basic || 0) + (emp.allowance || 0) - (emp.deduction || 0) - extraDeduction);
+      return { id: uid(), empId: emp.emp_id, name: emp.name, dept: emp.dept, basic: emp.basic || 0, allowance: emp.allowance || 0, deduction: emp.deduction || 0, extraDeduction, net, month, year };
+    });
+    curPayMonth = month; curPayYear = year;
+
+    document.getElementById('payrollPreviewTitle').innerHTML =
+      `<i class="bi bi-receipt me-2 text-primary"></i>Preview — ${MONTHS[month-1]} ${year}`;
+
+    let tB=0, tA=0, tD=0, tE=0, tN=0;
+    document.getElementById('payrollPreviewBody').innerHTML = payrollPreviewData.map(p => {
+      tB+=p.basic; tA+=p.allowance; tD+=p.deduction; tE+=p.extraDeduction; tN+=p.net;
+      return `<tr>
+        <td><span class="badge bg-primary-soft text-primary">${p.empId}</span></td>
+        <td class="fw-semibold">${p.name}</td><td>${p.dept}</td>
+        <td>৳ ${p.basic.toLocaleString()}</td>
+        <td>৳ ${p.allowance.toLocaleString()}</td>
+        <td>৳ ${p.deduction.toLocaleString()}</td>
+        <td class="text-danger">৳ ${p.extraDeduction.toLocaleString()}</td>
+        <td class="fw-bold text-success">৳ ${p.net.toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+    [['pfBasic',tB],['pfAllow',tA],['pfDeduct',tD],['pfExtra',tE],['pfNet',tN]].forEach(([id,v]) => {
+      document.getElementById(id).textContent = '৳ ' + v.toLocaleString();
+    });
+    document.getElementById('payrollPreviewCard').classList.remove('d-none');
+    showToast(`Payroll calculated for ${emps.length} employees!`);
+  } catch (err) { showToast('Error: ' + err.message, 'danger'); }
+  finally { loading(false); }
+}
+
+async function confirmSavePayroll() {
+  if (!payrollPreviewData.length) return;
+  loading(true);
+  try {
+    await deletePayrollByMonth(curPayMonth, curPayYear);
+    await savePayrollRecords(payrollPreviewData);
+    payrollCache = await getAllPayroll();
+    document.getElementById('payrollPreviewCard').classList.add('d-none');
+    showToast('Payroll saved to Firebase!');
+    renderOverview();
+    renderPayrollRecords();
+  } catch (err) { showToast('Error saving payroll: ' + err.message, 'danger'); }
+  finally { loading(false); }
+}
+
+function renderPayrollRecords() {
+  const month = parseInt(document.getElementById('payrollRecMonth').value);
+  const year  = parseInt(document.getElementById('payrollRecYear').value);
+  const empMap = buildEmpMap();
+  const records = payrollCache.filter(p => p.month === month && p.year === year).slice().reverse();
+  const tbody = document.getElementById('payrollRecBody');
+  if (!records.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No records for selected period.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = records.map(p => {
+    const emp = empMap[p.empId];
+    return `<tr>
+      <td><span class="badge bg-primary-soft text-primary">${p.empId}</span></td>
+      <td class="fw-semibold">${emp?.name || p.empId}</td>
+      <td>${MONTHS[p.month - 1]} ${p.year}</td>
+      <td>৳ ${p.basic.toLocaleString()}</td>
+      <td>৳ ${(p.allowance||0).toLocaleString()}</td>
+      <td>৳ ${((p.deduction||0)+(p.extraDeduction||0)).toLocaleString()}</td>
+      <td class="fw-bold text-success">৳ ${p.net.toLocaleString()}</td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-outline-primary py-1 px-2" onclick="window._showPayslip('${p.id}')">
+          <i class="bi bi-file-earmark-person me-1"></i>Payslip
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+window._showPayslip = id => {
+  const rec = payrollCache.find(p => p.id === id);
+  if (!rec) return;
+  const emp = buildEmpMap()[rec.empId];
+  document.getElementById('ps_period').textContent  = `${MONTHS[rec.month-1]} ${rec.year}`;
+  document.getElementById('ps_name').textContent    = emp?.name || rec.empId;
+  document.getElementById('ps_empid').textContent   = rec.empId;
+  document.getElementById('ps_dept').textContent    = emp?.dept || '—';
+  document.getElementById('ps_basic').textContent   = '৳ ' + rec.basic.toLocaleString();
+  document.getElementById('ps_allow').textContent   = '৳ ' + (rec.allowance||0).toLocaleString();
+  document.getElementById('ps_deduct').textContent  = '৳ ' + (rec.deduction||0).toLocaleString();
+  document.getElementById('ps_extra').textContent   = '৳ ' + (rec.extraDeduction||0).toLocaleString();
+  document.getElementById('ps_net').textContent     = '৳ ' + rec.net.toLocaleString();
+  const area = document.getElementById('payslipPrintArea');
+  area.classList.remove('d-none');
+  area.scrollIntoView({ behavior: 'smooth' });
+};
+
+// ────────────────────────────────────────────
+// DUTY ROSTER
+// ────────────────────────────────────────────
+function initRosterControls() {
+  document.getElementById('loadRosterBtn').addEventListener('click', loadAndBuildRoster);
+  document.getElementById('saveRosterBtn').addEventListener('click', saveRosterToFirebase);
+}
+
+function buildRosterWeeks() {
+  const sel = document.getElementById('rosterWeekStart');
+  sel.innerHTML = '<option value="">Select Week</option>';
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  for (let i = -4; i <= 8; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i * 7);
+    const val = d.toISOString().slice(0, 10);
+    const end = new Date(d); end.setDate(d.getDate() + 6);
+    sel.innerHTML += `<option value="${val}">${val} – ${end.toISOString().slice(0,10)}</option>`;
+  }
+  sel.value = monday.toISOString().slice(0, 10);
+}
+
+async function loadAndBuildRoster() {
+  const weekStart = document.getElementById('rosterWeekStart').value;
+  if (!weekStart) { showToast('Select a week first.', 'warning'); return; }
+  loading(true);
+  try {
+    const entries = await getRosterByWeek(weekStart);
+    rosterCache = {};
+    entries.forEach(r => { rosterCache[`${r.empId}_${r.date}`] = r.shift; });
+    buildRosterGrid(weekStart);
+  } catch (err) { showToast('Error loading roster: ' + err.message, 'danger'); }
+  finally { loading(false); }
+}
+
+function buildRosterGrid(weekStart) {
+  if (!weekStart) weekStart = document.getElementById('rosterWeekStart').value;
+  if (!weekStart) return;
+  const emps = empCache.filter(e => e.employmentStatus === 'Active' || e.employmentStatus === 'On Leave');
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const days = [], dayLabels = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart); d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0, 10);
+    days.push(ds);
+    dayLabels.push(`${dayNames[d.getDay()]}<br><small>${ds.slice(5)}</small>`);
+  }
+
+  document.getElementById('rosterHead').innerHTML = `<tr>
+    <th style="position:sticky;left:0;min-width:130px;">Employee</th>
+    ${dayLabels.map(l => `<th>${l}</th>`).join('')}
+  </tr>`;
+
+  if (!emps.length) {
+    document.getElementById('rosterBody').innerHTML =
+      `<tr><td colspan="8" class="text-center py-4 text-muted">No active employees.</td></tr>`;
+    return;
+  }
+
+  document.getElementById('rosterBody').innerHTML = emps.map(emp => {
+    const cells = days.map(date => {
+      const dow = new Date(date).getDay();
+      const defaultShift = (dow === 5 || dow === 6) ? 'O' : 'M';
+      const shift = rosterCache[`${emp.emp_id}_${date}`] || defaultShift;
+      return `<td class="shift-${shift}">
+        <select class="roster-select shift-${shift}" data-empid="${emp.emp_id}" data-date="${date}" onchange="onRosterChange(this)">
+          ${SHIFTS.map(s => `<option value="${s}" ${s===shift?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>`;
+    });
+    return `<tr>
+      <td class="fw-semibold" style="position:sticky;left:0;background:var(--bs-body-bg);">${emp.name}</td>
+      ${cells.join('')}
+    </tr>`;
+  }).join('');
+
+  buildRosterSummary(emps, days);
+  document.getElementById('rosterSummaryCard').classList.remove('d-none');
+}
+
+window.onRosterChange = sel => {
+  const shift = sel.value;
+  sel.className = `roster-select shift-${shift}`;
+  sel.closest('td').className = `shift-${shift}`;
+};
+
+async function saveRosterToFirebase() {
+  const sels = document.querySelectorAll('.roster-select');
+  if (!sels.length) { showToast('No roster to save.', 'warning'); return; }
+  loading(true);
+  try {
+    const entries = Array.from(sels).map(sel => ({
+      empId: sel.dataset.empid,
+      date: sel.dataset.date,
+      shift: sel.value
+    }));
+    await batchSaveRoster(entries);
+    // Update cache
+    entries.forEach(({ empId, date, shift }) => { rosterCache[`${empId}_${date}`] = shift; });
+    showToast(`Roster saved to Firebase (${entries.length} entries)!`);
+  } catch (err) { showToast('Error saving roster: ' + err.message, 'danger'); }
+  finally { loading(false); }
+}
+
+function buildRosterSummary(emps, days) {
+  document.getElementById('rosterSummaryBody').innerHTML = emps.map(emp => {
+    let M=0, E=0, N=0, O=0;
+    days.forEach(date => {
+      const dow = new Date(date).getDay();
+      const s = rosterCache[`${emp.emp_id}_${date}`] || ((dow===5||dow===6)?'O':'M');
+      if(s==='M')M++; else if(s==='E')E++; else if(s==='N')N++; else O++;
+    });
+    return `<tr>
+      <td class="fw-semibold">${emp.name}</td>
+      <td><span class="badge shift-M px-2">${M}</span></td>
+      <td><span class="badge shift-E px-2">${E}</span></td>
+      <td><span class="badge shift-N px-2">${N}</span></td>
+      <td><span class="badge shift-O px-2">${O}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// Auto-close offcanvas sidebar on mobile after selecting a tab
+document.querySelectorAll('#hrTabs .nav-link').forEach(link => {
+  link.addEventListener('click', () => {
+    if (window.innerWidth < 768) {
+      const offcanvasEl = document.getElementById('sidebarMenu');
+      if (offcanvasEl) {
+        const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+        if (offcanvasInstance) offcanvasInstance.hide();
+      }
+    }
+  });
+});
+
+// --- Stepper Logic ---
+const steps = [
+  { id: 1, label: 'Basic info', icon: 'bi-person-fill' },
+  { id: 2, label: 'Salary and bank info', icon: 'bi-key-fill' },
+  { id: 3, label: 'Personal information', icon: 'bi-info-circle-fill' },
+  { id: 4, label: 'Biological info contact', icon: 'bi-person-badge-fill' }
+];
+
+let currentStep = 1;
+
+function renderStepper() {
+  const header = document.getElementById('empStepper');
+  if (!header) return;
+  header.innerHTML = steps.map(s => `
+    <div class="stepper-step ${s.id === currentStep ? 'active' : (s.id < currentStep ? 'completed' : '')}" onclick="window._goToStep(${s.id})">
+      <div class="stepper-circle"><i class="bi ${s.icon}"></i></div>
+      <div class="stepper-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.stepper-content').forEach(el => {
+    el.classList.remove('active');
+  });
+  const currentPane = document.getElementById('step-' + currentStep);
+  if (currentPane) {
+      currentPane.classList.add('active');
+  }
+}
+
+window._goToStep = (step) => {
+  currentStep = step;
+  renderStepper();
+};
+
+document.querySelectorAll('#formEmployeeWizard .btn-next').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const currentPane = document.getElementById('step-' + currentStep);
+    const inputs = currentPane.querySelectorAll('[required]');
+    let isValid = true;
+    inputs.forEach(input => {
+      if (!input.checkValidity()) {
+        input.reportValidity();
+        isValid = false;
+      }
+    });
+    if (isValid && currentStep < steps.length) {
+      currentStep++;
+      renderStepper();
+    }
+  });
+});
+
+document.querySelectorAll('#formEmployeeWizard .btn-prev').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (currentStep > 1) {
+      currentStep--;
+      renderStepper();
+    }
+  });
+});
+
+document.getElementById('formEmployeeWizard')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Handle profileImage file input to prevent Firestore unsupported File object error
+    if (data.profileImage instanceof File) {
+      if (data.profileImage.size > 0) {
+        data.profileImage = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(data.profileImage);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+        });
+      } else {
+        // Remove empty file object to avoid Firestore unsupported type error
+        delete data.profileImage;
+      }
+    }
+    
+    const empId = await saveEmployee(data);
+    
+    alert(`Employee data submitted successfully. ID: ${empId}`);
+    e.target.reset();
+    document.getElementById('hidden_emp_id').value = '';
+    currentStep = 1;
+    renderStepper();
+    
+    await loadAllData(); renderEmpTable(); populateEmpDeptFilter();
+  } catch (err) {
+    alert(`Error saving employee: ${err.message}`);
+  }
+});
+
+
+let allAuditLogs = [];
+
+async function refreshAuditLogs() {
+  const tbody = document.getElementById('logsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>Loading logs...</td></tr>';
+  try {
+    allAuditLogs = await getAllAuditLogs();
+    renderAuditLogs();
+  } catch (err) {
+    console.error("refreshAuditLogs failed:", err);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger">Error loading audit logs: ${err.message}</td></tr>`;
+  }
+}
+
+function renderAuditLogs() {
+  const tbody = document.getElementById('logsTableBody');
+  if (!tbody) return;
+  if (allAuditLogs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No audit logs found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allAuditLogs.map(log => {
+    let actionBadge = 'bg-secondary';
+    if (log.action_type === 'LOGIN') actionBadge = 'bg-info';
+    else if (log.action_type === 'CREATE') actionBadge = 'bg-success';
+    else if (log.action_type === 'UPDATE') actionBadge = 'bg-warning text-dark';
+    else if (log.action_type === 'DELETE') actionBadge = 'bg-danger';
+
+    return `<tr>
+      <td class="small fw-semibold">${log.log_id || 'N/A'}</td>
+      <td class="small text-muted">${log.local_time || 'N/A'}</td>
+      <td class="small fw-semibold text-primary">${log.user_email || 'N/A'}</td>
+      <td><span class="badge ${actionBadge}">${log.action_type || 'UNKNOWN'}</span></td>
+      <td class="small text-muted">${log.collection_name || 'N/A'}</td>
+      <td class="small text-muted">${log.record_id || 'N/A'}</td>
+      <td class="small text-truncate" style="max-width: 250px;" title="${log.details || ''}">${log.details || 'N/A'}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('tab-system-logs')?.addEventListener('click', refreshAuditLogs);
+document.getElementById('refreshLogsBtn')?.addEventListener('click', refreshAuditLogs);
+
+// Initialize stepper
+
+setTimeout(renderStepper, 500); // slight delay to ensure DOM is ready
+
+// Salary Auto-calculation
+const inpBasic = document.getElementById('inpBasicSalary');
+const inpHouse = document.getElementById('inpHouseRent');
+const inpMedical = document.getElementById('inpMedical');
+const inpConv = document.getElementById('inpConveyance');
+const inpUtility = document.getElementById('inpUtility');
+const inpMobile = document.getElementById('inpMobile');
+const inpGross = document.getElementById('inpGrossSalary');
+
+if (inpBasic) {
+  inpBasic.addEventListener('input', () => {
+    const basic = parseFloat(inpBasic.value) || 0;
+    
+    const houseRent = basic * 0.50;
+    const medical = basic * 0.20;
+    const conveyance = basic * 0.20;
+    const utility = basic * 0.10;
+    const mobile = parseFloat(inpMobile.value) || 1000;
+    
+    inpHouse.value = houseRent.toFixed(2);
+    inpMedical.value = medical.toFixed(2);
+    inpConv.value = conveyance.toFixed(2);
+    inpUtility.value = utility.toFixed(2);
+    
+    const gross = basic + houseRent + medical + conveyance + utility + mobile;
+    inpGross.value = gross.toFixed(2);
+  });
+}
+
+// ========================================================
+// DEPARTMENTS, SUB DEPARTMENTS & POSITIONS MANAGEMENT UI
+// ========================================================
+
+// 1. Render directories (Tables)
+let deptCurrentPage = 1;
+let subDeptCurrentPage = 1;
+let positionCurrentPage = 1;
+const CONFIG_PAGE_SIZE = 10;
+
+function renderTablePagination(containerId, totalItems, totalPages, currentPage, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+  const startItem = (currentPage - 1) * CONFIG_PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * CONFIG_PAGE_SIZE, totalItems);
+  
+  let paginationHtml = `
+    <span class="small text-muted">Showing ${startItem} to ${endItem} of ${totalItems} entries</span>
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <button class="page-link" type="button" onclick="window.${containerId}Change(${currentPage - 1})">Prev</button>
+        </li>
+  `;
+  for (let i = 1; i <= totalPages; i++) {
+    paginationHtml += `
+      <li class="page-item ${currentPage === i ? 'active' : ''}">
+        <button class="page-link" type="button" onclick="window.${containerId}Change(${i})">${i}</button>
+      </li>
+    `;
+  }
+  paginationHtml += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <button class="page-link" type="button" onclick="window.${containerId}Change(${currentPage + 1})">Next</button>
+        </li>
+      </ul>
+    </nav>
+  `;
+  container.innerHTML = paginationHtml;
+  window[`${containerId}Change`] = onPageChange;
+}
+
+function renderDeptTable() {
+  const tbody = document.querySelector('#subpanel-dept table tbody');
+  if (!tbody) return;
+  
+  const query = document.getElementById('searchDept')?.value.toLowerCase().trim() || '';
+  const status = document.getElementById('filterDeptStatus')?.value || '';
+  
+  const filtered = deptCache.filter(d => {
+    const matchesQuery = !query || d.name.toLowerCase().includes(query);
+    const matchesStatus = !status || d.status === status;
+    return matchesQuery && matchesStatus;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No departments found.</td></tr>';
+    const container = document.getElementById('deptPagination');
+    if (container) container.innerHTML = '';
+    return;
+  }
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / CONFIG_PAGE_SIZE);
+  if (deptCurrentPage > totalPages) deptCurrentPage = totalPages;
+  if (deptCurrentPage < 1) deptCurrentPage = 1;
+  
+  const startIdx = (deptCurrentPage - 1) * CONFIG_PAGE_SIZE;
+  const endIdx = Math.min(startIdx + CONFIG_PAGE_SIZE, totalItems);
+  const pageItems = filtered.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map(d => `
+    <tr>
+      <td class="fw-semibold">${d.name}</td>
+      <td><span class="badge text-bg-info rounded-pill">${d.linkedDashboard || 'All'}</span></td>
+      <td><span class="badge text-bg-${d.status === 'Active' ? 'success' : 'secondary'} rounded-pill">${d.status}</span></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="window._editDept('${d.id}')"><i class="bi bi-pencil-fill"></i></button>
+        <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="window._deleteDept('${d.id}')"><i class="bi bi-trash-fill"></i></button>
+      </td>
+    </tr>`).join('');
+
+  renderTablePagination('deptPagination', totalItems, totalPages, deptCurrentPage, (page) => {
+    deptCurrentPage = page;
+    renderDeptTable();
+  });
+}
+
+function renderSubDeptTable() {
+  const tbody = document.querySelector('#subpanel-subdept table tbody');
+  if (!tbody) return;
+  
+  const query = document.getElementById('searchSubDept')?.value.toLowerCase().trim() || '';
+  const status = document.getElementById('filterSubDeptStatus')?.value || '';
+
+  const filtered = subDeptCache.filter(sd => {
+    const matchesQuery = !query || sd.name.toLowerCase().includes(query) || sd.parentDept.toLowerCase().includes(query);
+    const matchesStatus = !status || sd.status === status;
+    return matchesQuery && matchesStatus;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No sub departments found.</td></tr>';
+    const container = document.getElementById('subDeptPagination');
+    if (container) container.innerHTML = '';
+    return;
+  }
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / CONFIG_PAGE_SIZE);
+  if (subDeptCurrentPage > totalPages) subDeptCurrentPage = totalPages;
+  if (subDeptCurrentPage < 1) subDeptCurrentPage = 1;
+  
+  const startIdx = (subDeptCurrentPage - 1) * CONFIG_PAGE_SIZE;
+  const endIdx = Math.min(startIdx + CONFIG_PAGE_SIZE, totalItems);
+  const pageItems = filtered.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map(sd => `
+    <tr>
+      <td class="fw-semibold">${sd.name}</td>
+      <td><span class="badge text-bg-light border">${sd.parentDept}</span></td>
+      <td><span class="badge text-bg-${sd.status === 'Active' ? 'success' : 'secondary'} rounded-pill">${sd.status}</span></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="window._editSubDept('${sd.id}')"><i class="bi bi-pencil-fill"></i></button>
+        <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="window._deleteSubDept('${sd.id}')"><i class="bi bi-trash-fill"></i></button>
+      </td>
+    </tr>`).join('');
+
+  renderTablePagination('subDeptPagination', totalItems, totalPages, subDeptCurrentPage, (page) => {
+    subDeptCurrentPage = page;
+    renderSubDeptTable();
+  });
+}
+
+function renderPositionTable() {
+  const tbody = document.querySelector('#subpanel-position table tbody');
+  if (!tbody) return;
+  
+  const query = document.getElementById('searchPosition')?.value.toLowerCase().trim() || '';
+  const status = document.getElementById('filterPositionStatus')?.value || '';
+
+  const filtered = positionCache.filter(p => {
+    const matchesQuery = !query || p.title.toLowerCase().includes(query) || p.department.toLowerCase().includes(query) || (p.subDepartment || '').toLowerCase().includes(query);
+    const matchesStatus = !status || p.status === status;
+    return matchesQuery && matchesStatus;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No positions found.</td></tr>';
+    const container = document.getElementById('positionPagination');
+    if (container) container.innerHTML = '';
+    return;
+  }
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / CONFIG_PAGE_SIZE);
+  if (positionCurrentPage > totalPages) positionCurrentPage = totalPages;
+  if (positionCurrentPage < 1) positionCurrentPage = 1;
+  
+  const startIdx = (positionCurrentPage - 1) * CONFIG_PAGE_SIZE;
+  const endIdx = Math.min(startIdx + CONFIG_PAGE_SIZE, totalItems);
+  const pageItems = filtered.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map(p => `
+    <tr>
+      <td class="fw-semibold">${p.title}</td>
+      <td><span class="badge text-bg-light border">${p.department}</span></td>
+      <td><span class="badge text-bg-light border">${p.subDepartment || '—'}</span></td>
+      <td><span class="badge text-bg-${p.status === 'Active' ? 'success' : 'secondary'} rounded-pill">${p.status}</span></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-primary py-1 px-2 me-1" onclick="window._editPosition('${p.id}')"><i class="bi bi-pencil-fill"></i></button>
+        <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="window._deletePosition('${p.id}')"><i class="bi bi-trash-fill"></i></button>
+      </td>
+    </tr>`).join('');
+
+  renderTablePagination('positionPagination', totalItems, totalPages, positionCurrentPage, (page) => {
+    positionCurrentPage = page;
+    renderPositionTable();
+  });
+}
+
+// Bind search and filter event listeners
+document.getElementById('searchDept')?.addEventListener('input', () => {
+  deptCurrentPage = 1;
+  renderDeptTable();
+});
+document.getElementById('filterDeptStatus')?.addEventListener('change', () => {
+  deptCurrentPage = 1;
+  renderDeptTable();
+});
+document.getElementById('refreshDeptBtn')?.addEventListener('click', async () => {
+  loading(true);
+  try {
+    deptCache = await getAllDepartments();
+    deptCurrentPage = 1;
+    renderDeptTable();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+document.getElementById('searchSubDept')?.addEventListener('input', () => {
+  subDeptCurrentPage = 1;
+  renderSubDeptTable();
+});
+document.getElementById('filterSubDeptStatus')?.addEventListener('change', () => {
+  subDeptCurrentPage = 1;
+  renderSubDeptTable();
+});
+document.getElementById('refreshSubDeptBtn')?.addEventListener('click', async () => {
+  loading(true);
+  try {
+    subDeptCache = await getAllSubDepartments();
+    subDeptCurrentPage = 1;
+    renderSubDeptTable();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+document.getElementById('searchPosition')?.addEventListener('input', () => {
+  positionCurrentPage = 1;
+  renderPositionTable();
+});
+document.getElementById('filterPositionStatus')?.addEventListener('change', () => {
+  positionCurrentPage = 1;
+  renderPositionTable();
+});
+document.getElementById('refreshPositionBtn')?.addEventListener('click', async () => {
+  loading(true);
+  try {
+    positionCache = await getAllPositions();
+    positionCurrentPage = 1;
+    renderPositionTable();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+// 2. Populate Dropdowns dynamically
+function populateDeptDropdowns() {
+  const activeDepts = deptCache.filter(d => d.status === 'Active');
+  
+  // Parent Department select in Sub Dept form
+  const subDeptParent = document.getElementById('subdept_parent');
+  if (subDeptParent) {
+    const cur = subDeptParent.value;
+    subDeptParent.innerHTML = '<option value="" disabled selected>Select Parent...</option>' + 
+      activeDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    if (cur) subDeptParent.value = cur;
+  }
+
+  // Department select in Position form
+  const posDept = document.getElementById('pos_dept');
+  if (posDept) {
+    const cur = posDept.value;
+    posDept.innerHTML = '<option value="" disabled selected>Select Department...</option>' + 
+      activeDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    if (cur) posDept.value = cur;
+  }
+
+  // Department select in Employee wizard step 3
+  const empDept = document.querySelector('#formEmployeeWizard select[name="department"]');
+  if (empDept) {
+    const cur = empDept.value;
+    empDept.innerHTML = '<option value="" disabled selected>Select Department...</option>' + 
+      activeDepts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    if (cur) empDept.value = cur;
+  }
+  
+  populateSubDeptDropdowns();
+}
+
+function populateSubDeptDropdowns() {
+  // Sub-dept dropdown in Position form (filtered by selected department)
+  const posDept = document.getElementById('pos_dept');
+  const posSubDept = document.getElementById('pos_subdept');
+  if (posDept && posSubDept) {
+    const selectedDept = posDept.value;
+    const cur = posSubDept.value;
+    const filtered = subDeptCache.filter(sd => sd.status === 'Active' && sd.parentDept === selectedDept);
+    posSubDept.innerHTML = '<option value="" disabled selected>Select Sub Department...</option>' + 
+      filtered.map(sd => `<option value="${sd.name}">${sd.name}</option>`).join('');
+    if (cur) posSubDept.value = cur;
+  }
+
+  // Sub-dept dropdown in Employee wizard step 3 (filtered by selected department)
+  const empDept = document.querySelector('#formEmployeeWizard select[name="department"]');
+  const empSubDept = document.querySelector('#formEmployeeWizard select[name="subDepartment"]');
+  if (empDept && empSubDept) {
+    const selectedDept = empDept.value;
+    const cur = empSubDept.value;
+    const filtered = subDeptCache.filter(sd => sd.status === 'Active' && sd.parentDept === selectedDept);
+    empSubDept.innerHTML = '<option value="">Select sub-department</option>' + 
+      filtered.map(sd => `<option value="${sd.name}">${sd.name}</option>`).join('');
+    if (cur) empSubDept.value = cur;
+  }
+
+  populatePositionDropdowns();
+}
+
+function populatePositionDropdowns() {
+  const empDept = document.querySelector('#formEmployeeWizard select[name="department"]');
+  const empSubDept = document.querySelector('#formEmployeeWizard select[name="subDepartment"]');
+  const empPosition = document.querySelector('#formEmployeeWizard select[name="position"]');
+  if (empDept && empPosition) {
+    const selectedDept = empDept.value;
+    const selectedSubDept = empSubDept ? empSubDept.value : '';
+    const cur = empPosition.value;
+    
+    // Filter positions: must match department, and if sub-department is specified/active, match it too
+    const filtered = positionCache.filter(p => 
+      p.status === 'Active' && 
+      p.department === selectedDept && 
+      (!selectedSubDept || !p.subDepartment || p.subDepartment === selectedSubDept)
+    );
+    
+    empPosition.innerHTML = '<option value="">Select position</option>' + 
+      filtered.map(p => `<option value="${p.title}">${p.title}</option>`).join('');
+    if (cur) empPosition.value = cur;
+  }
+}
+
+// 3. Dropdown change bindings
+document.getElementById('pos_dept')?.addEventListener('change', populateSubDeptDropdowns);
+document.querySelector('#formEmployeeWizard select[name="department"]')?.addEventListener('change', () => {
+  populateSubDeptDropdowns();
+  populatePositionDropdowns();
+});
+document.querySelector('#formEmployeeWizard select[name="subDepartment"]')?.addEventListener('change', populatePositionDropdowns);
+
+// 4. Form Submissions
+document.getElementById('formAddDept')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  loading(true);
+  try {
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const id = await saveDepartment(data);
+    showToast(data.id ? 'Department updated successfully.' : 'Department created successfully.');
+    e.target.reset();
+    document.getElementById('hidden_dept_id').value = '';
+    document.querySelector('#subpanel-dept form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Save Department';
+    deptCache = await getAllDepartments();
+    renderDeptTable();
+    populateDeptDropdowns();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+document.getElementById('formAddSubDept')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  loading(true);
+  try {
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const id = await saveSubDepartment(data);
+    showToast(data.id ? 'Sub-department updated successfully.' : 'Sub-department created successfully.');
+    e.target.reset();
+    document.getElementById('hidden_subdept_id').value = '';
+    document.querySelector('#subpanel-subdept form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Save Sub Department';
+    subDeptCache = await getAllSubDepartments();
+    renderSubDeptTable();
+    populateDeptDropdowns();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+document.getElementById('formAddPosition')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  loading(true);
+  try {
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    const id = await savePosition(data);
+    showToast(data.id ? 'Position updated successfully.' : 'Position created successfully.');
+    e.target.reset();
+    document.getElementById('hidden_position_id').value = '';
+    document.querySelector('#subpanel-position form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Save Position';
+    positionCache = await getAllPositions();
+    renderPositionTable();
+    populateDeptDropdowns();
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    loading(false);
+  }
+});
+
+// 5. Window Edit/Delete Operations
+window._editDept = id => {
+  const d = deptCache.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('hidden_dept_id').value = d.id;
+  document.getElementById('dept_name').value = d.name;
+  document.getElementById('dept_linked_dashboard').value = d.linkedDashboard || 'All';
+  document.getElementById('dept_status').value = d.status;
+  document.getElementById('dept_notes').value = d.notes || '';
+  document.querySelector('#subpanel-dept form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Update Department';
+};
+
+window._deleteDept = id => {
+  confirmDelete(`Delete department ${id}? This cannot be undone.`, async () => {
+    loading(true);
+    try {
+      await deleteDepartment(id);
+      deptCache = await getAllDepartments();
+      renderDeptTable();
+      populateDeptDropdowns();
+      showToast('Department deleted.', 'danger');
+    } catch { showToast('Error deleting department.', 'danger'); }
+    finally { loading(false); }
+  });
+};
+
+window._editSubDept = id => {
+  const sd = subDeptCache.find(x => x.id === id);
+  if (!sd) return;
+  document.getElementById('hidden_subdept_id').value = sd.id;
+  document.getElementById('subdept_name').value = sd.name;
+  document.getElementById('subdept_parent').value = sd.parentDept;
+  document.getElementById('subdept_status').value = sd.status;
+  document.getElementById('subdept_notes').value = sd.notes || '';
+  document.querySelector('#subpanel-subdept form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Update Sub Dept';
+};
+
+window._deleteSubDept = id => {
+  confirmDelete(`Delete sub department ${id}? This cannot be undone.`, async () => {
+    loading(true);
+    try {
+      await deleteSubDepartment(id);
+      subDeptCache = await getAllSubDepartments();
+      renderSubDeptTable();
+      populateDeptDropdowns();
+      showToast('Sub department deleted.', 'danger');
+    } catch { showToast('Error deleting sub department.', 'danger'); }
+    finally { loading(false); }
+  });
+};
+
+window._editPosition = id => {
+  const p = positionCache.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('hidden_position_id').value = p.id;
+  document.getElementById('pos_title').value = p.title;
+  document.getElementById('pos_dept').value = p.department;
+  populateSubDeptDropdowns();
+  document.getElementById('pos_subdept').value = p.subDepartment || '';
+  document.getElementById('pos_status').value = p.status;
+  document.querySelector('#subpanel-position form button[type="submit"]').innerHTML = '<i class="bi bi-save me-2"></i>Update Position';
+};
+
+window._deletePosition = id => {
+  confirmDelete(`Delete position ${id}? This cannot be undone.`, async () => {
+    loading(true);
+    try {
+      await deletePosition(id);
+      positionCache = await getAllPositions();
+      renderPositionTable();
+      populateDeptDropdowns();
+      showToast('Position deleted.', 'danger');
+    } catch { showToast('Error deleting position.', 'danger'); }
+    finally { loading(false); }
+  });
+};
+
+</script>
+</body>
+</html>

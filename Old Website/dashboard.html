@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administrative Dashboard Gateway | Intrex Digital Hub</title>
+  <link rel="icon" href="assets/images/logo/intrex-favicon.svg" type="image/svg+xml">
+  <meta name="description" content="Central administrative launchpad and gateway for Intrex Digital Hub portals including Solutions, Training, and Investments.">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- ======= Google Font =======-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+
+  <!-- ======= Styles =======-->
+  <link href="assets/vendors/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendors/bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="assets/vendors/aos/aos.css" rel="stylesheet">
+  <link href="assets/css/style.css" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-light: #f8fafc;
+      --card-bg: rgba(255, 255, 255, 0.75);
+      --card-border: rgba(15, 23, 42, 0.08);
+      --text-muted: #64748b;
+      --text-heading: #0f172a;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-light);
+      color: #334155;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Animated Ambient Background Blobs (Soft pastels using primary & secondary) */
+    .bg-blobs {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+      opacity: 0.15;
+      mix-blend-mode: multiply;
+      animation: float 20s infinite alternate ease-in-out;
+    }
+
+    .blob-1 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(var(--bs-primary-rgb), 0.15) 0%, rgba(var(--bs-primary-rgb), 0) 70%);
+      top: -10%;
+      left: -10%;
+      animation-duration: 25s;
+    }
+
+    .blob-2 {
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(var(--bs-secondary-rgb), 0.15) 0%, rgba(var(--bs-secondary-rgb), 0) 70%);
+      bottom: -15%;
+      right: -10%;
+      animation-duration: 30s;
+      animation-delay: -5s;
+    }
+
+    .blob-3 {
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(var(--bs-primary-rgb), 0.1) 0%, rgba(var(--bs-primary-rgb), 0) 70%);
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-duration: 22s;
+      animation-delay: -10s;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+      50% {
+        transform: translate(50px, -70px) scale(1.15);
+      }
+      100% {
+        transform: translate(-30px, 40px) scale(0.9);
+      }
+    }
+
+    /* Subtle Grid Overlay */
+    .bg-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: -1;
+      background-image: linear-gradient(rgba(15, 23, 42, 0.012) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(15, 23, 42, 0.012) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* Header Styling */
+    .portal-header {
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      background-color: rgba(255, 255, 255, 0.75);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container img {
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .logo-container:hover img {
+      transform: rotate(6deg) scale(1.08);
+    }
+
+    /* Portal Cards (No Shadows) */
+    .portal-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(20px);
+      border-radius: 1.5rem;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .portal-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(800px circle at var(--x, 0px) var(--y, 0px), rgba(var(--bs-primary-rgb), 0.02), transparent 45%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Dynamic Border transitions on hover (No Shadows) */
+    .portal-card-solutions:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .portal-card-training:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .portal-card-investment:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .portal-card-hr:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .portal-card-billing:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .portal-card-settings:hover {
+      border-color: var(--bs-secondary);
+      transform: translateY(-6px);
+    }
+
+    .icon-wrapper {
+      width: 60px;
+      height: 60px;
+      border-radius: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.85rem;
+      margin-bottom: 1.5rem;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .portal-card:hover .icon-wrapper {
+      transform: scale(1.15) rotate(-3deg);
+    }
+
+    .solutions-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .training-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .investment-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .hr-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .billing-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .settings-icon {
+      background: rgba(var(--bs-secondary-rgb), 0.15);
+      color: var(--bs-secondary);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.25);
+    }
+
+    .card-title-color {
+      color: var(--text-heading);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Badge tags styling inside cards */
+    .portal-badge {
+      font-size: 0.725rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 2rem;
+      background-color: rgba(var(--bs-secondary-rgb), 0.05);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.1);
+      color: var(--bs-secondary);
+      letter-spacing: 0.05em;
+      text-uppercase: uppercase;
+    }
+
+    /* Tag badges for subcategories */
+    .stat-badge {
+      font-size: 0.75rem;
+      font-weight: 500;
+      background-color: rgba(var(--bs-secondary-rgb), 0.04);
+      border: 1px solid rgba(var(--bs-secondary-rgb), 0.08);
+      color: var(--bs-secondary);
+      border-radius: 2rem;
+      padding: 0.25rem 0.65rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: all 0.2s;
+    }
+
+    .portal-card:hover .stat-badge {
+      background-color: rgba(var(--bs-secondary-rgb), 0.08);
+    }
+
+    /* Premium Action Button inside cards (No Shadows) */
+    .action-btn {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border-radius: 0.85rem;
+      font-weight: 600;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      text-decoration: none;
+    }
+
+    .solutions-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .solutions-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    .training-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .training-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    .investment-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .investment-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    .hr-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .hr-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    .billing-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .billing-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    .settings-btn {
+      background-color: var(--bs-secondary);
+      color: #fff;
+    }
+    .settings-btn:hover {
+      background-color: var(--bs-primary);
+      color: #fff;
+    }
+
+    /* Public navigation sub-sections */
+    .public-links-container {
+      background-color: rgba(255, 255, 255, 0.45);
+      border: 1px solid var(--card-border);
+      border-radius: 1.5rem;
+      backdrop-filter: blur(12px);
+      padding: 1.75rem;
+    }
+
+    .public-link-card {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid rgba(15, 23, 42, 0.04);
+      border-radius: 0.85rem;
+      padding: 1.15rem;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 1.15rem;
+      height: 100%;
+    }
+
+    .public-link-card:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: rgba(15, 23, 42, 0.08);
+      transform: translateY(-3px);
+    }
+
+    .public-link-icon {
+      font-size: 1.65rem;
+      color: var(--text-muted);
+      transition: color 0.3s ease;
+    }
+
+    .public-link-card:hover .public-link-icon {
+      color: var(--bs-primary);
+    }
+
+    /* Interactive Status Indicators */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.6);
+      padding: 0.4rem 0.85rem;
+      border-radius: 2rem;
+      border: 1px solid rgba(15, 23, 42, 0.05);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--bs-secondary);
+      border-radius: 50%;
+      display: inline-block;
+      position: relative;
+    }
+
+    .pulse-dot::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: inherit;
+      border-radius: inherit;
+      animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(0.95);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(2.8);
+        opacity: 0;
+      }
+    }
+
+    /* Search Input Styling */
+    .search-wrapper {
+      max-width: 440px;
+      border-radius: 2rem;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+      background-color: rgba(255, 255, 255, 0.8);
+      transition: all 0.3s ease;
+    }
+
+    .search-wrapper:focus-within {
+      border-color: var(--bs-primary);
+      background-color: #ffffff;
+    }
+
+    .search-input {
+      background: transparent !important;
+      color: var(--text-heading) !important;
+    }
+
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+
+    /* Footer Styling */
+    .portal-footer {
+      border-top: 1px solid var(--card-border);
+      padding: 1.5rem 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(16px);
+      background-color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Responsive grid gaps */
+    @media (max-width: 768px) {
+      .portal-header {
+        text-align: center;
+      }
+      .header-controls {
+        justify-content: center !important;
+        margin-top: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Ambient blobs & grids -->
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <!-- Header -->
+  <header class="portal-header">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-6 d-flex align-items-center justify-content-start gap-3 logo-container">
+          <img src="assets/images/logo/intrex-logo.svg" alt="Intrex Digital" style="height: 38px;">
+          <div class="border-start border-secondary ps-3" style="border-color: rgba(var(--bs-primary-rgb), 0.2) !important;">
+            <h2 class="h6 fw-bold mb-0 text-dark tracking-wider text-uppercase">Intrex Digital</h2>
+            <span class="small text-muted">Management Hub</span>
+          </div>
+        </div>
+        <div class="col-md-6 d-flex justify-content-end align-items-center gap-3 header-controls">
+          <div class="status-indicator" id="systemStatusWidget">
+            <span class="pulse-dot"></span>
+            <span class="small fw-semibold text-dark">All Portals Online</span>
+          </div>
+          <div class="status-indicator">
+            <i class="bi bi-clock animate-pulse" style="color: var(--bs-primary);"></i>
+            <span class="small fw-semibold text-dark" id="liveTimeDisplay">12:00:00 PM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="py-5 my-auto">
+    <div class="container">
+      <!-- Greeting and Header -->
+      <div class="row mb-5 text-center" data-aos="fade-down" data-aos-duration="900">
+        <div class="col-lg-8 mx-auto">
+          <h1 class="display-5 fw-bold text-dark mb-3" id="greetingLabel">Welcome Back, Administrator</h1>
+          <p class="lead text-muted fs-6 mb-4">Select a management portal below to control system solutions, training academies, operations, and financial portfolios.</p>
+          
+          <!-- Search / Filter Bar -->
+          <div class="input-group input-group-sm mx-auto search-wrapper">
+            <span class="input-group-text bg-transparent border-0 ps-3" style="color: var(--bs-primary);"><i class="bi bi-search"></i></span>
+            <input type="text" id="portalSearch" class="form-control border-0 shadow-none search-input" placeholder="Search portals or resources..." style="height: 38px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Admin Portals -->
+      <div class="row g-4 mb-4 justify-content-center" id="portalCardsRow1">
+        
+        <!-- Portal Card: Human Resources -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="100" data-portal-search="human resources employee database payroll attendance leaves roster hr operations">
+          <div class="portal-card portal-card-hr p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper hr-icon mb-0">
+                  <i class="bi bi-people-fill"></i>
+                </div>
+                <span class="portal-badge">Operations Hub</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">Human Resources</h3>
+              <p class="card-desc mb-4">Manage employee database registry, dynamic rosters, attendance logs, leave balances, and monthly payroll slips generation.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-people me-1"></i>Employees</span>
+                <span class="stat-badge"><i class="bi bi-calendar-check me-1"></i>Attendance</span>
+                <span class="stat-badge"><i class="bi bi-cash-stack me-1"></i>Payroll</span>
+              </div>
+            </div>
+            
+            <a href="hr-dashboard.html" class="action-btn hr-btn" target="_blank">
+              Enter HR Hub <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card: Investment -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="200" data-portal-search="investments capital finance shareholders ledger distributions statements portfolios">
+          <div class="portal-card portal-card-investment p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper investment-icon mb-0">
+                  <i class="bi bi-cash-coin"></i>
+                </div>
+                <span class="portal-badge">Finance Hub</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">Investment & Capital</h3>
+              <p class="card-desc mb-4">Track shareholder investment transactions, ledger statements, capital growth distribution schedules, and corporate financial analytics.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-pie-chart me-1"></i>Ledgers</span>
+                <span class="stat-badge"><i class="bi bi-safe me-1"></i>Shareholders</span>
+                <span class="stat-badge"><i class="bi bi-cash-stack me-1"></i>Distributions</span>
+              </div>
+            </div>
+            
+            <a href="investment-dashboard.html" class="action-btn investment-btn" target="_blank">
+              Enter Investment Hub <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card: Billing & Accounts -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="300" data-portal-search="billing accounts invoices clients expenses statement financial ledger receipts">
+          <div class="portal-card portal-card-billing p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper billing-icon mb-0">
+                  <i class="bi bi-receipt-cutoff"></i>
+                </div>
+                <span class="portal-badge">Accounts Portal</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">Billing & Accounts</h3>
+              <p class="card-desc mb-4">Manage client invoice generation, expense journals, transaction statements, accounts ledger, and period financial reports.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-receipt me-1"></i>Invoices</span>
+                <span class="stat-badge"><i class="bi bi-credit-card me-1"></i>Expenses</span>
+                <span class="stat-badge"><i class="bi bi-file-earmark-bar-graph me-1"></i>Statements</span>
+              </div>
+            </div>
+            
+            <a href="billing-dashboard.html" class="action-btn billing-btn" target="_blank">
+              Enter Accounts Hub <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Second Row of Core Portals -->
+      <div class="row g-4 mb-5 justify-content-center" id="portalCardsRow2">
+
+        <!-- Portal Card: Solutions -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="400" data-portal-search="system solutions services clients requests sales pipelines">
+          <div class="portal-card portal-card-solutions p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper solutions-icon mb-0">
+                  <i class="bi bi-cpu-fill"></i>
+                </div>
+                <span class="portal-badge">Core Service</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">System Solutions</h3>
+              <p class="card-desc mb-4">Administer company services, client requests, product pipelines, client messaging, and software development lifecycles.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-briefcase me-1"></i>Services</span>
+                <span class="stat-badge"><i class="bi bi-chat-left-text me-1"></i>Inquiries</span>
+                <span class="stat-badge"><i class="bi bi-graph-up-arrow me-1"></i>Sales</span>
+              </div>
+            </div>
+            
+            <a href="solution-dashboard.html" class="action-btn solutions-btn" target="_blank">
+              Enter Solutions Hub <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card: Training -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="500" data-portal-search="training operations academy batches classes courses certificates calendars students expenses">
+          <div class="portal-card portal-card-training p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper training-icon mb-0">
+                  <i class="bi bi-journal-bookmark-fill"></i>
+                </div>
+                <span class="portal-badge">Academy Portal</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">Training & Batches</h3>
+              <p class="card-desc mb-4">Manage courses, student registrations, class batches, trainer scheduling, expense tracking, and the monthly Class Calendar.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-calendar3 me-1"></i>Calendar</span>
+                <span class="stat-badge"><i class="bi bi-people me-1"></i>Students</span>
+                <span class="stat-badge"><i class="bi bi-award me-1"></i>Certificates</span>
+              </div>
+            </div>
+            
+            <a href="training-dashboard.html" class="action-btn training-btn" target="_blank">
+              Enter Academy Portal <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Portal Card: System Settings & Security -->
+        <div class="col-md-4 portal-card-col" data-aos="fade-up" data-aos-delay="600" data-portal-search="system settings configuration administrative logs core security databases platforms">
+          <div class="portal-card portal-card-settings p-4">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="icon-wrapper settings-icon mb-0">
+                  <i class="bi bi-gear-fill"></i>
+                </div>
+                <span class="portal-badge">System Control</span>
+              </div>
+              <h3 class="h4 card-title-color mb-3">Settings & Control</h3>
+              <p class="card-desc mb-4">Configure administrative rules, deploy updates, monitor security logs, review system diagnostics, and set global parameters.</p>
+              
+              <!-- Quick Stats / Badges -->
+              <div class="d-flex flex-wrap gap-2 mb-4">
+                <span class="stat-badge"><i class="bi bi-shield-check me-1"></i>Security</span>
+                <span class="stat-badge"><i class="bi bi-sliders me-1"></i>Configs</span>
+                <span class="stat-badge"><i class="bi bi-terminal me-1"></i>Diagnostics</span>
+              </div>
+            </div>
+            
+            <a href="javascript:alert('Settings are managed directly via the Firebase Console & Project Rules.');" class="action-btn settings-btn">
+              Configure Console <i class="bi bi-arrow-right-short fs-5"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Public Utility Launchpad -->
+      <div class="row" data-aos="fade-up" data-aos-delay="400">
+        <div class="col-lg-12">
+          <div class="public-links-container">
+            <h4 class="h6 fw-bold text-dark mb-3 text-uppercase tracking-wider">
+              <i class="bi bi-grid-3x3-gap-fill me-2" style="color: var(--bs-primary);"></i>Public Portals & Utilities
+            </h4>
+            <div class="row g-3">
+              <!-- Homepage -->
+              <div class="col-md-4">
+                <a href="index.html" class="public-link-card" target="_blank">
+                  <div class="public-link-icon"><i class="bi bi-house-door"></i></div>
+                  <div>
+                    <h5 class="h6 text-dark mb-0">Main Website</h5>
+                    <span class="small text-muted">Go to company homepage</span>
+                  </div>
+                </a>
+              </div>
+              <!-- Registration Form -->
+              <div class="col-md-4">
+                <a href="training.html" class="public-link-card" target="_blank">
+                  <div class="public-link-icon"><i class="bi bi-clipboard2-check"></i></div>
+                  <div>
+                    <h5 class="h6 text-dark mb-0">Course Registration</h5>
+                    <span class="small text-muted">Public student application form</span>
+                  </div>
+                </a>
+              </div>
+              <!-- Verification Portal -->
+              <div class="col-md-4">
+                <a href="verify-certificate.html" class="public-link-card" target="_blank">
+                  <div class="public-link-icon"><i class="bi bi-check-circle"></i></div>
+                  <div>
+                    <h5 class="h6 text-dark mb-0">Verify Credentials</h5>
+                    <span class="small text-muted">Public certificate verification</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="portal-footer mt-5">
+    <div class="container text-center text-md-start">
+      <div class="row align-items-center">
+        <div class="col-md-6 mb-2 mb-md-0">
+          <p class="mb-0 text-secondary">&copy; 2026 <strong class="text-dark">Intrex Digital Hub</strong>. All rights reserved.</p>
+        </div>
+        <div class="col-md-6 text-md-end text-secondary">
+          <span class="small"><i class="bi bi-shield-lock me-1 text-success"></i>Secured Session | Administrative Panel</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ======= Vendor JS Files ======= -->
+  <script src="assets/vendors/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendors/aos/aos.js"></script>
+  
+  <script>
+    // Initialize Animations
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.AOS) {
+        AOS.init({
+          once: true,
+          duration: 800,
+          easing: "ease-out-quad"
+        });
+      }
+
+      // Dynamic Greeting based on time of day
+      const updateGreeting = () => {
+        const greetingLabel = document.getElementById("greetingLabel");
+        if (!greetingLabel) return;
+        
+        const hour = new Date().getHours();
+        let greeting = "Welcome Back, Administrator";
+        
+        if (hour < 12) {
+          greeting = "Good Morning, Administrator";
+        } else if (hour < 18) {
+          greeting = "Good Afternoon, Administrator";
+        } else {
+          greeting = "Good Evening, Administrator";
+        }
+        
+        greetingLabel.textContent = greeting;
+      };
+      
+      updateGreeting();
+
+      // Live Clock
+      const updateClock = () => {
+        const liveTimeDisplay = document.getElementById("liveTimeDisplay");
+        if (!liveTimeDisplay) return;
+        
+        const now = new Date();
+        liveTimeDisplay.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      };
+      
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      // Search functionality
+      const portalSearch = document.getElementById("portalSearch");
+      if (portalSearch) {
+        portalSearch.addEventListener("input", (e) => {
+          const query = e.target.value.toLowerCase().trim();
+          const cards = document.querySelectorAll(".portal-card-col");
+          
+          cards.forEach(card => {
+            const searchText = card.getAttribute("data-portal-search") || "";
+            if (searchText.includes(query)) {
+              card.style.display = "";
+            } else {
+              card.style.display = "none";
+            }
+          });
+        });
+      }
+
+      // Add mouse movement light glow effect for glass cards
+      document.querySelectorAll('.portal-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty('--x', `${x}px`);
+          card.style.setProperty('--y', `${y}px`);
+        });
+      });
+    });
+  </script>
+</body>
+
+</html>
