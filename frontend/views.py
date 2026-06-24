@@ -196,31 +196,61 @@ def inquire_course(request):
         return JsonResponse({'status': 'error', 'message': 'Missing required inquiry fields.'}, status=400)
         
     try:
-        # Generate unique INQ key
-        attempts = 0
-        inq_key = ""
-        while attempts < 10:
-            attempts += 1
-            candidate = f"INQ-{random.randint(100000, 999999)}"
-            doc_snap = db.collection('learn_online_inquiries').document(candidate).get()
-            if not doc_snap.exists:
-                inq_key = candidate
-                break
-        if not inq_key:
-            inq_key = f"INQ-{random.randint(100000, 999999)}"
-            
-        db.collection('learn_online_inquiries').document(inq_key).set({
-            'inquiryKey': inq_key,
-            'name': name,
-            'email': email,
-            'phone': phone,
-            'subject': subject,
-            'message': message,
-            'source': source,
-            'status': 'New',
-            'createdAt': firestore.SERVER_TIMESTAMP
-        })
-        return JsonResponse({'status': 'success', 'key': inq_key})
+        if source == 'training-page':
+            # Save to learn_online_registrations instead
+            attempts = 0
+            reg_key = ""
+            while attempts < 10:
+                attempts += 1
+                candidate = f"REG-{random.randint(100000, 999999)}"
+                doc_snap = db.collection('learn_online_registrations').document(candidate).get()
+                if not doc_snap.exists:
+                    reg_key = candidate
+                    break
+            if not reg_key:
+                reg_key = f"REG-{random.randint(100000, 999999)}"
+                
+            db.collection('learn_online_registrations').document(reg_key).set({
+                'registrationKey': reg_key,
+                'fullName': name,
+                'email': email,
+                'phone': phone,
+                'course': subject,
+                'education': '',
+                'schedule': 'Inquiry',
+                'message': message,
+                'isJobHolder': False,
+                'companyName': '',
+                'designation': '',
+                'createdAt': firestore.SERVER_TIMESTAMP
+            })
+            return JsonResponse({'status': 'success', 'key': reg_key})
+        else:
+            # Generate unique INQ key
+            attempts = 0
+            inq_key = ""
+            while attempts < 10:
+                attempts += 1
+                candidate = f"INQ-{random.randint(100000, 999999)}"
+                doc_snap = db.collection('learn_online_inquiries').document(candidate).get()
+                if not doc_snap.exists:
+                    inq_key = candidate
+                    break
+            if not inq_key:
+                inq_key = f"INQ-{random.randint(100000, 999999)}"
+                
+            db.collection('learn_online_inquiries').document(inq_key).set({
+                'inquiryKey': inq_key,
+                'name': name,
+                'email': email,
+                'phone': phone,
+                'subject': subject,
+                'message': message,
+                'source': source,
+                'status': 'New',
+                'createdAt': firestore.SERVER_TIMESTAMP
+            })
+            return JsonResponse({'status': 'success', 'key': inq_key})
     except Exception as e:
         print(f"Firestore inquiry write error: {e}")
         return JsonResponse({'status': 'error', 'message': 'Database insertion failed.'}, status=500)

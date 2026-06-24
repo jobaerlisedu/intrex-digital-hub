@@ -240,9 +240,11 @@ def inquiries(request):
         if action == 'delete' and doc_id:
             db.collection('learn_online_inquiries').document(doc_id).delete()
             log_training_action(request.user, "DELETE", "learn_online_inquiries", doc_id, f"Deleted course inquiry ID {doc_id}")
+            return redirect('/training/inquiries/?tab=directory')
         elif action == 'delete_online_reg' and doc_id:
             db.collection('learn_online_registrations').document(doc_id).delete()
             log_training_action(request.user, "DELETE", "learn_online_registrations", doc_id, f"Deleted online registration ID {doc_id}")
+            return redirect('/training/inquiries/?tab=pending')
         else:
             inquiry_key = get_next_seq_id('learn_online_inquiries', 'INQ-', 'inquiryKey', 6)
             data = {
@@ -258,7 +260,7 @@ def inquiries(request):
             }
             db.collection('learn_online_inquiries').document(inquiry_key).set(data)
             log_training_action(request.user, "CREATE", "learn_online_inquiries", inquiry_key, f"Logged manual inquiry: {data['name']} - {data['subject']}")
-        return redirect('training:inquiries')
+            return redirect('/training/inquiries/?tab=directory')
 
     inquiries_list = get_collection_data('learn_online_inquiries')
     online_regs = get_collection_data('learn_online_registrations')
@@ -469,7 +471,28 @@ def class_calendar(request):
 
     classes = get_collection_data('learn_classes')
     courses = get_collection_data('learn_courses')
-    return render(request, 'training/class_calendar.html', {'classes': classes, 'courses': courses})
+    batches = get_collection_data('learn_batches')
+    employees = get_collection_data('employees')
+    registrations = get_collection_data('learn_registrations')
+
+    trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
+
+    batches_json = json.dumps(batches, default=str)
+    trainers_json = json.dumps(trainers, default=str)
+    classes_json = json.dumps(classes, default=str)
+    registrations_json = json.dumps(registrations, default=str)
+
+    return render(request, 'training/class_calendar.html', {
+        'classes': classes,
+        'courses': courses,
+        'batches': batches,
+        'trainers': trainers,
+        'registrations': registrations,
+        'batches_json': batches_json,
+        'trainers_json': trainers_json,
+        'classes_json': classes_json,
+        'registrations_json': registrations_json,
+    })
 
 @module_access('training')
 def student_list(request):

@@ -128,7 +128,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'hrm:index'
+LOGIN_REDIRECT_URL = 'erp_dashboard'
 LOGOUT_REDIRECT_URL = 'frontend:index'
 
 AUTHENTICATION_BACKENDS = [

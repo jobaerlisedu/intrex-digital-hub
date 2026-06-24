@@ -127,7 +127,7 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            padding: 0 32px;
+            padding: 32px;
             position: sticky;
             top: 0;
             z-index: 5;
@@ -462,6 +462,14 @@
             </div>
         </div>
         <ul class="nav-links">
+            <!-- ERP Dashboard -->
+            <li>
+                <a href="{% url 'erp_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'erp_dashboard' %}active{% endif %}">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>ERP Dashboard</span>
+                </a>
+            </li>
+
             <!-- HR Management Dropdown -->
             {% if 'hrm' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'hrm' %}active open{% endif %}">

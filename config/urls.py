@@ -37,9 +37,11 @@ if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstat
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from config import views as config_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('erp/', config_views.erp_dashboard, name='erp_dashboard'),
     path('', include('frontend.urls', namespace='frontend')),
     path('hrm/', include('hrm.urls', namespace='hrm')),
     path('inventory/', include('inventory.urls', namespace='inventory')),

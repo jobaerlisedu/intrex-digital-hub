@@ -1851,3 +1851,16 @@ h6 {
   justify-content: space-between;
   align-items: center;
 }
+/* ===== Global Top Header ===== */
+.top-header {
+    height: 70px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--sidebar-border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 32px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
