@@ -293,7 +293,7 @@ def department(request):
                     update_data = {
                     'name': request.POST.get('name'),
                     'status': request.POST.get('status', 'Active'),
-                    'module_linking': request.POST.get('module_linking', ''),
+                    'module_linking': request.POST.getlist('module_linking'),
                     'notes': request.POST.get('notes', ''),
                     'createdAt': firestore.SERVER_TIMESTAMP
                 }
@@ -304,7 +304,7 @@ def department(request):
                     db.collection('hrm_departments').add({
                     'name': request.POST.get('name'),
                     'status': request.POST.get('status', 'Active'),
-                    'module_linking': request.POST.get('module_linking', ''),
+                    'module_linking': request.POST.getlist('module_linking'),
                     'notes': request.POST.get('notes', ''),
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
@@ -444,6 +444,14 @@ def department(request):
 
     # Fetch lists — use cache for slow-changing reference data
     departments = get_cached_collection('hrm_departments')
+    # Normalize module_linking to always be a list of strings
+    for d in departments:
+        linking = d.get('module_linking', [])
+        if isinstance(linking, str):
+            d['module_linking'] = [linking] if linking else []
+        elif not isinstance(linking, list):
+            d['module_linking'] = []
+
     sub_departments = get_cached_collection('hrm_sub_departments')
     positions = get_cached_collection('hrm_positions')
 

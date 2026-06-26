@@ -125,15 +125,26 @@
             
             <div class="form-group" style="margin-top: 20px;">
                 <label>ERP Module Linking</label>
-                <select name="module_linking" class="form-control">
-                    <option value="">None</option>
-                    <option value="hrm">Human Resource Management (HRM)</option>
-                    <option value="training">Training Academy (Training)</option>
-                    <option value="solutions">IT Solutions & Projects (Solutions)</option>
-                    <option value="inventory">Asset & Inventory (Inventory)</option>
-                    <option value="billing">Billing & Finance (Billing)</option>
-                    <option value="investment">Shareholders & Investments (Investment)</option>
-                </select>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; padding: 12px; background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 6px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="hrm" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> Human Resource Management (HRM)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="training" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> Training Academy (Training)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="solutions" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> IT Solutions & Projects (Solutions)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="inventory" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> Asset & Inventory (Inventory)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="billing" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> Billing & Finance (Billing)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin: 0; font-size: 0.9rem;">
+                        <input type="checkbox" name="module_linking" value="investment" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-color);"> Shareholders & Investments (Investment)
+                    </label>
+                </div>
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
@@ -181,16 +192,20 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <strong style="color: var(--text-primary); font-size: 0.95rem;">{{ d.name }}</strong>
                             {% if d.module_linking %}
-                            <span class="badge info" style="font-size: 0.72rem; padding: 2px 6px; text-transform: uppercase; font-weight: 600; background: rgba(33, 150, 243, 0.1); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.2);">
-                                {% if d.module_linking == 'hrm' %}HRM
-                                {% elif d.module_linking == 'training' %}Training
-                                {% elif d.module_linking == 'solutions' %}Solutions
-                                {% elif d.module_linking == 'inventory' %}Inventory
-                                {% elif d.module_linking == 'billing' %}Billing
-                                {% elif d.module_linking == 'investment' %}Investment
-                                {% else %}{{ d.module_linking }}
-                                {% endif %}
-                            </span>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                {% for m in d.module_linking %}
+                                <span class="badge info" style="font-size: 0.72rem; padding: 2px 6px; text-transform: uppercase; font-weight: 600; background: rgba(33, 150, 243, 0.1); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.2);">
+                                    {% if m == 'hrm' %}HRM
+                                    {% elif m == 'training' %}Training
+                                    {% elif m == 'solutions' %}Solutions
+                                    {% elif m == 'inventory' %}Inventory
+                                    {% elif m == 'billing' %}Billing
+                                    {% elif m == 'investment' %}Investment
+                                    {% else %}{{ m }}
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                         </div>
                         {% if d.notes %}
@@ -730,13 +745,26 @@ function editRecord(id) {
     }
     docInput.value = id;
     
+    // First, clear all checkboxes for module_linking in the form
+    const checkboxes = form.querySelectorAll('input[name="module_linking"]');
+    checkboxes.forEach(cb => cb.checked = false);
+
     // Populate fields
     for (const [key, value] of Object.entries(data)) {
-        const field = form.querySelector(`[name="${key}"]`);
-        if (field) {
-            field.value = value;
-            if (field.tagName === 'SELECT') {
-                field.dispatchEvent(new Event('change'));
+        if (key === 'module_linking') {
+            const list = Array.isArray(value) ? value : (value ? [value] : []);
+            checkboxes.forEach(cb => {
+                if (list.includes(cb.value)) {
+                    cb.checked = true;
+                }
+            });
+        } else {
+            const field = form.querySelector(`[name="${key}"]`);
+            if (field) {
+                field.value = value;
+                if (field.tagName === 'SELECT') {
+                    field.dispatchEvent(new Event('change'));
+                }
             }
         }
     }
