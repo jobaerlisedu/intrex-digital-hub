@@ -1,0 +1,243 @@
+{% extends 'erp_base.html' %}
+{% block title %}Onboarding & Offboarding - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.lv-tabs { display:flex; gap:16px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; }
+.lv-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
+.lv-tab-btn:hover { color:var(--accent-color); }
+.lv-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
+.lv-panel { display:none; }
+.lv-panel.active { display:block; }
+
+.lv-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
+.lv-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.form-label-red { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
+.form-label-plain { color:var(--text-secondary); font-size:.85rem; display:block; margin-bottom:6px; }
+.lv-form-group { margin-bottom:16px; }
+.btn-lv-save { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-lv-save:hover { opacity:.88; }
+.search-box { padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:.85rem; width:180px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lv-tabs">
+  <button class="lv-tab-btn active" id="btn-onboarding" onclick="switchTab('onboarding')">
+    <i class="fa-solid fa-user-plus"></i> Onboarding Induction
+  </button>
+  <button class="lv-tab-btn" id="btn-offboarding" onclick="switchTab('offboarding')">
+    <i class="fa-solid fa-user-minus"></i> Exit Clearance
+  </button>
+</div>
+
+<!-- Onboarding Panel -->
+<div id="panel-onboarding" class="lv-panel active">
+  <div class="lv-layout">
+    <div class="lv-form-card">
+      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add Onboarding Task</h4>
+      <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_task">
+        <div class="lv-form-group">
+          <label class="form-label-red">Employee *</label>
+          <select name="employee" class="form-control" required>
+            <option value="" disabled selected>Select Employee...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.name }}">{{ emp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Task Description *</label>
+          <input type="text" name="task_name" class="form-control" placeholder="e.g. IT assets, Email config" required>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Due Date *</label>
+          <input type="date" name="due_date" class="form-control" required>
+        </div>
+        <button type="submit" class="btn-lv-save">Save Task</button>
+      </form>
+    </div>
+
+    <div class="lv-table-card">
+      <div class="lv-table-header">
+        <h4><i class="fa-solid fa-list" style="color:var(--accent-color);"></i> Onboarding Induction Checklist</h4>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Task Description</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td><strong>{{ task.employee }}</strong></td>
+            <td>{{ task.task_name }}</td>
+            <td>{{ task.due_date }}</td>
+            <td>
+              <span class="badge {% if task.status == 'Completed' %}success{% else %}warning{% endif %}">
+                {{ task.status }}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex; gap:8px; align-items:center;">
+                {% if task.status != 'Completed' %}
+                <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="complete_task">
+                  <input type="hidden" name="doc_id" value="{{ task.id }}">
+                  <button type="submit" class="btn-submit" style="padding:4px 8px; font-size:0.75rem;">Complete</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}" style="margin:0;" onsubmit="return confirm('Delete task?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_task">
+                  <input type="hidden" name="doc_id" value="{{ task.id }}">
+                  <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No onboarding tasks.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Offboarding Panel -->
+<div id="panel-offboarding" class="lv-panel">
+  <div class="lv-layout">
+    <div class="lv-form-card">
+      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Trigger Exit Clearance</h4>
+      <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="trigger_exit">
+        <div class="lv-form-group">
+          <label class="form-label-red">Employee *</label>
+          <select name="employee" class="form-control" required>
+            <option value="" disabled selected>Select Employee...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.name }}">{{ emp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Exit Date *</label>
+          <input type="date" name="exit_date" class="form-control" required>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-plain">Reason</label>
+          <textarea name="reason" class="form-control" style="height:80px;resize:none;" placeholder="Reason..."></textarea>
+        </div>
+        <button type="submit" class="btn-lv-save" style="background:#dc2626;">Initiate Exit</button>
+      </form>
+    </div>
+
+    <div class="lv-table-card">
+      <div class="lv-table-header">
+        <h4><i class="fa-solid fa-shield-halved" style="color:var(--accent-color);"></i> Offboarding & Clearance Logs</h4>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Exit Date</th>
+            <th>IT Clearance</th>
+            <th>Finance Clearance</th>
+            <th>HR Clearance</th>
+            <th>Overall Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exit in exits %}
+          <tr>
+            <td><strong>{{ exit.employee }}</strong></td>
+            <td>{{ exit.exit_date }}</td>
+            <td>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="badge {% if exit.it_clearance == 'Cleared' %}success{% else %}warning{% endif %}">{{ exit.it_clearance }}</span>
+                {% if exit.it_clearance != 'Cleared' %}
+                <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_clearance">
+                  <input type="hidden" name="doc_id" value="{{ exit.id }}">
+                  <input type="hidden" name="clearance_field" value="it_clearance">
+                  <input type="hidden" name="clearance_status" value="Cleared">
+                  <button type="submit" style="background:none;border:none;color:var(--accent-color);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="badge {% if exit.finance_clearance == 'Cleared' %}success{% else %}warning{% endif %}">{{ exit.finance_clearance }}</span>
+                {% if exit.finance_clearance != 'Cleared' %}
+                <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_clearance">
+                  <input type="hidden" name="doc_id" value="{{ exit.id }}">
+                  <input type="hidden" name="clearance_field" value="finance_clearance">
+                  <input type="hidden" name="clearance_status" value="Cleared">
+                  <button type="submit" style="background:none;border:none;color:var(--accent-color);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="badge {% if exit.hr_clearance == 'Cleared' %}success{% else %}warning{% endif %}">{{ exit.hr_clearance }}</span>
+                {% if exit.hr_clearance != 'Cleared' %}
+                <form method="POST" action="{% url 'hrm:onboarding_offboarding' %}" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_clearance">
+                  <input type="hidden" name="doc_id" value="{{ exit.id }}">
+                  <input type="hidden" name="clearance_field" value="hr_clearance">
+                  <input type="hidden" name="clearance_status" value="Cleared">
+                  <button type="submit" style="background:none;border:none;color:var(--accent-color);cursor:pointer;"><i class="fa-solid fa-check"></i></button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <span class="badge {% if exit.status == 'Cleared' %}success{% else %}warning{% endif %}">
+                {{ exit.status }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">No separation / clearance logs.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tab) {
+  localStorage.setItem('onb_active_tab', tab);
+  document.querySelectorAll('.lv-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + tab).classList.add('active');
+  document.querySelectorAll('.lv-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+const activeTab = localStorage.getItem('onb_active_tab') || 'onboarding';
+switchTab(activeTab);
+</script>
+{% endblock %}

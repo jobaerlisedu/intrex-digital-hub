@@ -48,18 +48,45 @@ def index(request):
         positions = list(db.collection('hrm_positions').stream())
 
         total_emp = len(employees)
-        active_emp = len([e for e in employees if e.to_dict().get('status') == 'Active'])
-        leave_emp = len([e for e in employees if e.to_dict().get('status') == 'On Leave'])
+        active_emp = len([e for e in employees if (e.to_dict() or {}).get('status') == 'Active'])
+        leave_emp = len([e for e in employees if (e.to_dict() or {}).get('status') == 'On Leave'])
         open_positions = len(positions)
-    except Exception:
+        
+        # Calculate pending approvals
+        pending_leaves = len(list(db.collection('hrm_leaves').where('status', '==', 'Pending').stream()))
+        pending_advances = len(list(db.collection('hrm_advances').where('status', '==', 'Pending').stream()))
+        pending_claims = len(list(db.collection('hrm_expense_claims').where('status', '==', 'Pending').stream()))
+        pending_approvals = pending_leaves + pending_advances + pending_claims
+
+        # Calculate absenteeism rate
+        from datetime import datetime
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        today_att = [a.to_dict() or {} for a in db.collection('hrm_attendance').where('date', '==', today_str).stream()]
+        absent_count = sum(1 for a in today_att if a.get('status') == 'Absent')
+        total_att = len(today_att)
+        absenteeism_rate = round((absent_count / total_att * 100), 1) if total_att > 0 else 0.0
+        
+        recent_activities = [
+            f"Employee database check completed.",
+            f"Dashboard metrics refreshed.",
+        ]
+        if pending_approvals > 0:
+            recent_activities.append(f"There are {pending_approvals} requests pending manager approval.")
+    except Exception as e:
+        print(f"Error loading dashboard: {e}")
         total_emp, active_emp, leave_emp, open_positions = 0, 0, 0, 0
+        pending_approvals = 0
+        absenteeism_rate = 0.0
+        recent_activities = []
 
     context = {
         'total_employees': total_emp,
         'active_employees': active_emp,
         'employees_on_leave': leave_emp,
         'open_positions': open_positions,
-        'recent_activities': []
+        'pending_approvals': pending_approvals,
+        'absenteeism_rate': absenteeism_rate,
+        'recent_activities': recent_activities
     }
     return render(request, 'hrm/overview.html', context)
 
@@ -850,6 +877,45 @@ def payroll(request):
                 except Exception as e:
                     print(f"Error deleting payroll: {e}")
 
+        elif pr_action == 'disburse_payroll':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    from datetime import datetime
+                    pr_ref = db.collection('hrm_payrolls').document(doc_id)
+                    pr_data = pr_ref.get().to_dict()
+                    if pr_data and pr_data.get('status') != 'Disbursed':
+                        pr_ref.update({'status': 'Disbursed'})
+                        
+                        total_net_pay = float(pr_data.get('total_net_pay', 0.0))
+                        period = pr_data.get('period', '')
+                        
+                        coa_exp = list(db.collection('chart_of_accounts').where('account_code', '==', '51000').stream())
+                        coa_cash = list(db.collection('chart_of_accounts').where('account_code', '==', '11100').stream())
+                        
+                        exp_id = coa_exp[0].id if coa_exp else '51000_fallback'
+                        cash_id = coa_cash[0].id if coa_cash else '11100_fallback'
+                        
+                        lines = [
+                            {'account_id': exp_id, 'debit_amount': total_net_pay, 'credit_amount': 0.0},
+                            {'account_id': cash_id, 'debit_amount': 0.0, 'credit_amount': total_net_pay}
+                        ]
+                        
+                        je_data = {
+                            'entry_code': f"AUTO-PAYROLL-{datetime.now().strftime('%Y%m%d')}",
+                            'posting_date': datetime.now().strftime('%Y-%m-%d'),
+                            'reference_document': f"Payroll {period}",
+                            'narration': f"Automated posting of net pay for period {period}",
+                            'status': 'Posted',
+                            'created_by': 'System',
+                            'approved_by': request.user.username if request.user else 'System',
+                            'lines': lines,
+                            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        db.collection('journal_entries').add(je_data)
+                except Exception as e:
+                    print(f"Error disbursing payroll: {e}")
+
         return redirect('hrm:payroll')
 
     # Fetch data — transactional, always fresh
@@ -987,3 +1053,257 @@ def reports(request):
             print(f"Error generating report: {e}")
 
     return render(request, 'hrm/reports.html', context)
+
+
+@login_required
+@module_access('hrm')
+def onboarding_offboarding(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
+
+        if action == 'add_task':
+            try:
+                db.collection('hrm_onboarding_tasks').add({
+                    'employee': request.POST.get('employee'),
+                    'task_name': request.POST.get('task_name'),
+                    'due_date': request.POST.get('due_date'),
+                    'status': 'Pending',
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Error adding onboarding task: {e}")
+
+        elif action == 'complete_task':
+            if doc_id:
+                try:
+                    db.collection('hrm_onboarding_tasks').document(doc_id).update({'status': 'Completed'})
+                except Exception as e:
+                    print(f"Error completing onboarding task: {e}")
+
+        elif action == 'delete_task':
+            if doc_id:
+                try:
+                    db.collection('hrm_onboarding_tasks').document(doc_id).delete()
+                except Exception as e:
+                    print(f"Error deleting onboarding task: {e}")
+
+        elif action == 'trigger_exit':
+            try:
+                emp_name = request.POST.get('employee')
+                db.collection('hrm_exit_clearance').add({
+                    'employee': emp_name,
+                    'exit_date': request.POST.get('exit_date'),
+                    'reason': request.POST.get('reason'),
+                    'it_clearance': 'Pending',
+                    'finance_clearance': 'Pending',
+                    'hr_clearance': 'Pending',
+                    'status': 'In Progress',
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+                emp_query = list(db.collection('employees').where('name', '==', emp_name).stream())
+                if emp_query:
+                    emp_query[0].reference.update({'status': 'Resigned'})
+            except Exception as e:
+                print(f"Error triggering exit: {e}")
+
+        elif action == 'update_clearance':
+            if doc_id:
+                try:
+                    field = request.POST.get('clearance_field')
+                    status = request.POST.get('clearance_status')
+                    db.collection('hrm_exit_clearance').document(doc_id).update({field: status})
+                    
+                    doc_snap = db.collection('hrm_exit_clearance').document(doc_id).get().to_dict()
+                    if doc_snap and doc_snap.get('it_clearance') == 'Cleared' and doc_snap.get('finance_clearance') == 'Cleared' and doc_snap.get('hr_clearance') == 'Cleared':
+                        db.collection('hrm_exit_clearance').document(doc_id).update({'status': 'Cleared'})
+                        emp_name = doc_snap.get('employee')
+                        emp_query = list(db.collection('employees').where('name', '==', emp_name).stream())
+                        if emp_query:
+                            emp_query[0].reference.update({'status': 'Inactive'})
+                except Exception as e:
+                    print(f"Error updating clearance: {e}")
+
+        return redirect('hrm:onboarding_offboarding')
+
+    tasks = get_collection_data('hrm_onboarding_tasks', [])
+    exits = get_collection_data('hrm_exit_clearance', [])
+    try:
+        emp_docs = db.collection('employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    return render(request, 'hrm/onboarding_offboarding.html', {
+        'tasks': tasks,
+        'exits': exits,
+        'employees': employees
+    })
+
+
+@login_required
+@module_access('hrm')
+def roster_management(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
+
+        if action == 'assign_shift':
+            try:
+                db.collection('hrm_employee_shifts').add({
+                    'employee': request.POST.get('employee'),
+                    'shift_name': request.POST.get('shift_name'),
+                    'start_date': request.POST.get('start_date'),
+                    'end_date': request.POST.get('end_date'),
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Error assigning shift: {e}")
+
+        elif action == 'delete_shift':
+            if doc_id:
+                try:
+                    db.collection('hrm_employee_shifts').document(doc_id).delete()
+                except Exception as e:
+                    print(f"Error deleting shift: {e}")
+
+        return redirect('hrm:roster_management')
+
+    shifts = get_collection_data('hrm_employee_shifts', [])
+    try:
+        emp_docs = db.collection('employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    return render(request, 'hrm/roster_management.html', {
+        'shifts': shifts,
+        'employees': employees
+    })
+
+
+@login_required
+@module_access('hrm')
+def expense_claims(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
+
+        if action == 'file_claim':
+            try:
+                db.collection('hrm_expense_claims').add({
+                    'employee': request.POST.get('employee'),
+                    'category': request.POST.get('category'),
+                    'amount': float(request.POST.get('amount', 0)),
+                    'description': request.POST.get('description', ''),
+                    'status': 'Pending',
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Error filing expense claim: {e}")
+
+        elif action == 'approve_claim':
+            if doc_id:
+                try:
+                    db.collection('hrm_expense_claims').document(doc_id).update({'status': 'Approved'})
+                except Exception as e:
+                    print(f"Error approving claim: {e}")
+
+        elif action == 'reject_claim':
+            if doc_id:
+                try:
+                    db.collection('hrm_expense_claims').document(doc_id).update({'status': 'Rejected'})
+                except Exception as e:
+                    print(f"Error rejecting claim: {e}")
+
+        elif action == 'delete_claim':
+            if doc_id:
+                try:
+                    db.collection('hrm_expense_claims').document(doc_id).delete()
+                except Exception as e:
+                    print(f"Error deleting claim: {e}")
+
+        return redirect('hrm:expense_claims')
+
+    claims = get_collection_data('hrm_expense_claims', [])
+    try:
+        emp_docs = db.collection('employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    return render(request, 'hrm/expense_claims.html', {
+        'claims': claims,
+        'employees': employees
+    })
+
+
+@login_required
+@module_access('hrm')
+def document_asset_vault(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
+
+        if action == 'add_document':
+            try:
+                db.collection('hrm_documents').add({
+                    'employee': request.POST.get('employee'),
+                    'document_type': request.POST.get('document_type'),
+                    'document_number': request.POST.get('document_number', ''),
+                    'expiry_date': request.POST.get('expiry_date'),
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Error adding document: {e}")
+
+        elif action == 'delete_document':
+            if doc_id:
+                try:
+                    db.collection('hrm_documents').document(doc_id).delete()
+                except Exception as e:
+                    print(f"Error deleting document: {e}")
+
+        elif action == 'assign_asset':
+            try:
+                db.collection('hrm_assets').add({
+                    'employee': request.POST.get('employee'),
+                    'asset_name': request.POST.get('asset_name'),
+                    'asset_tag': request.POST.get('asset_tag', ''),
+                    'serial_number': request.POST.get('serial_number', ''),
+                    'status': 'Assigned',
+                    'createdAt': firestore.SERVER_TIMESTAMP
+                })
+            except Exception as e:
+                print(f"Error assigning asset: {e}")
+
+        elif action == 'return_asset':
+            if doc_id:
+                try:
+                    db.collection('hrm_assets').document(doc_id).update({'status': 'Returned'})
+                except Exception as e:
+                    print(f"Error returning asset: {e}")
+
+        elif action == 'delete_asset':
+            if doc_id:
+                try:
+                    db.collection('hrm_assets').document(doc_id).delete()
+                except Exception as e:
+                    print(f"Error deleting asset: {e}")
+
+        return redirect('hrm:document_asset_vault')
+
+    documents = get_collection_data('hrm_documents', [])
+    assets = get_collection_data('hrm_assets', [])
+    try:
+        emp_docs = db.collection('employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    return render(request, 'hrm/document_asset_vault.html', {
+        'documents': documents,
+        'assets': assets,
+        'employees': employees
+    })
+

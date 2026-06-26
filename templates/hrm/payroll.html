@@ -183,12 +183,24 @@
             <td>${{ pr.total_net_pay|floatformat:2 }}</td>
             <td>
               {% if pr.id %}
-              <form method="POST" action="{% url 'hrm:payroll' %}" style="margin:0;" onsubmit="return confirm('Delete this payroll record?');">
-                {% csrf_token %}
-                <input type="hidden" name="pr_action" value="delete_payroll">
-                <input type="hidden" name="doc_id" value="{{ pr.id }}">
-                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
-              </form>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                {% if pr.status == 'Disbursed' %}
+                  <span class="badge success">Disbursed</span>
+                {% else %}
+                  <form method="POST" action="{% url 'hrm:payroll' %}" style="margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="pr_action" value="disburse_payroll">
+                    <input type="hidden" name="doc_id" value="{{ pr.id }}">
+                    <button type="submit" class="btn-submit" style="padding: 4px 10px; font-size: 0.8rem; background: var(--accent-color);">Disburse</button>
+                  </form>
+                {% endif %}
+                <form method="POST" action="{% url 'hrm:payroll' %}" style="margin:0;" onsubmit="return confirm('Delete this payroll record?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="pr_action" value="delete_payroll">
+                  <input type="hidden" name="doc_id" value="{{ pr.id }}">
+                  <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
+                </form>
+              </div>
               {% else %}--{% endif %}
             </td>
           </tr>

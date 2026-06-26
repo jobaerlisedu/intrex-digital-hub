@@ -1,0 +1,218 @@
+{% extends 'erp_base.html' %}
+{% block title %}Document & Asset Vault - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.lv-tabs { display:flex; gap:16px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; }
+.lv-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
+.lv-tab-btn:hover { color:var(--accent-color); }
+.lv-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
+.lv-panel { display:none; }
+.lv-panel.active { display:block; }
+
+.lv-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
+.lv-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.form-label-red { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
+.form-label-plain { color:var(--text-secondary); font-size:.85rem; display:block; margin-bottom:6px; }
+.lv-form-group { margin-bottom:16px; }
+.btn-lv-save { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-lv-save:hover { opacity:.88; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lv-tabs">
+  <button class="lv-tab-btn active" id="btn-documents" onclick="switchTab('documents')">
+    <i class="fa-solid fa-file-shield"></i> Document Compliance
+  </button>
+  <button class="lv-tab-btn" id="btn-assets" onclick="switchTab('assets')">
+    <i class="fa-solid fa-laptop"></i> Asset Register
+  </button>
+</div>
+
+<!-- Documents Panel -->
+<div id="panel-documents" class="lv-panel active">
+  <div class="lv-layout">
+    <div class="lv-form-card">
+      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add Document</h4>
+      <form method="POST" action="{% url 'hrm:document_asset_vault' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_document">
+        <div class="lv-form-group">
+          <label class="form-label-red">Employee *</label>
+          <select name="employee" class="form-control" required>
+            <option value="" disabled selected>Select Employee...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.name }}">{{ emp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Document Type *</label>
+          <select name="document_type" class="form-control" required>
+            <option value="Passport">Passport</option>
+            <option value="Work Visa / Permit">Work Visa / Permit</option>
+            <option value="National Identity Card (NID)">National Identity Card (NID)</option>
+            <option value="Academic Certificate">Academic Certificate</option>
+            <option value="Employment Contract">Employment Contract</option>
+          </select>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Document Number *</label>
+          <input type="text" name="document_number" class="form-control" placeholder="e.g. PP123456" required>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Expiry Date *</label>
+          <input type="date" name="expiry_date" class="form-control" required>
+        </div>
+        <button type="submit" class="btn-lv-save">Save Document</button>
+      </form>
+    </div>
+
+    <div class="lv-table-card">
+      <div class="lv-table-header">
+        <h4><i class="fa-solid fa-shield-heart" style="color:var(--accent-color);"></i> Employee Document Records</h4>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Document Type</th>
+            <th>Number</th>
+            <th>Expiry Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in documents %}
+          <tr>
+            <td><strong>{{ doc.employee }}</strong></td>
+            <td><span class="badge">{{ doc.document_type }}</span></td>
+            <td>{{ doc.document_number }}</td>
+            <td>{{ doc.expiry_date }}</td>
+            <td>
+              <form method="POST" action="{% url 'hrm:document_asset_vault' %}" style="margin:0;" onsubmit="return confirm('Delete document record?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_document">
+                <input type="hidden" name="doc_id" value="{{ doc.id }}">
+                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="fa-solid fa-trash-can"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No documents in the vault.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Assets Panel -->
+<div id="panel-assets" class="lv-panel">
+  <div class="lv-layout">
+    <div class="lv-form-card">
+      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Assign Asset</h4>
+      <form method="POST" action="{% url 'hrm:document_asset_vault' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign_asset">
+        <div class="lv-form-group">
+          <label class="form-label-red">Employee *</label>
+          <select name="employee" class="form-control" required>
+            <option value="" disabled selected>Select Employee...</option>
+            {% for emp in employees %}
+            <option value="{{ emp.name }}">{{ emp.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-red">Asset Name *</label>
+          <input type="text" name="asset_name" class="form-control" placeholder="e.g. MacBook Pro, iPhone" required>
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-plain">Asset Tag</label>
+          <input type="text" name="asset_tag" class="form-control" placeholder="e.g. IT-AST-1002">
+        </div>
+        <div class="lv-form-group">
+          <label class="form-label-plain">Serial Number</label>
+          <input type="text" name="serial_number" class="form-control" placeholder="e.g. C02X87GBJG5H">
+        </div>
+        <button type="submit" class="btn-lv-save">Assign Asset</button>
+      </form>
+    </div>
+
+    <div class="lv-table-card">
+      <div class="lv-table-header">
+        <h4><i class="fa-solid fa-tags" style="color:var(--accent-color);"></i> Assigned Company Assets</h4>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Asset Details</th>
+            <th>Tag & S/N</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for asset in assets %}
+          <tr>
+            <td><strong>{{ asset.employee }}</strong></td>
+            <td>{{ asset.asset_name }}</td>
+            <td>
+              <span style="font-size:0.85rem;color:var(--text-secondary);">Tag: {{ asset.asset_tag|default:"--" }}</span><br>
+              <span style="font-size:0.85rem;color:var(--text-secondary);">S/N: {{ asset.serial_number|default:"--" }}</span>
+            </td>
+            <td>
+              <span class="badge {% if asset.status == 'Returned' %}success{% else %}warning{% endif %}">
+                {{ asset.status }}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex; gap:8px; align-items:center;">
+                {% if asset.status != 'Returned' %}
+                <form method="POST" action="{% url 'hrm:document_asset_vault' %}" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="return_asset">
+                  <input type="hidden" name="doc_id" value="{{ asset.id }}">
+                  <button type="submit" class="btn-submit" style="padding:4px 8px; font-size:0.75rem; background:var(--accent-color);">Return</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{% url 'hrm:document_asset_vault' %}" style="margin:0;" onsubmit="return confirm('Delete asset record?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_asset">
+                  <input type="hidden" name="doc_id" value="{{ asset.id }}">
+                  <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="fa-solid fa-trash-can"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No assigned assets records.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tab) {
+  localStorage.setItem('vault_active_tab', tab);
+  document.querySelectorAll('.lv-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + tab).classList.add('active');
+  document.querySelectorAll('.lv-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+const activeTab = localStorage.getItem('vault_active_tab') || 'documents';
+switchTab(activeTab);
+</script>
+{% endblock %}

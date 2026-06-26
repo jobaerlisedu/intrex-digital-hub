@@ -1,0 +1,122 @@
+{% extends 'erp_base.html' %}
+{% block title %}Expense Claims - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.lv-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
+.lv-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.form-label-red { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
+.form-label-plain { color:var(--text-secondary); font-size:.85rem; display:block; margin-bottom:6px; }
+.lv-form-group { margin-bottom:16px; }
+.btn-lv-save { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-lv-save:hover { opacity:.88; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+  <h2>Employee Expense Claims</h2>
+</div>
+
+<div class="lv-layout">
+  <div class="lv-form-card">
+    <h4><i class="fa-solid fa-file-invoice-dollar" style="color:var(--accent-color);"></i> File Expense Claim</h4>
+    <form method="POST" action="{% url 'hrm:expense_claims' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="file_claim">
+      <div class="lv-form-group">
+        <label class="form-label-red">Employee *</label>
+        <select name="employee" class="form-control" required>
+          <option value="" disabled selected>Select Employee...</option>
+          {% for emp in employees %}
+          <option value="{{ emp.name }}">{{ emp.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-red">Category *</label>
+        <select name="category" class="form-control" required>
+          <option value="Travel & Lodging">Travel & Lodging</option>
+          <option value="Meals & Entertainment">Meals & Entertainment</option>
+          <option value="Office Equipment & Supplies">Office Equipment & Supplies</option>
+          <option value="Internet & Communication">Internet & Communication</option>
+          <option value="Training & Certifications">Training & Certifications</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-red">Amount ($) *</label>
+        <input type="number" step="0.01" name="amount" class="form-control" placeholder="0.00" required>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-plain">Description</label>
+        <textarea name="description" class="form-control" style="height:80px;resize:none;" placeholder="Describe the expense details..."></textarea>
+      </div>
+      <button type="submit" class="btn-lv-save">File Claim</button>
+    </form>
+  </div>
+
+  <div class="lv-table-card">
+    <div class="lv-table-header">
+      <h4><i class="fa-solid fa-list-check" style="color:var(--accent-color);"></i> Expense Claim Audits</h4>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Description</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for claim in claims %}
+        <tr>
+          <td><strong>{{ claim.employee }}</strong></td>
+          <td>{{ claim.category }}</td>
+          <td>${{ claim.amount|floatformat:2 }}</td>
+          <td>{{ claim.description }}</td>
+          <td>
+            <span class="badge {% if claim.status == 'Approved' %}success{% elif claim.status == 'Rejected' %}danger{% else %}warning{% endif %}">
+              {{ claim.status }}
+            </span>
+          </td>
+          <td>
+            <div style="display:flex; gap:8px; align-items:center;">
+              {% if claim.status == 'Pending' %}
+              <form method="POST" action="{% url 'hrm:expense_claims' %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_claim">
+                <input type="hidden" name="doc_id" value="{{ claim.id }}">
+                <button type="submit" class="btn-submit" style="padding:4px 8px; font-size:0.75rem; background:#10b981;">Approve</button>
+              </form>
+              <form method="POST" action="{% url 'hrm:expense_claims' %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject_claim">
+                <input type="hidden" name="doc_id" value="{{ claim.id }}">
+                <button type="submit" class="btn-submit" style="padding:4px 8px; font-size:0.75rem; background:#ef4444;">Reject</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="{% url 'hrm:expense_claims' %}" style="margin:0;" onsubmit="return confirm('Delete this claim?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_claim">
+                <input type="hidden" name="doc_id" value="{{ claim.id }}">
+                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="fa-solid fa-trash-can"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-secondary);">No filed expense claims.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

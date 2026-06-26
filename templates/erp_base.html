@@ -536,6 +536,12 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{% url 'hrm:onboarding_offboarding' %}" class="submenu-link {% if request.resolver_match.url_name == 'onboarding_offboarding' %}active{% endif %}">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                            <span>Onboarding & Offboarding</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{% url 'hrm:department' %}" class="submenu-link {% if request.resolver_match.url_name == 'department' %}active{% endif %}">
                             <i class="fa-solid fa-sitemap"></i>
                             <span>Department</span>
@@ -554,6 +560,12 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{% url 'hrm:roster_management' %}" class="submenu-link {% if request.resolver_match.url_name == 'roster_management' %}active{% endif %}">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span>Shift Roster</span>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{% url 'hrm:leave' %}" class="submenu-link {% if request.resolver_match.url_name == 'leave' %}active{% endif %}">
                             <i class="fa-regular fa-calendar-check"></i>
                             <span>Leave Management</span>
@@ -563,6 +575,18 @@
                         <a href="{% url 'hrm:payroll' %}" class="submenu-link {% if request.resolver_match.url_name == 'payroll' %}active{% endif %}">
                             <i class="fa-solid fa-wallet"></i>
                             <span>Payroll Management</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:expense_claims' %}" class="submenu-link {% if request.resolver_match.url_name == 'expense_claims' %}active{% endif %}">
+                            <i class="fa-solid fa-receipt"></i>
+                            <span>Expense Claims</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:document_asset_vault' %}" class="submenu-link {% if request.resolver_match.url_name == 'document_asset_vault' %}active{% endif %}">
+                            <i class="fa-solid fa-vault"></i>
+                            <span>Document & Asset Vault</span>
                         </a>
                     </li>
                     <li>

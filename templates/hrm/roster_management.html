@@ -1,0 +1,97 @@
+{% extends 'erp_base.html' %}
+{% block title %}Shift Roster Management - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.lv-layout { display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; }
+.lv-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.lv-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.lv-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.form-label-red { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
+.form-label-plain { color:var(--text-secondary); font-size:.85rem; display:block; margin-bottom:6px; }
+.lv-form-group { margin-bottom:16px; }
+.btn-lv-save { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-lv-save:hover { opacity:.88; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-between">
+  <h2>Shift Roster Management</h2>
+</div>
+
+<div class="lv-layout">
+  <div class="lv-form-card">
+    <h4><i class="fa-solid fa-calendar-plus" style="color:var(--accent-color);"></i> Assign Shift</h4>
+    <form method="POST" action="{% url 'hrm:roster_management' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="assign_shift">
+      <div class="lv-form-group">
+        <label class="form-label-red">Employee *</label>
+        <select name="employee" class="form-control" required>
+          <option value="" disabled selected>Select Employee...</option>
+          {% for emp in employees %}
+          <option value="{{ emp.name }}">{{ emp.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-red">Shift Name *</label>
+        <select name="shift_name" class="form-control" required>
+          <option value="Morning Shift (09:00 AM - 05:00 PM)">Morning Shift (09:00 AM - 05:00 PM)</option>
+          <option value="Evening Shift (05:00 PM - 01:00 AM)">Evening Shift (05:00 PM - 01:00 AM)</option>
+          <option value="Night Shift (01:00 AM - 09:00 AM)">Night Shift (01:00 AM - 09:00 AM)</option>
+        </select>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-red">Start Date *</label>
+        <input type="date" name="start_date" class="form-control" required>
+      </div>
+      <div class="lv-form-group">
+        <label class="form-label-red">End Date *</label>
+        <input type="date" name="end_date" class="form-control" required>
+      </div>
+      <button type="submit" class="btn-lv-save">Assign Shift</button>
+    </form>
+  </div>
+
+  <div class="lv-table-card">
+    <div class="lv-table-header">
+      <h4><i class="fa-solid fa-calendar-days" style="color:var(--accent-color);"></i> Shift Rotation Schedule</h4>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Shift Details</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in shifts %}
+        <tr>
+          <td><strong>{{ shift.employee }}</strong></td>
+          <td><span class="badge">{{ shift.shift_name }}</span></td>
+          <td>{{ shift.start_date }}</td>
+          <td>{{ shift.end_date }}</td>
+          <td>
+            <form method="POST" action="{% url 'hrm:roster_management' %}" style="margin:0;" onsubmit="return confirm('Remove shift assignment?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_shift">
+              <input type="hidden" name="doc_id" value="{{ shift.id }}">
+              <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;"><i class="fa-solid fa-trash-can"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No shift assignments scheduled.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
