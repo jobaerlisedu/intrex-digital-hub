@@ -325,9 +325,38 @@ def contact_directory(request):
     students = get_collection_data('learn_registrations')
     institutes = get_collection_data('learn_public_institutes')
     courses = get_collection_data('learn_courses')
+    payments = get_collection_data('learn_payments')
+
+    # Resolve payment status for each student registration
+    for reg in students:
+        s_id = reg.get('studentId')
+        crs = reg.get('course', '')
+        clean_crs = re.sub(r'[^a-zA-Z0-9]', '', crs) if crs else ''
+        doc_key = f"{s_id}_{clean_crs}" if s_id and clean_crs else None
+        
+        pay_record = None
+        if doc_key:
+            pay_record = next((p for p in payments if p.get('id') == doc_key), None)
+        if not pay_record and s_id:
+            pay_record = next((p for p in payments if p.get('studentId') == s_id), None)
+            
+        pay_status = "Unpaid"
+        if pay_record:
+            pay_status = pay_record.get('status', 'Unpaid')
+            fee = float(pay_record.get('totalFee', 0.0))
+            disc = float(pay_record.get('discount', 0.0))
+            if fee - disc == 0.0 or reg.get('isFreeBatch'):
+                pay_status = "Fully Paid"
+        reg['paymentStatus'] = pay_status
+
+    students_json = json.dumps(students, default=str)
+    institutes_json = json.dumps(institutes, default=str)
+
     return render(request, 'training/contact_directory.html', {
         'students': students,
+        'students_json': students_json,
         'institutes': institutes,
+        'institutes_json': institutes_json,
         'courses': courses
     })
 
