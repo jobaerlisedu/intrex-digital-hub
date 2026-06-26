@@ -1,100 +1,282 @@
 {% extends 'erp_base.html' %}
-{% block title %}Corporate Training - Employee Database - Intrex ERP{% endblock %}
+{% block title %}Employee Directory - Intrex ERP{% endblock %}
 {% block content %}
-<div class="flex-between">
-    <h2>Corporate Employee Training Database</h2>
-</div>
 
-<div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 24px; align-items: start;">
-    <!-- Enroll Employee Form -->
-    <div class="glass-card">
-        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
-            <i class="fa-solid fa-user-plus" style="color: var(--accent-color);"></i> Enroll Employee
+<style>
+    .view-details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .view-detail-item {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--sidebar-border);
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .view-detail-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+        letter-spacing: 0.5px;
+    }
+    .view-detail-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+</style>
+
+<div class="glass-card" style="margin-bottom: 32px; min-height: 500px;">
+    <!-- Directory Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-primary); display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-users" style="color: var(--accent-color);"></i>
+            Employee Directory
         </h3>
-        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
-        <form method="POST" action="{% url 'training:employee_database' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label>Employee Name</label>
-                <input type="text" name="employee_name" class="form-control" required placeholder="e.g. Arif Hasan">
-            </div>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Email Address</label>
-                <input type="email" name="email" class="form-control" required placeholder="e.g. arif@intrex.com">
-            </div>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Department</label>
-                <input type="text" name="department" class="form-control" required placeholder="e.g. Software Engineering">
-            </div>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Training Course</label>
-                <select name="course_title" class="form-control" required>
-                    <option value="" disabled selected>Select Course...</option>
-                    {% for course in courses %}
-                    <option value="{{ course.course_title }}">{{ course.course_title }}</option>
-                    {% empty %}
-                    <option value="Advanced Python & Django">Advanced Python & Django</option>
-                    <option value="SEO & Social Media Marketing">SEO & Social Media Marketing</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Status</label>
-                <select name="status" class="form-control">
-                    <option value="Enrolled" selected>Enrolled</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                </select>
-            </div>
-            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; padding: 12px;">Enroll Employee</button>
-        </form>
+        
+        <!-- Search and Filters -->
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="search-employee" oninput="filterEmployees()" class="form-control" style="width: 180px; height: 36px; padding: 6px 12px;" placeholder="Search employee...">
+            
+            <select id="filter-dept" onchange="filterEmployees()" class="form-control" style="width: auto; max-width: 150px; height: 36px; padding: 6px 12px;">
+                <option value="">All Departments</option>
+                <!-- Dynamic options -->
+            </select>
+            
+            <select id="filter-desig" onchange="filterEmployees()" class="form-control" style="width: auto; max-width: 150px; height: 36px; padding: 6px 12px;">
+                <option value="">All Designations</option>
+                <!-- Dynamic options -->
+            </select>
+            
+            <select id="filter-status" onchange="filterEmployees()" class="form-control" style="width: auto; max-width: 120px; height: 36px; padding: 6px 12px;">
+                <option value="">All Status</option>
+                <!-- Dynamic options -->
+            </select>
+            
+            <button onclick="resetFilters()" class="btn-submit" style="padding: 6px 12px; height: 36px; background: #215c5c; display: flex; align-items: center; justify-content: center;" title="Reset Filters">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+        </div>
     </div>
 
-    <!-- Employee List -->
-    <div class="glass-card" style="min-height: 500px;">
-        <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
-            <i class="fa-solid fa-users" style="color: var(--accent-color);"></i> Corporate Enrolled Employees
-        </h3>
-        <table class="data-table" style="margin-top: 24px;">
+    <!-- Table -->
+    <div style="overflow-x: auto;">
+        <table class="data-table">
             <thead>
                 <tr style="background-color: #f8fafc; border-bottom: 1px solid var(--sidebar-border);">
-                    <th style="font-weight: 600; color: var(--text-primary);">Employee Name</th>
-                    <th style="font-weight: 600; color: var(--text-primary);">Department</th>
-                    <th style="font-weight: 600; color: var(--text-primary);">Assigned Training Course</th>
-                    <th style="font-weight: 600; color: var(--text-primary);">Status</th>
-                    <th style="font-weight: 600; color: var(--text-primary);">Action</th>
+                    <th style="font-weight: 600; color: var(--text-primary); text-align: center; width: 140px;">Employee ID</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Name</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Designation</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Employee Type</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Mobile</th>
+                    <th style="font-weight: 600; color: var(--text-primary);">Email</th>
+                    <th style="font-weight: 600; color: var(--text-primary); text-align: center; width: 100px;">Status</th>
+                    <th style="font-weight: 600; color: var(--text-primary); text-align: center; width: 100px;">Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for emp in employees %}
-                <tr>
-                    <td style="font-weight: 600; color: var(--text-primary);">
-                        <div>{{ emp.employee_name }}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ emp.email }}</div>
-                    </td>
-                    <td>{{ emp.department }}</td>
-                    <td>{{ emp.course_title }}</td>
-                    <td>
-                        <span class="badge {% if emp.status == 'Enrolled' %}warning{% elif emp.status == 'In Progress' %}warning{% else %}success{% endif %}">
-                            {{ emp.status }}
-                        </span>
-                    </td>
-                    <td>
-                        <form method="POST" action="{% url 'training:employee_database' %}" style="margin:0;" onsubmit="return confirm('Are you sure you want to remove this record?');">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="delete">
-                            <input type="hidden" name="doc_id" value="{{ emp.id }}">
-                            <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
-                        </form>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 48px;">No employee training records found.</td>
-                </tr>
-                {% endfor %}
+            <tbody id="employee-table-body">
+                <!-- Dynamically Populated -->
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    // Load employees json
+    const employeesDb = {{ employees_json|safe }};
+
+    window.addEventListener("DOMContentLoaded", () => {
+        populateFilters();
+        renderEmployees();
+    });
+
+    // Populate all dynamic filters
+    function populateFilters() {
+        const deptSelect = document.getElementById("filter-dept");
+        const desigSelect = document.getElementById("filter-desig");
+        const statusSelect = document.getElementById("filter-status");
+
+        // Unique Departments
+        const depts = [...new Set(employeesDb.map(e => e.department).filter(Boolean))];
+        depts.sort().forEach(d => {
+            const opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            deptSelect.appendChild(opt);
+        });
+
+        // Unique Designations
+        const desigs = [...new Set(employeesDb.map(e => e.designation).filter(Boolean))];
+        desigs.sort().forEach(d => {
+            const opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            desigSelect.appendChild(opt);
+        });
+
+        // Unique Statuses
+        const statuses = [...new Set(employeesDb.map(e => e.status).filter(Boolean))];
+        statuses.sort().forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            statusSelect.appendChild(opt);
+        });
+    }
+
+    // Render employees list
+    function renderEmployees() {
+        const tbody = document.getElementById("employee-table-body");
+        if (!tbody) return;
+
+        const searchQuery = document.getElementById("search-employee").value.toLowerCase().trim();
+        const deptFilter = document.getElementById("filter-dept").value;
+        const desigFilter = document.getElementById("filter-desig").value;
+        const statusFilter = document.getElementById("filter-status").value;
+
+        const filtered = employeesDb.filter(e => {
+            const matchesSearch = !searchQuery ||
+                (e.employee_name && e.employee_name.toLowerCase().includes(searchQuery)) ||
+                (e.employee_id && e.employee_id.toLowerCase().includes(searchQuery)) ||
+                (e.email && e.email.toLowerCase().includes(searchQuery)) ||
+                (e.mobile_phone && e.mobile_phone.includes(searchQuery)) ||
+                (e.phone && e.phone.includes(searchQuery));
+
+            const matchesDept = !deptFilter || e.department === deptFilter;
+            const matchesDesig = !desigFilter || e.designation === desigFilter;
+            const matchesStatus = !statusFilter || e.status === statusFilter;
+
+            return matchesSearch && matchesDept && matchesDesig && matchesStatus;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 48px;">No employees found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(e => {
+            const statusClass = e.status === "Active" ? "success" : "danger";
+            
+            // Badge style for employee type
+            let typeBadgeClass = "secondary";
+            if (e.employee_type === "Permanent") {
+                typeBadgeClass = "success";
+            } else if (e.employee_type === "Contractual") {
+                typeBadgeClass = "warning";
+            } else if (e.employee_type === "Part-time" || e.employee_type === "External Professionals") {
+                typeBadgeClass = "info";
+            }
+
+            return `
+                <tr>
+                    <td style="text-align: center;"><code style="font-weight: 700; color: var(--text-primary); font-family: monospace; font-size: 0.95rem;">${e.employee_id || '—'}</code></td>
+                    <td><strong style="color: var(--text-primary);">${e.employee_name}</strong></td>
+                    <td>${e.designation || '—'}</td>
+                    <td><span class="badge ${typeBadgeClass}" style="font-size: 0.75rem; padding: 2px 6px;">${e.employee_type || '—'}</span></td>
+                    <td>
+                        ${(e.mobile_phone || e.phone) ? `
+                            <a href="tel:${e.mobile_phone || e.phone}" style="color: var(--accent-color); text-decoration: none;">
+                                ${e.mobile_phone || e.phone}
+                            </a>
+                        ` : '—'}
+                    </td>
+                    <td>
+                        ${e.email ? `
+                            <a href="mailto:${e.email}" style="color: var(--accent-color); text-decoration: none;">
+                                ${e.email}
+                            </a>
+                        ` : '—'}
+                    </td>
+                    <td style="text-align: center;"><span class="badge ${statusClass}">${e.status || 'Active'}</span></td>
+                    <td style="text-align: center;">
+                        <button type="button" onclick="viewEmployeeDetails('${e.employee_id}')" class="btn-action edit" style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); border: 1px solid var(--accent-color); border-radius: 4px; padding: 4px 8px;" title="View Profile">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function filterEmployees() {
+        renderEmployees();
+    }
+
+    function resetFilters() {
+        document.getElementById("search-employee").value = '';
+        document.getElementById("filter-dept").value = '';
+        document.getElementById("filter-desig").value = '';
+        document.getElementById("filter-status").value = '';
+        renderEmployees();
+    }
+
+    // Modal popup system using openGlobalModal
+    function viewEmployeeDetails(id) {
+        const record = employeesDb.find(e => e.employee_id === id);
+        if (!record) return;
+
+        const email = record.email ? `<a href="mailto:${record.email}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-envelope" style="color: var(--accent-color); margin-right: 8px;"></i>${record.email}</a>` : '—';
+        const phone = (record.mobile_phone || record.phone) ? `<a href="tel:${record.mobile_phone || record.phone}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-phone" style="color: var(--accent-color); margin-right: 8px;"></i>${record.mobile_phone || record.phone}</a>` : '—';
+        const statusClass = record.status === 'Active' ? 'success' : 'danger';
+        
+        let typeBadgeClass = "secondary";
+        if (record.employee_type === "Permanent") {
+            typeBadgeClass = "success";
+        } else if (record.employee_type === "Contractual") {
+            typeBadgeClass = "warning";
+        } else if (record.employee_type === "Part-time" || record.employee_type === "External Professionals") {
+            typeBadgeClass = "info";
+        }
+
+        const htmlContent = `
+            <div class="view-details-grid">
+                <div class="view-detail-item">
+                    <div class="view-detail-label">EMPLOYEE ID</div>
+                    <div class="view-detail-value" style="font-family: monospace; font-weight: bold; color: var(--accent-color);">${record.employee_id || '—'}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">FULL NAME</div>
+                    <div class="view-detail-value">${record.employee_name}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">DESIGNATION</div>
+                    <div class="view-detail-value">${record.designation || '—'}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">EMPLOYEE TYPE</div>
+                    <div class="view-detail-value">
+                        <span class="badge ${typeBadgeClass}" style="font-size: 0.85rem;">${record.employee_type || '—'}</span>
+                    </div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">DEPARTMENT</div>
+                    <div class="view-detail-value">${record.department || '—'}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">SUB DEPARTMENT</div>
+                    <div class="view-detail-value">${record.subDepartment || '—'}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">EMAIL ADDRESS</div>
+                    <div class="view-detail-value">${email}</div>
+                </div>
+                <div class="view-detail-item">
+                    <div class="view-detail-label">MOBILE PHONE</div>
+                    <div class="view-detail-value">${phone}</div>
+                </div>
+                <div class="view-detail-item" style="grid-column: span 2;">
+                    <div class="view-detail-label">EMPLOYMENT STATUS</div>
+                    <div class="view-detail-value">
+                        <span class="badge ${statusClass}">${record.status || 'Active'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        openGlobalModal("Employee Details - " + (record.employee_id || 'N/A'), htmlContent, record.employee_name, "EMPLOYEE PROFILE");
+    }
+</script>
 {% endblock %}

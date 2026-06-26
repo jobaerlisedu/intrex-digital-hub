@@ -275,14 +275,27 @@ def inquiries(request):
 def employee_database(request):
     # Read-only central employee listing
     employees = get_collection_data('employees')
-    return render(request, 'training/employee_database.html', {'employees': employees})
+    employees_json = json.dumps(employees, default=str)
+    return render(request, 'training/employee_database.html', {
+        'employees': employees,
+        'employees_json': employees_json
+    })
 
 @module_access('training')
 def trainer_database(request):
     # Filter trainers from central employee registry
     employees = get_collection_data('employees')
-    trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
-    return render(request, 'training/trainer_database.html', {'trainers': trainers})
+    trainers = []
+    for emp in employees:
+        desig = emp.get('designation', '').lower()
+        emp_type = emp.get('employee_type', '')
+        if 'trainer' in desig or 'expert' in desig or emp_type == 'External Professionals' or 'instructor' in desig:
+            trainers.append(emp)
+    trainers_json = json.dumps(trainers, default=str)
+    return render(request, 'training/trainer_database.html', {
+        'trainers': trainers,
+        'trainers_json': trainers_json
+    })
 
 @module_access('training')
 def contact_directory(request):
