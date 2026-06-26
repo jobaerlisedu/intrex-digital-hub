@@ -39,21 +39,240 @@
 
         * { box-sizing: border-box; }
 
-        /* Sidebar */
+        /* ── Sidebar base ─────────────────────────────────────── */
         .sidebar {
-            width: 320px;
-            min-width: 320px;
+            width: 280px;
+            min-width: 280px;
             background: var(--sidebar-bg);
             border-right: 1px solid var(--sidebar-border);
             display: flex;
             flex-direction: column;
             padding: 15px 0;
             box-shadow: var(--glass-shadow);
-            z-index: 10;
+            z-index: 100;
             overflow-y: auto;
             overflow-x: hidden;
             height: 100vh;
             flex-shrink: 0;
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                        min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            scrollbar-width: thin;
+            scrollbar-color: var(--sidebar-border) transparent;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--sidebar-border); border-radius: 4px; }
+
+        /* ── Collapsed state (84px icon rail) ─────────────────── */
+        .sidebar.collapsed {
+            width: 84px;
+            min-width: 84px;
+            scrollbar-width: none;
+        }
+        .sidebar.collapsed::-webkit-scrollbar { display: none; }
+
+        /* Brand area: hide text, center logo */
+        .sidebar.collapsed .sidebar-brand .brand-text { display: none !important; }
+        .sidebar.collapsed .sidebar-brand {
+            justify-content: center;
+            padding: 0 0 16px;
+        }
+
+        /* Nav-links list: tight padding */
+        .sidebar.collapsed .nav-links { padding: 0 6px; gap: 2px; }
+
+        /* ── Nav-link pill: fixed height block, position:relative ─
+           Every nav-link becomes a 44px tall block. Icons will be
+           pinned dead-centre using position:absolute.             */
+        .sidebar.collapsed .nav-link {
+            display: block;
+            position: relative;
+            height: 44px;
+            width: 100%;
+            border-radius: 8px;
+            padding: 0;
+            background: transparent;
+            transition: background 0.18s;
+        }
+        .sidebar.collapsed .nav-link:hover,
+        .sidebar.collapsed .nav-link.active {
+            background: rgba(33, 92, 92, 0.08);
+        }
+
+        /* ── Icon centering: absolute, dead-centre ────────────────
+           Works for BOTH cases:
+           • ERP Dashboard: <a> → <i>  (direct child)
+           • Modules:       <a> → <span.nav-icon-wrap> → <i>
+           position:absolute positions relative to the nearest
+           position:relative ancestor = .nav-link, not the wrapper. */
+        .sidebar.collapsed .nav-link > i,
+        .sidebar.collapsed .nav-link .nav-icon-wrap > i {
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            font-size: 1.2rem !important;
+            line-height: 1 !important;
+            width: auto !important;
+        }
+
+        /* Override inline display:flex on the wrapper span so it
+           does NOT create a positioned/flex context that would
+           intercept the icon's containing-block lookup.           */
+        .sidebar.collapsed .nav-link .nav-icon-wrap {
+            display: block !important;
+            position: static !important;
+        }
+
+        /* Hide text labels, carets, sub-menus */
+        .sidebar.collapsed .nav-label         { display: none !important; }
+        .sidebar.collapsed .dropdown-caret    { display: none !important; }
+        .sidebar.collapsed .submenu-links     { display: none !important; }
+
+
+        /* ── Hover peek — sidebar glides open on arrow hover ─── */
+        .sidebar.peeking {
+            width: 280px !important;
+            min-width: 280px !important;
+            scrollbar-width: thin;
+        }
+        .sidebar.peeking::-webkit-scrollbar { display: block; width: 4px; }
+        .sidebar.peeking .brand-text,
+        .sidebar.peeking .nav-label,
+        .sidebar.peeking .nav-icon-wrap .nav-label {
+            display: inline !important;
+        }
+        .sidebar.peeking .sidebar-brand  { justify-content: flex-start; padding: 0 24px 20px; }
+        .sidebar.peeking .nav-links      { padding: 0 12px; gap: 4px; }
+        .sidebar.peeking .nav-link       { justify-content: flex-start; padding: 12px 12px; gap: 12px; border-radius: 8px; }
+        .sidebar.peeking .nav-link .nav-icon-wrap { gap: 12px !important; }
+        .sidebar.peeking .nav-link > i,
+        .sidebar.peeking .nav-link .nav-icon-wrap > i { font-size: 1.1rem; }
+        .sidebar.peeking .dropdown-caret { display: inline-block !important; }
+
+        /* ── Floating flyout panels ────────────────────────────── */
+        .sidebar-flyout {
+            display: none;
+            position: fixed;
+            left: 84px;
+            background: #ffffff;
+            border: 1px solid var(--sidebar-border);
+            border-left: 3px solid var(--accent-color);
+            border-radius: 0 12px 12px 0;
+            box-shadow: 6px 4px 24px rgba(33,92,92,0.12), 0 2px 8px rgba(0,0,0,0.06);
+            min-width: 220px;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 9999;
+            padding: 6px 0 10px;
+            pointer-events: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--sidebar-border) transparent;
+        }
+        .sidebar-flyout::-webkit-scrollbar { width: 3px; }
+        .sidebar-flyout::-webkit-scrollbar-thumb { background: var(--sidebar-border); }
+        .sidebar-flyout.visible { display: block; animation: flyout-in 0.15s ease; }
+
+        @keyframes flyout-in {
+            from { opacity: 0; transform: translateX(-6px); }
+            to   { opacity: 1; transform: translateX(0);    }
+        }
+
+        .sidebar-flyout-header {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            color: var(--accent-color);
+            padding: 10px 14px 8px;
+            border-bottom: 1px solid var(--sidebar-border);
+            margin-bottom: 4px;
+        }
+        .sidebar-flyout .submenu-link {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 7px 14px;
+            font-size: 0.87rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: background 0.14s, color 0.14s;
+            border-radius: 0;
+            font-weight: 500;
+        }
+        .sidebar-flyout .submenu-link:hover,
+        .sidebar-flyout .submenu-link.active {
+            background: rgba(33,92,92,0.07);
+            color: var(--accent-color);
+        }
+        .sidebar-flyout .submenu-link i {
+            width: 15px;
+            text-align: center;
+            font-size: 0.88rem;
+            color: inherit;
+        }
+        .sidebar-flyout .flyout-section-header {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent-hover);
+            padding: 8px 14px 3px;
+            border-top: 1px solid var(--sidebar-border);
+            margin-top: 2px;
+        }
+
+        /* ── Toggle button (bottom of sidebar) ─────────────────── */
+        .sidebar-toggle-item { list-style: none; }
+
+        #sidebar-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.2s, color 0.2s;
+            text-align: left;
+        }
+        #sidebar-toggle-btn:hover {
+            background: rgba(33, 92, 92, 0.07);
+            color: var(--accent-color);
+        }
+        #sidebar-toggle-btn i {
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+            flex-shrink: 0;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* When collapsed — make it a fixed-height block, icon absolutely centred */
+        .sidebar.collapsed #sidebar-toggle-btn {
+            display: block;
+            position: relative;
+            height: 44px;
+            padding: 0;
+            justify-content: unset;
+        }
+        .sidebar.collapsed #sidebar-toggle-btn i {
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            font-size: 1.2rem !important;
+            width: auto !important;
+        }
+        .sidebar.collapsed #sidebar-toggle-btn .nav-label {
+            display: none !important;
         }
 
         .sidebar-brand {
@@ -498,7 +717,7 @@
         <div class="sidebar-brand">
             {% load static %}
             <img src="{% static 'images/logo/intrex-logo.svg' %}" alt="Intrex Logo" style="width:40px;height:40px;object-fit:contain;flex-shrink:0;">
-            <div style="display:flex;flex-direction:column;line-height:1.15;">
+            <div class="brand-text" style="display:flex;flex-direction:column;line-height:1.15;">
                 <span style="font-size:1.4rem;font-weight:700;color:var(--text-primary);">Intrex</span>
                 <span style="font-size:0.8rem;font-weight:500;color:var(--text-secondary);letter-spacing:0.06em;text-transform:uppercase;">Dashboards</span>
             </div>
@@ -506,16 +725,16 @@
         <ul class="nav-links">
             <!-- ERP Dashboard -->
             <li>
-                <a href="{% url 'erp_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'erp_dashboard' %}active{% endif %}">
+                <a href="{% url 'erp_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'erp_dashboard' %}active{% endif %}" data-tooltip="ERP Dashboard">
                     <i class="fa-solid fa-chart-pie"></i>
-                    <span>ERP Dashboard</span>
+                    <span class="nav-label">ERP Dashboard</span>
                 </a>
             </li>
 
             <!-- HR Management Dropdown -->
             {% if 'hrm' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'hrm' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'hrm-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'hrm-dropdown')" data-tooltip="HR Management">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-users"></i>
                         <span>HR Management</span>
@@ -600,7 +819,7 @@
             {% endif %}
             {% if 'inventory' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'inventory' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'inventory-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'inventory-dropdown')" data-tooltip="Procurement & Stock">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-boxes-stacked"></i>
                         <span>Procurement & Stock</span>
@@ -637,7 +856,7 @@
             {% endif %}
             {% if 'investment' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'investment' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'investment-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'investment-dropdown')" data-tooltip="Investment">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-chart-line"></i>
                         <span>Investment</span>
@@ -698,7 +917,7 @@
             {% endif %}
             {% if 'billing' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'billing' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'billing-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'billing-dropdown')" data-tooltip="Accounts & Billing">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
                         <span>Accounts & Billing</span>
@@ -735,7 +954,7 @@
             {% endif %}
             {% if 'solutions' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'solutions' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'solutions-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'solutions-dropdown')" data-tooltip="Solutions & Projects">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-lightbulb"></i>
                         <span>Solutions & Projects</span>
@@ -773,7 +992,7 @@
             <!-- Training Dropdown -->
             {% if 'training' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'training' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'training-dropdown')">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'training-dropdown')" data-tooltip="Training Module">
                     <span style="display: flex; align-items: center; gap: 14px;">
                         <i class="fa-solid fa-graduation-cap"></i>
                         <span>Training Module</span>
@@ -907,7 +1126,7 @@
             <!-- User Management — staff/superusers only -->
             {% if request.user.is_staff or request.user.is_superuser %}
             <li style="margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--sidebar-border);">
-                <a href="{% url 'accounts:user_list' %}" class="nav-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}">
+                <a href="{% url 'accounts:user_list' %}" class="nav-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}" data-tooltip="User Management">
                     <i class="fa-solid fa-users-gear"></i>
                     <span>User Management</span>
                 </a>
@@ -917,18 +1136,18 @@
             <!-- System Audit Logs -->
             {% if 'audit_logs' in user_modules %}
             <li>
-                <a href="{% url 'accounts:audit_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_logs' %}active{% endif %}">
+                <a href="{% url 'accounts:audit_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'audit_logs' %}active{% endif %}" data-tooltip="Audit Logs">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span>Audit Logs</span>
                 </a>
             </li>
             {% endif %}
 
-            <li style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--sidebar-border);">
-                <a href="{% url 'frontend:index' %}" class="nav-link">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Back to Site</span>
-                </a>
+            <li class="sidebar-toggle-item" style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--sidebar-border);">
+                <button id="sidebar-toggle-btn" aria-label="Toggle Sidebar" class="sidebar-toggle-inner">
+                    <i class="fa-solid fa-chevron-left" id="sidebar-toggle-icon"></i>
+                    <span class="nav-label" style="font-size:0.9rem;font-weight:500;color:var(--text-secondary);">Collapse Sidebar</span>
+                </button>
             </li>
         </ul>
 
@@ -973,6 +1192,172 @@
                 parent.classList.add('open');
             }
         }
+    </script>
+
+    <script>
+        /* ============================================================
+           SIDEBAR CONTROLLER v3 — Bottom Toggle + Floating Flyout
+        ============================================================ */
+        (function() {
+            const sidebar    = document.querySelector('.sidebar');
+            const toggleBtn  = document.getElementById('sidebar-toggle-btn');
+            const toggleIcon = document.getElementById('sidebar-toggle-icon');
+            const STORAGE_KEY = 'sidebar_pinned_collapsed';
+
+            /* ── 1. Tag wrapper spans with hook classes ──────────── */
+            sidebar.querySelectorAll('.nav-link.dropdown-toggle').forEach(link => {
+                const wrapSpan = link.querySelector('span');
+                if (wrapSpan) {
+                    wrapSpan.classList.add('nav-icon-wrap');
+                    const textSpan = wrapSpan.querySelector('span');
+                    if (textSpan) textSpan.classList.add('nav-label');
+                }
+            });
+            sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)').forEach(link => {
+                const textSpan = link.querySelector('span');
+                if (textSpan) textSpan.classList.add('nav-label');
+            });
+
+            /* ── 1b. Normalise icon widths with fa-fw ─────────────
+               FA icons have different natural widths (e.g. fa-users
+               is wider than fa-lightbulb). fa-fw forces every icon
+               to exactly 1.25em so they all land at the same
+               horizontal centre in the 84px collapsed rail.       */
+            sidebar.querySelectorAll('.nav-link > i, .nav-link .nav-icon-wrap > i').forEach(icon => {
+                if (!icon.classList.contains('dropdown-caret')) {
+                    icon.classList.add('fa-fw');
+                }
+            });
+
+            /* ── 2. Collapse / Expand helpers ────────────────────── */
+            function applyCollapsed() {
+                sidebar.classList.add('collapsed');
+                toggleIcon.style.transform = 'rotate(180deg)';
+                // Update label text
+                const lbl = toggleBtn.querySelector('.nav-label');
+                if (lbl) lbl.textContent = 'Expand Sidebar';
+            }
+
+            function applyExpanded() {
+                sidebar.classList.remove('collapsed', 'peeking');
+                toggleIcon.style.transform = 'rotate(0deg)';
+                const lbl = toggleBtn.querySelector('.nav-label');
+                if (lbl) lbl.textContent = 'Collapse Sidebar';
+            }
+
+            /* ── 3. Click to toggle ───────────────────────────────── */
+            toggleBtn.addEventListener('click', function() {
+                if (sidebar.classList.contains('collapsed')) {
+                    applyExpanded();
+                    localStorage.setItem(STORAGE_KEY, 'false');
+                } else {
+                    applyCollapsed();
+                    localStorage.setItem(STORAGE_KEY, 'true');
+                }
+            });
+
+            /* ── 4. Restore saved state on load ─────────────────── */
+            const isMobile      = window.innerWidth < 768;
+            const isTablet      = window.innerWidth < 992 && window.innerWidth >= 768;
+            const savedCollapsed = localStorage.getItem(STORAGE_KEY);
+
+            if (isMobile || (isTablet && savedCollapsed !== 'false') || savedCollapsed === 'true') {
+                applyCollapsed();
+            } else {
+                applyExpanded();
+            }
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth < 768) {
+                    applyCollapsed();
+                }
+            });
+
+            /* ── 5. Floating flyout panels ───────────────────────── */
+            let activeFlyout = null;
+            let flyoutTimer  = null;
+
+            function hideFlyout(flyout) {
+                if (flyout) flyout.classList.remove('visible');
+                activeFlyout = null;
+            }
+
+            function showFlyout(flyout, navItem) {
+                if (activeFlyout && activeFlyout !== flyout) {
+                    activeFlyout.classList.remove('visible');
+                }
+                const sidebarRect = sidebar.getBoundingClientRect();
+                const rect = navItem.getBoundingClientRect();
+                const flyoutH = Math.min(flyout.scrollHeight, window.innerHeight * 0.8);
+                const topPos  = Math.min(rect.top, window.innerHeight - flyoutH - 10);
+                flyout.style.top  = Math.max(8, topPos) + 'px';
+                flyout.style.left = sidebarRect.right + 'px';
+                flyout.classList.add('visible');
+                activeFlyout = flyout;
+            }
+
+            document.querySelectorAll('.nav-item-dropdown').forEach(function(item) {
+                const toggleLink = item.querySelector('.nav-link.dropdown-toggle');
+                const submenu    = item.querySelector('.submenu-links');
+                if (!toggleLink || !submenu) return;
+
+                /* Build flyout panel */
+                const flyout = document.createElement('div');
+                flyout.className = 'sidebar-flyout';
+
+                /* Header with module name */
+                const header = document.createElement('div');
+                header.className = 'sidebar-flyout-header';
+                header.textContent = toggleLink.getAttribute('data-tooltip') || '';
+                flyout.appendChild(header);
+
+                /* Clone submenu children into flyout */
+                Array.from(submenu.children).forEach(function(child) {
+                    const clone = child.cloneNode(true);
+                    /* Convert section header <li> into flyout-section-header div */
+                    if (!clone.querySelector('a')) {
+                        const div = document.createElement('div');
+                        div.className = 'flyout-section-header';
+                        div.textContent = child.textContent.trim();
+                        flyout.appendChild(div);
+                    } else {
+                        const link = clone.querySelector('a');
+                        if (link) flyout.appendChild(link);
+                    }
+                });
+
+                document.body.appendChild(flyout);
+
+                /* Show on hover in collapsed mode */
+                item.addEventListener('mouseenter', function() {
+                    if (!sidebar.classList.contains('collapsed') || sidebar.classList.contains('peeking')) return;
+                    clearTimeout(flyoutTimer);
+                    showFlyout(flyout, item);
+                });
+
+                item.addEventListener('mouseleave', function(e) {
+                    if (flyout.contains(e.relatedTarget)) return;
+                    flyoutTimer = setTimeout(() => hideFlyout(flyout), 100);
+                });
+
+                flyout.addEventListener('mouseenter', function() {
+                    clearTimeout(flyoutTimer);
+                });
+
+                flyout.addEventListener('mouseleave', function(e) {
+                    if (item.contains(e.relatedTarget)) return;
+                    flyoutTimer = setTimeout(() => hideFlyout(flyout), 100);
+                });
+            });
+
+            /* Hide all flyouts when sidebar is expanded or peeking */
+            sidebar.addEventListener('mouseenter', function() {
+                if (!sidebar.classList.contains('collapsed') || sidebar.classList.contains('peeking')) {
+                    if (activeFlyout) hideFlyout(activeFlyout);
+                }
+            });
+
+        })();
     </script>
 
     <!-- Global Modal -->
