@@ -1,0 +1,289 @@
+{% extends 'erp_base.html' %}
+{% block title %}AR Invoices - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Accounts Receivable (AR) & Billing</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-regular fa-square-plus"></i> Generate Invoice
+        </button>
+        <button id="tab-list-btn" onclick="switchTab('list')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-file-invoice"></i> Sales Invoice Registry
+        </button>
+    </div>
+</div>
+
+<!-- Tab Content 1: Generate Invoice Form -->
+<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i>
+            Generate Customer Invoice
+        </h3>
+    </div>
+
+    <form method="POST" action="{% url 'billing:ar_invoices' %}" id="invoiceForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_invoice">
+        <input type="hidden" name="doc_id" id="doc_id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Invoice Number <span class="asterisk">*</span></label>
+                <input type="text" name="invoice_number" id="invoice_number" class="form-control" required placeholder="e.g. INV-2026-0001">
+            </div>
+
+            <div class="form-group">
+                <label>Client / Customer Name <span class="asterisk">*</span></label>
+                <input type="text" name="client_name" id="client_name" class="form-control" required placeholder="e.g. Acme Corporation">
+            </div>
+
+            <div class="form-group">
+                <label>Issue Date <span class="asterisk">*</span></label>
+                <input type="date" name="issue_date" id="issue_date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Due Date <span class="asterisk">*</span></label>
+                <input type="date" name="due_date" id="due_date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Subtotal Amount ($) <span class="asterisk">*</span></label>
+                <input type="number" step="0.01" name="subtotal" id="subtotal" class="form-control" required placeholder="0.00" onkeyup="updateGrandTotal()" onchange="updateGrandTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>Tax Rate Code <span class="asterisk">*</span></label>
+                <select name="tax_rate" id="tax_rate" class="form-control" required onchange="updateGrandTotal()">
+                    <option value="0">No Tax (0%)</option>
+                    {% for t in taxes %}
+                    <option value="{{ t.rate_percentage }}">{{ t.tax_code }} - {{ t.name }} ({{ t.rate_percentage }}%)</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Status <span class="asterisk">*</span></label>
+                <select name="status" id="status" class="form-control" required>
+                    <option value="Pending" selected>Pending</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Overdue">Overdue</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
+                    Computed Grand Total: <span id="grand-total-label" style="color: #10b981;">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+            <button type="submit" class="btn-submit" id="btn-save" style="padding: 12px 28px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i> Generate Invoice
+            </button>
+            <button type="button" onclick="cancelEdit()" id="btn-cancel" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px; display: none;">
+                Cancel / Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Content 2: Sales Invoice Registry Table -->
+<div id="tab-list" class="glass-card" style="display: none; min-height: 500px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-file-invoice" style="color: var(--accent-color);"></i>
+            Sales Invoice Ledger Registry
+        </h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Invoice #</th>
+                <th>Client Name</th>
+                <th>Issue / Due Date</th>
+                <th>Subtotal</th>
+                <th>Tax</th>
+                <th>Grand Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td style="font-weight: 700; color: var(--accent-color);">{{ inv.invoice_number }}</td>
+                <td><strong style="color: var(--text-primary);">{{ inv.client_name }}</strong></td>
+                <td>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Issue: {{ inv.issue_date }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Due: {{ inv.due_date }}</div>
+                </td>
+                <td>${{ inv.subtotal|floatformat:2 }}</td>
+                <td>${{ inv.tax_amount|floatformat:2 }}</td>
+                <td style="font-weight: 700; color: #10b981;">${{ inv.grand_total|floatformat:2 }}</td>
+                <td>
+                    <span class="badge {% if inv.status == 'Paid' %}success{% elif inv.status == 'Pending' %}warning{% else %}danger{% endif %}">
+                        {{ inv.status }}
+                    </span>
+                </td>
+                <td>
+                    {{ inv|json_script:inv.id }}
+                    <div class="action-group">
+                        {% if inv.status != 'Paid' %}
+                        <button type="button" class="btn-action edit" onclick="openPaymentModal('{{ inv.id }}')" title="Record Receipt / Payment" style="background: rgba(16,185,129,0.1); color: #10b981; border-color: #10b981;"><i class="fa-solid fa-cash-register"></i> Collect</button>
+                        {% endif %}
+                        <button type="button" class="btn-action edit" onclick="editRecord('{{ inv.id }}')" title="Edit Invoice"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <form method="POST" action="{% url 'billing:ar_invoices' %}" style="margin:0;" onsubmit="return confirm('Void/Delete this invoice?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_invoice">
+                            <input type="hidden" name="doc_id" value="{{ inv.id }}">
+                            <button type="submit" class="btn-action delete" title="Delete Invoice"><i class="fa-solid fa-trash-can"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 48px; color: var(--text-secondary);">No sales invoices logged.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal payment logger -->
+<div id="record-payment-modal" style="display:none;">
+    <form method="POST" action="{% url 'billing:ar_invoices' %}" id="paymentForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="record_payment">
+        <input type="hidden" name="doc_id" id="modal-invoice-id">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+                <label>Amount Collected ($) <span class="asterisk">*</span></label>
+                <input type="number" step="0.01" name="amount" id="modal-payment-amount" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Payment Date <span class="asterisk">*</span></label>
+                <input type="date" name="payment_date" id="modal-payment-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Payment Method <span class="asterisk">*</span></label>
+                <select name="payment_method" class="form-control" required>
+                    <option value="BankTransfer">Bank Transfer</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Credit/Debit Card</option>
+                    <option value="Cheque">Cheque</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Bank Reference Code</label>
+                <input type="text" name="bank_reference" class="form-control" placeholder="e.g. TXN-89212">
+            </div>
+        </div>
+        <button type="submit" class="btn-submit" style="margin-top: 20px; width: 100%;">Record Receipt Settlement</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const invoicesDb = JSON.parse('{{ invoices_json|escapejs }}');
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
+        document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
+    });
+
+    function switchTab(tab) {
+        const formDiv = document.getElementById("tab-form");
+        const listDiv = document.getElementById("tab-list");
+        const formBtn = document.getElementById("tab-form-btn");
+        const listBtn = document.getElementById("tab-list-btn");
+
+        if (tab === 'form') {
+            formDiv.style.display = 'block';
+            listDiv.style.display = 'none';
+            formBtn.style.background = 'var(--accent-color)';
+            formBtn.style.color = '#fff';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#64748b';
+        } else {
+            formDiv.style.display = 'none';
+            listDiv.style.display = 'block';
+            listBtn.style.background = 'var(--accent-color)';
+            listBtn.style.color = '#fff';
+            formBtn.style.background = 'transparent';
+            formBtn.style.color = '#64748b';
+        }
+    }
+
+    function updateGrandTotal() {
+        const subtotal = parseFloat(document.getElementById('subtotal').value || 0.0);
+        const taxRate = parseFloat(document.getElementById('tax_rate').value || 0.0);
+        const total = subtotal + (subtotal * (taxRate / 100));
+        document.getElementById('grand-total-label').innerText = `$${total.toFixed(2)}`;
+    }
+
+    function editRecord(id) {
+        const data = invoicesDb.find(i => i.id === id);
+        if (!data) return;
+
+        switchTab('form');
+        
+        document.getElementById('doc_id').value = id;
+        document.getElementById('invoice_number').value = data.invoice_number || '';
+        document.getElementById('client_name').value = data.client_name || '';
+        document.getElementById('issue_date').value = data.issue_date || '';
+        document.getElementById('due_date').value = data.due_date || '';
+        document.getElementById('subtotal').value = data.subtotal || '0.00';
+        document.getElementById('status').value = data.status || 'Pending';
+
+        // Set matching tax rate option if found, otherwise default to 0
+        const ratePct = ((data.tax_amount / data.subtotal) * 100).toFixed(0);
+        const taxSelect = document.getElementById('tax_rate');
+        taxSelect.value = "0";
+        for (let i = 0; i < taxSelect.options.length; i++) {
+            if (parseFloat(taxSelect.options[i].value).toFixed(0) === ratePct) {
+                taxSelect.value = taxSelect.options[i].value;
+                break;
+            }
+        }
+
+        updateGrandTotal();
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Customer Invoice';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Invoice';
+        document.getElementById('btn-cancel').style.display = 'flex';
+    }
+
+    function cancelEdit() {
+        document.getElementById('doc_id').value = '';
+        document.getElementById('invoiceForm').reset();
+        document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
+        document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
+        updateGrandTotal();
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Generate Customer Invoice';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Generate Invoice';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+
+    function openPaymentModal(invId) {
+        const inv = invoicesDb.find(i => i.id === invId);
+        if (!inv) return;
+
+        document.getElementById('modal-invoice-id').value = invId;
+        document.getElementById('modal-payment-amount').value = inv.grand_total.toFixed(2);
+        document.getElementById('modal-payment-date').value = new Date().toISOString().substring(0, 10);
+
+        const modalHtml = document.getElementById('record-payment-modal').innerHTML;
+        openGlobalModal("Record Receipt Allocation", modalHtml, inv.invoice_number);
+    }
+</script>
+{% endblock %}

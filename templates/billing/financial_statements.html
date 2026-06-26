@@ -1,0 +1,204 @@
+{% extends 'erp_base.html' %}
+{% block title %}Financial Statements - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Financial Report Center</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-trial-btn" onclick="switchReportTab('trial')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-scale-unbalanced-tripped"></i> Trial Balance
+        </button>
+        <button id="tab-pl-btn" onclick="switchReportTab('pl')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-chart-bar"></i> Income Statement (P&L)
+        </button>
+        <button id="tab-bs-btn" onclick="switchReportTab('bs')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-building-columns"></i> Balance Sheet
+        </button>
+    </div>
+</div>
+
+<!-- Report Tab 1: Trial Balance -->
+<div id="report-trial" class="glass-card" style="margin-bottom: 32px;">
+    <h3 style="margin-top:0; font-size:1.15rem; color:var(--text-primary); border-bottom:1px solid var(--sidebar-border); padding-bottom:12px;">Trial Balance Ledger</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Account Code</th>
+                <th>Account Name</th>
+                <th>Classification</th>
+                <th style="text-align: right;">Debit Balance ($)</th>
+                <th style="text-align: right;">Credit Balance ($)</th>
+            </tr>
+        </thead>
+        <tbody id="trial-tbody">
+            {% for t in trial_balance %}
+            <tr>
+                <td><code style="font-weight:700;">{{ t.account_code }}</code></td>
+                <td><strong style="color:var(--text-primary);">{{ t.name }}</strong></td>
+                <td>{{ t.type }}</td>
+                <td style="text-align: right; color:#10b981; font-weight:600;">{% if t.debit > 0 %}${{ t.debit|floatformat:2 }}{% else %}--{% endif %}</td>
+                <td style="text-align: right; color:var(--accent-color); font-weight:600;">{% if t.credit > 0 %}${{ t.credit|floatformat:2 }}{% else %}--{% endif %}</td>
+            </tr>
+            {% endfor %}
+            <!-- Totals row added via JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Report Tab 2: P&L -->
+<div id="report-pl" class="glass-card" style="display: none; margin-bottom: 32px;">
+    <h3 style="margin-top:0; font-size:1.15rem; color:var(--text-primary); border-bottom:1px solid var(--sidebar-border); padding-bottom:12px;">Income Statement (Profit & Loss)</h3>
+    
+    <!-- Revenues -->
+    <h4 style="color:var(--accent-color); margin: 24px 0 12px 0; text-transform:uppercase; font-size:0.9rem; font-weight:700;">Operating Revenues</h4>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% for rev in income_statement.revenues %}
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px dashed var(--sidebar-border);">
+            <span>{{ rev.code }} - {{ rev.name }}</span>
+            <span style="font-weight: 600; color: var(--text-primary);">${{ rev.balance|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+        <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); font-weight: 700; border-radius:6px; margin-top: 8px;">
+            <span>Total Revenue</span>
+            <span style="color: #10b981;">${{ income_statement.total_revenue|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- Expenses -->
+    <h4 style="color:var(--accent-color); margin: 32px 0 12px 0; text-transform:uppercase; font-size:0.9rem; font-weight:700;">Operating Expenses</h4>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% for exp in income_statement.expenses %}
+        <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px dashed var(--sidebar-border);">
+            <span>{{ exp.code }} - {{ exp.name }}</span>
+            <span style="font-weight: 600; color: var(--text-primary);">${{ exp.balance|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+        <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); font-weight: 700; border-radius:6px; margin-top: 8px;">
+            <span>Total Operating Expenses</span>
+            <span style="color: #ef4444;">${{ income_statement.total_expense|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- Net Profit -->
+    <div style="display: flex; justify-content: space-between; padding: 18px; background: rgba(16,185,129,0.1); border: 1px solid #10b981; border-radius: 8px; font-weight: 800; font-size: 1.15rem; margin-top: 36px;">
+        <span style="color:var(--text-primary);">NET PROFIT / INCOME</span>
+        <span style="color: #10b981;">${{ income_statement.net_profit|floatformat:2 }}</span>
+    </div>
+</div>
+
+<!-- Report Tab 3: Balance Sheet -->
+<div id="report-bs" class="glass-card" style="display: none; margin-bottom: 32px;">
+    <h3 style="margin-top:0; font-size:1.15rem; color:var(--text-primary); border-bottom:1px solid var(--sidebar-border); padding-bottom:12px;">Statement of Financial Position (Balance Sheet)</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px;">
+        <!-- Left: Assets -->
+        <div>
+            <h4 style="color:var(--accent-color); margin: 0 0 16px 0; text-transform:uppercase; font-size:0.9rem; font-weight:700; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 8px;">ASSETS</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for asset in balance_sheet.assets %}
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
+                    <span>{{ asset.code }} - {{ asset.name }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">${{ asset.balance|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+                <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--sidebar-border); margin-top: 16px;">
+                    <span>TOTAL ASSETS</span>
+                    <span style="color:#10b981;">${{ balance_sheet.total_assets|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Liabilities & Equity -->
+        <div>
+            <h4 style="color:var(--accent-color); margin: 0 0 16px 0; text-transform:uppercase; font-size:0.9rem; font-weight:700; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 8px;">LIABILITIES & EQUITY</h4>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for liab in balance_sheet.liabilities %}
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
+                    <span>{{ liab.code }} - {{ liab.name }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">${{ liab.balance|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+                
+                <h5 style="color:var(--text-secondary); margin: 16px 0 8px 0; text-transform:uppercase; font-size:0.8rem;">Equity</h5>
+                {% for eq in balance_sheet.equity %}
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
+                    <span>{{ eq.code }} - {{ eq.name }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">${{ eq.balance|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+
+                <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--sidebar-border); margin-top: 16px;">
+                    <span>TOTAL LIABILITIES & EQUITY</span>
+                    <span style="color:var(--accent-color);">${{ balance_sheet.total_liabilities|add:balance_sheet.total_equity|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        calculateTrialBalanceTotals();
+    });
+
+    function switchReportTab(tab) {
+        const trialDiv = document.getElementById("report-trial");
+        const plDiv = document.getElementById("report-pl");
+        const bsDiv = document.getElementById("report-bs");
+
+        const trialBtn = document.getElementById("tab-trial-btn");
+        const plBtn = document.getElementById("tab-pl-btn");
+        const bsBtn = document.getElementById("tab-bs-btn");
+
+        trialDiv.style.display = 'none';
+        plDiv.style.display = 'none';
+        bsDiv.style.display = 'none';
+
+        trialBtn.style.background = 'transparent';
+        trialBtn.style.color = '#64748b';
+        plBtn.style.background = 'transparent';
+        plBtn.style.color = '#64748b';
+        bsBtn.style.background = 'transparent';
+        bsBtn.style.color = '#64748b';
+
+        if (tab === 'trial') {
+            trialDiv.style.display = 'block';
+            trialBtn.style.background = 'var(--accent-color)';
+            trialBtn.style.color = '#fff';
+        } else if (tab === 'pl') {
+            plDiv.style.display = 'block';
+            plBtn.style.background = 'var(--accent-color)';
+            plBtn.style.color = '#fff';
+        } else {
+            bsDiv.style.display = 'block';
+            bsBtn.style.background = 'var(--accent-color)';
+            bsBtn.style.color = '#fff';
+        }
+    }
+
+    function calculateTrialBalanceTotals() {
+        const tbody = document.getElementById('trial-tbody');
+        let totalDebit = 0.0;
+        let totalCredit = 0.0;
+
+        {% for t in trial_balance %}
+            totalDebit += parseFloat("{{ t.debit }}") || 0.0;
+            totalCredit += parseFloat("{{ t.credit }}") || 0.0;
+        {% endfor %}
+
+        const row = document.createElement('tr');
+        row.style.fontWeight = '700';
+        row.style.borderTop = '2px solid var(--sidebar-border)';
+        row.innerHTML = `
+            <td colspan="3">Total Balances</td>
+            <td style="text-align: right; color: #10b981;">$${totalDebit.toFixed(2)}</td>
+            <td style="text-align: right; color: var(--accent-color);">$${totalCredit.toFixed(2)}</td>
+        `;
+        tbody.appendChild(row);
+    }
+</script>
+{% endblock %}

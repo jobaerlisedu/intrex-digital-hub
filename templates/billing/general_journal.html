@@ -1,0 +1,364 @@
+{% extends 'erp_base.html' %}
+{% block title %}General Journal - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>General Journal Transactions</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-regular fa-square-plus"></i> Create Journal Entry
+        </button>
+        <button id="tab-list-btn" onclick="switchTab('list')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-book-open"></i> Journal Ledger Registry
+        </button>
+    </div>
+</div>
+
+<!-- Tab Content 1: Create Journal Entry Form -->
+<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i>
+            Draft New Journal Entry
+        </h3>
+    </div>
+
+    <form method="POST" action="{% url 'billing:general_journal' %}" id="journalForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_journal">
+        <input type="hidden" name="doc_id" id="doc_id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <div class="form-group">
+                <label>Posting Date <span class="asterisk">*</span></label>
+                <input type="date" name="posting_date" id="posting_date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Reference Document / Code</label>
+                <input type="text" name="reference_document" id="reference_document" class="form-control" placeholder="e.g. INV-2026-0043">
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label>Narration / Description <span class="asterisk">*</span></label>
+                <textarea name="narration" id="narration" class="form-control" style="height: 60px; resize: none; font-family: inherit;" placeholder="Provide transaction details..." required></textarea>
+            </div>
+        </div>
+
+        <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 20px; margin: 24px 0 12px 0; color: var(--accent-color); font-size: 0.95rem; font-weight: 700; text-transform: uppercase;">Journal Items (Debits & Credits)</h4>
+        
+        <table class="data-table" id="journal-lines-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">General Ledger Account</th>
+                    <th style="width: 20%;">Debit Amount ($)</th>
+                    <th style="width: 20%;">Credit Amount ($)</th>
+                    <th style="width: 10%;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="journal-tbody">
+                <!-- Line rows will be added dynamically -->
+            </tbody>
+        </table>
+
+        <!-- Line item totals check -->
+        <div style="display: flex; justify-content: flex-end; gap: 24px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--sidebar-border); border-top: none; font-weight: 700; border-radius: 0 0 8px 8px;">
+            <div>Total Debits: <span id="sum-debits" style="color:var(--accent-color);">$0.00</span></div>
+            <div>Total Credits: <span id="sum-credits" style="color:var(--accent-color);">$0.00</span></div>
+            <div>Out of Balance: <span id="balance-check" style="color:#ef4444;">$0.00</span></div>
+        </div>
+
+        <button type="button" onclick="addNewLine()" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); margin-top: 12px;">
+            <i class="fa-solid fa-plus"></i> Add Journal Line
+        </button>
+
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+            <button type="submit" class="btn-submit" id="btn-save" style="padding: 12px 28px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i> Draft Journal Entry
+            </button>
+            <button type="button" onclick="cancelEdit()" id="btn-cancel" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px; display: none;">
+                Cancel / Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Content 2: Journal Entries Registry -->
+<div id="tab-list" class="glass-card" style="display: none; min-height: 500px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-book-open" style="color: var(--accent-color);"></i>
+            General Journal Log Book
+        </h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Entry Code</th>
+                <th>Posting Date</th>
+                <th>Narration</th>
+                <th>Maker / Checker</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for je in journals %}
+            <tr>
+                <td style="font-weight: 700; color: var(--accent-color);">{{ je.entry_code }}</td>
+                <td>{{ je.posting_date }}</td>
+                <td>
+                    <strong style="color: var(--text-primary);">{{ je.narration }}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Ref: {{ je.reference_document|default:'--' }}</div>
+                </td>
+                <td>
+                    <div style="font-size: 0.85rem; color: var(--text-primary);">Maker: <code>{{ je.created_by }}</code></div>
+                    {% if je.approved_by %}
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Checker: <code>{{ je.approved_by }}</code></div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge {% if je.status == 'Posted' %}success{% elif je.status == 'Draft' %}warning{% else %}danger{% endif %}">
+                        {{ je.status }}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-group">
+                        <button type="button" class="btn-action view" onclick="viewJournalDetails('{{ je.id }}')" title="View Ledger Lines"><i class="fa-solid fa-eye"></i> Details</button>
+                        
+                        {% if je.status == 'Draft' %}
+                        <form method="POST" action="{% url 'billing:general_journal' %}" style="margin: 0;" onsubmit="return confirm('Verify and Post this entry to GL?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="post_journal">
+                            <input type="hidden" name="doc_id" value="{{ je.id }}">
+                            <button type="submit" class="btn-submit" style="padding: 6px 12px; font-size: 0.78rem; background-color: #10b981; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-circle-check"></i> Post
+                            </button>
+                        </form>
+
+                        <button type="button" class="btn-action edit" onclick="editRecord('{{ je.id }}')" title="Edit Draft"><i class="fa-solid fa-pen-to-square"></i></button>
+                        {% endif %}
+
+                        {% if je.status != 'Posted' %}
+                        <form method="POST" action="{% url 'billing:general_journal' %}" style="margin:0;" onsubmit="return confirm('Delete this journal entry?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_journal">
+                            <input type="hidden" name="doc_id" value="{{ je.id }}">
+                            <button type="submit" class="btn-action delete" title="Delete Entry"><i class="fa-solid fa-trash-can"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 48px; color: var(--text-secondary);">No general journal records.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const journalsDb = JSON.parse('{{ journals_json|escapejs }}');
+    
+    // Pass accounts context for dynamic rows
+    {% if accounts %}
+    const accountsDb = JSON.parse('{{ accounts|json_script:"accounts-data" }}' ? document.getElementById('accounts-data').textContent : '[]');
+    {% else %}
+    const accountsDb = [];
+    {% endif %}
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('posting_date').value = new Date().toISOString().substring(0, 10);
+        // Start with 2 empty rows
+        addNewLine();
+        addNewLine();
+    });
+
+    function switchTab(tab) {
+        const formDiv = document.getElementById("tab-form");
+        const listDiv = document.getElementById("tab-list");
+        const formBtn = document.getElementById("tab-form-btn");
+        const listBtn = document.getElementById("tab-list-btn");
+
+        if (tab === 'form') {
+            formDiv.style.display = 'block';
+            listDiv.style.display = 'none';
+            formBtn.style.background = 'var(--accent-color)';
+            formBtn.style.color = '#fff';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#64748b';
+        } else {
+            formDiv.style.display = 'none';
+            listDiv.style.display = 'block';
+            listBtn.style.background = 'var(--accent-color)';
+            listBtn.style.color = '#fff';
+            formBtn.style.background = 'transparent';
+            formBtn.style.color = '#64748b';
+        }
+    }
+
+    function addNewLine(accId = '', debit = '', credit = '') {
+        const tbody = document.getElementById('journal-tbody');
+        const index = tbody.children.length;
+
+        let optionsHtml = '<option value="" disabled selected>Select Account...</option>';
+        accountsDb.forEach(acc => {
+            const sel = (acc.id === accId) ? 'selected' : '';
+            optionsHtml += `<option value="${acc.id}" ${sel}>${acc.account_code} - ${acc.name} (${acc.account_type})</option>`;
+        });
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <select name="line_account[]" class="form-control" required onchange="calculateTotals()">
+                    ${optionsHtml}
+                </select>
+            </td>
+            <td>
+                <input type="number" step="0.01" min="0" name="line_debit[]" class="form-control" value="${debit}" placeholder="0.00" onkeyup="calculateTotals()" onchange="calculateTotals()">
+            </td>
+            <td>
+                <input type="number" step="0.01" min="0" name="line_credit[]" class="form-control" value="${credit}" placeholder="0.00" onkeyup="calculateTotals()" onchange="calculateTotals()">
+            </td>
+            <td>
+                <button type="button" onclick="this.closest('tr').remove(); calculateTotals();" class="btn-action delete"><i class="fa-solid fa-circle-minus"></i></button>
+            </td>
+        `;
+        tbody.appendChild(row);
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let debits = 0.0;
+        let credits = 0.0;
+
+        document.getElementsByName('line_debit[]').forEach(input => {
+            debits += parseFloat(input.value || 0.0);
+        });
+
+        document.getElementsByName('line_credit[]').forEach(input => {
+            credits += parseFloat(input.value || 0.0);
+        });
+
+        document.getElementById('sum-debits').innerText = `$${debits.toFixed(2)}`;
+        document.getElementById('sum-credits').innerText = `$${credits.toFixed(2)}`;
+        
+        const balance = Math.abs(debits - credits);
+        const checkSpan = document.getElementById('balance-check');
+        checkSpan.innerText = `$${balance.toFixed(2)}`;
+
+        if (balance < 0.001 && debits > 0) {
+            checkSpan.style.color = '#10b981'; // Green (Balanced)
+        } else {
+            checkSpan.style.color = '#ef4444'; // Red (Out of Balance)
+        }
+    }
+
+    function editRecord(id) {
+        const data = journalsDb.find(j => j.id === id);
+        if (!data) return;
+
+        switchTab('form');
+        
+        document.getElementById('doc_id').value = id;
+        document.getElementById('posting_date').value = data.posting_date || '';
+        document.getElementById('reference_document').value = data.reference_document || '';
+        document.getElementById('narration').value = data.narration || '';
+
+        const tbody = document.getElementById('journal-tbody');
+        tbody.innerHTML = '';
+
+        data.lines.forEach(line => {
+            addNewLine(line.account_id, line.debit_amount || '', line.credit_amount || '');
+        });
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Journal Entry Draft';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Save Changes';
+        document.getElementById('btn-cancel').style.display = 'flex';
+    }
+
+    function cancelEdit() {
+        document.getElementById('doc_id').value = '';
+        document.getElementById('journalForm').reset();
+        document.getElementById('posting_date').value = new Date().toISOString().substring(0, 10);
+        
+        const tbody = document.getElementById('journal-tbody');
+        tbody.innerHTML = '';
+        addNewLine();
+        addNewLine();
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Draft New Journal Entry';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Draft Journal Entry';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+
+    function viewJournalDetails(id) {
+        const je = journalsDb.find(j => j.id === id);
+        if (!je) return;
+
+        let linesHtml = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Account Name</th>
+                        <th style="text-align: right;">Debit</th>
+                        <th style="text-align: right;">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        let totalDeb = 0.0;
+        let totalCred = 0.0;
+
+        je.lines.forEach(line => {
+            linesHtml += `
+                <tr>
+                    <td><strong>${line.account_name}</strong></td>
+                    <td style="text-align: right; font-weight: 600; color: #10b981;">${line.debit_amount > 0 ? '$' + line.debit_amount.toFixed(2) : '--'}</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-color);">${line.credit_amount > 0 ? '$' + line.credit_amount.toFixed(2) : '--'}</td>
+                </tr>
+            `;
+            totalDeb += parseFloat(line.debit_amount || 0.0);
+            totalCred += parseFloat(line.credit_amount || 0.0);
+        });
+
+        linesHtml += `
+            <tr style="font-weight: 700; border-top: 2px solid var(--sidebar-border);">
+                <td>Total Balances</td>
+                <td style="text-align: right; color: #10b981;">$${totalDeb.toFixed(2)}</td>
+                <td style="text-align: right; color: var(--accent-color);">$${totalCred.toFixed(2)}</td>
+            </tr>
+            </tbody></table>
+        `;
+
+        const modalHtml = `
+            <div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div>
+                        <strong style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;">Posting Date:</strong>
+                        <div>${je.posting_date}</div>
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;">Reference document:</strong>
+                        <div>${je.reference_document || '--'}</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <strong style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;">Narration / Memo:</strong>
+                        <div style="font-style: italic;">"${je.narration}"</div>
+                    </div>
+                </div>
+                <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin: 16px 0 12px 0; color: var(--accent-color);">GL LEDGER POSTING DEBITS/CREDITS</h4>
+                ${linesHtml}
+            </div>
+        `;
+
+        openGlobalModal(`JOURNAL ENTRY DETAILS (${je.entry_code})`, modalHtml, je.narration);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends 'erp_base.html' %}
+{% block title %}Tax Center - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Tax Configuration & Compliance Center</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-regular fa-square-plus"></i> Configure Tax Code
+        </button>
+        <button id="tab-list-btn" onclick="switchTab('list')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-calculator"></i> Tax Codes Directory
+        </button>
+    </div>
+</div>
+
+<!-- Tax Liability KPI banner -->
+<div class="glass-card" style="margin-bottom: 32px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--accent-color);">
+    <div>
+        <h4 style="margin:0 0 6px 0; color:var(--text-secondary); text-transform:uppercase; font-size:0.8rem; letter-spacing:0.5px;">Accrued Tax Liability Balance</h4>
+        <div style="font-size:1.8rem; font-weight:700; color:var(--text-primary);">${{ total_tax_liability|floatformat:2 }}</div>
+    </div>
+    <div style="color:var(--text-secondary); font-size:0.9rem; text-align:right;">
+        <div>National Revenue Compliance Registry</div>
+        <div style="margin-top:2px; font-size:0.8rem; font-weight:700; color:#10b981;"><i class="fa-solid fa-circle-check"></i> Standard Audit Compliant</div>
+    </div>
+</div>
+
+<!-- Tab Content 1: Configure Tax Code Form -->
+<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i>
+            Configure Dynamic Tax Code
+        </h3>
+    </div>
+
+    <form method="POST" action="{% url 'billing:tax_center' %}" id="taxForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_tax_code">
+        <input type="hidden" name="doc_id" id="doc_id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Tax Code Identifier <span class="asterisk">*</span></label>
+                <input type="text" name="tax_code" id="tax_code" class="form-control" required placeholder="e.g. VAT-15">
+            </div>
+
+            <div class="form-group">
+                <label>Tax Name <span class="asterisk">*</span></label>
+                <input type="text" name="name" id="name" class="form-control" required placeholder="e.g. Value Added Tax">
+            </div>
+
+            <div class="form-group">
+                <label>Rate Percentage (%) <span class="asterisk">*</span></label>
+                <input type="number" step="0.01" min="0" max="100" name="rate_percentage" id="rate_percentage" class="form-control" required placeholder="15.00">
+            </div>
+
+            <div class="form-group">
+                <label>Tax Authority Agency <span class="asterisk">*</span></label>
+                <input type="text" name="tax_authority" id="tax_authority" class="form-control" required placeholder="e.g. National Board of Revenue">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+            <button type="submit" class="btn-submit" id="btn-save" style="padding: 12px 28px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i> Save Tax Code
+            </button>
+            <button type="button" onclick="cancelEdit()" id="btn-cancel" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px; display: none;">
+                Cancel / Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Content 2: Tax Codes Registry Table -->
+<div id="tab-list" class="glass-card" style="display: none; min-height: 500px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-calculator" style="color: var(--accent-color);"></i>
+            Registered Tax Code Specifications
+        </h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Tax Code</th>
+                <th>Tax Name</th>
+                <th>Rate (%)</th>
+                <th>Tax Authority Agency</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tax in tax_codes %}
+            <tr>
+                <td style="font-weight: 700; color: var(--accent-color);">{{ tax.tax_code }}</td>
+                <td><strong style="color: var(--text-primary);">{{ tax.name }}</strong></td>
+                <td style="font-weight: 700;">{{ tax.rate_percentage }}%</td>
+                <td>{{ tax.tax_authority }}</td>
+                <td>
+                    <div class="action-group">
+                        <button type="button" class="btn-action edit" onclick="editRecord('{{ tax.id }}')" title="Edit Tax Code"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <form method="POST" action="{% url 'billing:tax_center' %}" style="margin:0;" onsubmit="return confirm('Remove this tax code?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_tax_code">
+                            <input type="hidden" name="doc_id" value="{{ tax.id }}">
+                            <button type="submit" class="btn-action delete" title="Delete Tax Code"><i class="fa-solid fa-trash-can"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No tax codes configured.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const taxesDb = JSON.parse('{{ taxes_json|escapejs }}');
+
+    function switchTab(tab) {
+        const formDiv = document.getElementById("tab-form");
+        const listDiv = document.getElementById("tab-list");
+        const formBtn = document.getElementById("tab-form-btn");
+        const listBtn = document.getElementById("tab-list-btn");
+
+        if (tab === 'form') {
+            formDiv.style.display = 'block';
+            listDiv.style.display = 'none';
+            formBtn.style.background = 'var(--accent-color)';
+            formBtn.style.color = '#fff';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#64748b';
+        } else {
+            formDiv.style.display = 'none';
+            listDiv.style.display = 'block';
+            listBtn.style.background = 'var(--accent-color)';
+            listBtn.style.color = '#fff';
+            formBtn.style.background = 'transparent';
+            formBtn.style.color = '#64748b';
+        }
+    }
+
+    function editRecord(id) {
+        const data = taxesDb.find(t => t.id === id);
+        if (!data) return;
+
+        switchTab('form');
+        
+        document.getElementById('doc_id').value = id;
+        document.getElementById('tax_code').value = data.tax_code || '';
+        document.getElementById('name').value = data.name || '';
+        document.getElementById('rate_percentage').value = data.rate_percentage || '';
+        document.getElementById('tax_authority').value = data.tax_authority || '';
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Tax Code';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Tax Code';
+        document.getElementById('btn-cancel').style.display = 'flex';
+    }
+
+    function cancelEdit() {
+        document.getElementById('doc_id').value = '';
+        document.getElementById('taxForm').reset();
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Configure Dynamic Tax Code';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Tax Code';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,208 @@
+{% extends 'erp_base.html' %}
+{% block title %}AP Bills - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Accounts Payable (AP) Vendor Bills</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-regular fa-square-plus"></i> Log Vendor Bill
+        </button>
+        <button id="tab-list-btn" onclick="switchTab('list')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Vendor Bills Registry
+        </button>
+    </div>
+</div>
+
+<!-- Tab Content 1: Log Vendor Bill Form -->
+<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i>
+            Log Vendor Bill Invoice
+        </h3>
+    </div>
+
+    <form method="POST" action="{% url 'billing:ap_bills' %}" id="billForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_bill">
+        <input type="hidden" name="doc_id" id="doc_id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Bill / Reference Number <span class="asterisk">*</span></label>
+                <input type="text" name="bill_number" id="bill_number" class="form-control" required placeholder="e.g. BILL-9921">
+            </div>
+
+            <div class="form-group">
+                <label>Vendor / Supplier Name <span class="asterisk">*</span></label>
+                <input type="text" name="vendor_name" id="vendor_name" class="form-control" required placeholder="e.g. Globex Corp">
+            </div>
+
+            <div class="form-group">
+                <label>Issue Date <span class="asterisk">*</span></label>
+                <input type="date" name="issue_date" id="issue_date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Due Date <span class="asterisk">*</span></label>
+                <input type="date" name="due_date" id="due_date" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Grand Total ($) <span class="asterisk">*</span></label>
+                <input type="number" step="0.01" name="grand_total" id="grand_total" class="form-control" required placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+                <label>Status <span class="asterisk">*</span></label>
+                <select name="status" id="status" class="form-control" required>
+                    <option value="Pending" selected>Pending / Unpaid</option>
+                    <option value="Paid">Paid / Settled</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+            <button type="submit" class="btn-submit" id="btn-save" style="padding: 12px 28px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i> Record Vendor Bill
+            </button>
+            <button type="button" onclick="cancelEdit()" id="btn-cancel" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px; display: none;">
+                Cancel / Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Content 2: Vendor Bills Registry Table -->
+<div id="tab-list" class="glass-card" style="display: none; min-height: 500px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-color);"></i>
+            Accounts Payable Bill Registry Ledger
+        </h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Bill Number</th>
+                <th>Vendor / Supplier</th>
+                <th>Issue / Due Date</th>
+                <th>Grand Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in vendor_bills %}
+            <tr>
+                <td style="font-weight: 700; color: var(--accent-color);">{{ bill.bill_number }}</td>
+                <td><strong style="color: var(--text-primary);">{{ bill.vendor_name }}</strong></td>
+                <td>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">Issue: {{ bill.issue_date }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Due: {{ bill.due_date }}</div>
+                </td>
+                <td style="font-weight: 700; color: #ef4444;">${{ bill.grand_total|floatformat:2 }}</td>
+                <td>
+                    <span class="badge {% if bill.status == 'Paid' %}success{% else %}danger{% endif %}">
+                        {{ bill.status }}
+                    </span>
+                </td>
+                <td>
+                    {{ bill|json_script:bill.id }}
+                    <div class="action-group">
+                        {% if bill.status != 'Paid' %}
+                        <form method="POST" action="{% url 'billing:ap_bills' %}" style="margin: 0;" onsubmit="return confirm('Settle this vendor bill payment?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="pay_bill">
+                            <input type="hidden" name="doc_id" value="{{ bill.id }}">
+                            <button type="submit" class="btn-submit" style="padding: 6px 12px; font-size: 0.78rem; background-color: #10b981; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-check"></i> Settle
+                            </button>
+                        </form>
+                        {% endif %}
+                        <button type="button" class="btn-action edit" onclick="editRecord('{{ bill.id }}')" title="Edit Bill"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <form method="POST" action="{% url 'billing:ap_bills' %}" style="margin:0;" onsubmit="return confirm('Remove this vendor bill record?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_bill">
+                            <input type="hidden" name="doc_id" value="{{ bill.id }}">
+                            <button type="submit" class="btn-action delete" title="Delete Bill"><i class="fa-solid fa-trash-can"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 48px; color: var(--text-secondary);">No vendor bills recorded.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const billsDb = JSON.parse('{{ bills_json|escapejs }}');
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
+        document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
+    });
+
+    function switchTab(tab) {
+        const formDiv = document.getElementById("tab-form");
+        const listDiv = document.getElementById("tab-list");
+        const formBtn = document.getElementById("tab-form-btn");
+        const listBtn = document.getElementById("tab-list-btn");
+
+        if (tab === 'form') {
+            formDiv.style.display = 'block';
+            listDiv.style.display = 'none';
+            formBtn.style.background = 'var(--accent-color)';
+            formBtn.style.color = '#fff';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#64748b';
+        } else {
+            formDiv.style.display = 'none';
+            listDiv.style.display = 'block';
+            listBtn.style.background = 'var(--accent-color)';
+            listBtn.style.color = '#fff';
+            formBtn.style.background = 'transparent';
+            formBtn.style.color = '#64748b';
+        }
+    }
+
+    function editRecord(id) {
+        const data = billsDb.find(b => b.id === id);
+        if (!data) return;
+
+        switchTab('form');
+        
+        document.getElementById('doc_id').value = id;
+        document.getElementById('bill_number').value = data.bill_number || '';
+        document.getElementById('vendor_name').value = data.vendor_name || '';
+        document.getElementById('issue_date').value = data.issue_date || '';
+        document.getElementById('due_date').value = data.due_date || '';
+        document.getElementById('grand_total').value = data.grand_total || '0.00';
+        document.getElementById('status').value = data.status || 'Pending';
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Vendor Bill';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Bill';
+        document.getElementById('btn-cancel').style.display = 'flex';
+    }
+
+    function cancelEdit() {
+        document.getElementById('doc_id').value = '';
+        document.getElementById('billForm').reset();
+        document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
+        document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Vendor Bill Invoice';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Vendor Bill';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+</script>
+{% endblock %}

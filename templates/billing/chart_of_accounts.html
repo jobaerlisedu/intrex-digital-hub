@@ -1,0 +1,187 @@
+{% extends 'erp_base.html' %}
+{% block title %}Chart of Accounts - Intrex ERP{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 24px;">
+    <h2>Chart of Accounts (CoA)</h2>
+    <!-- Tabs Header -->
+    <div style="display: flex; gap: 8px;">
+        <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-regular fa-square-plus"></i> Register Account
+        </button>
+        <button id="tab-list-btn" onclick="switchTab('list')" style="background: transparent; color: #64748b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
+            <i class="fa-solid fa-folder-tree"></i> Chart of Accounts Registry
+        </button>
+    </div>
+</div>
+
+<!-- Tab Content 1: Register Account Form -->
+<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i>
+            Register General Ledger Account
+        </h3>
+    </div>
+
+    <form method="POST" action="{% url 'billing:chart_of_accounts' %}" id="coaForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_account">
+        <input type="hidden" name="doc_id" id="doc_id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Account Code <span class="asterisk">*</span></label>
+                <input type="text" name="account_code" id="account_code" class="form-control" required placeholder="e.g. 11100">
+            </div>
+
+            <div class="form-group">
+                <label>Account Name <span class="asterisk">*</span></label>
+                <input type="text" name="name" id="name" class="form-control" required placeholder="e.g. Cash at Bank">
+            </div>
+
+            <div class="form-group">
+                <label>Account Type / Classification <span class="asterisk">*</span></label>
+                <select name="account_type" id="account_type" class="form-control" required>
+                    <option value="Asset">Asset (e.g. Cash, Accounts Receivable, Inventory)</option>
+                    <option value="Liability">Liability (e.g. Accounts Payable, Taxes Payable)</option>
+                    <option value="Equity">Equity (e.g. Owner's Equity, Retained Earnings)</option>
+                    <option value="Revenue">Revenue (e.g. Sales Revenue, Service Revenue)</option>
+                    <option value="Expense">Expense (e.g. COGS, Salary Expense, Utility Expense)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Currency <span class="asterisk">*</span></label>
+                <input type="text" name="currency" id="currency" class="form-control" required value="USD">
+            </div>
+
+            <div class="form-group">
+                <label>Status <span class="asterisk">*</span></label>
+                <select name="is_active" id="is_active" class="form-control" required>
+                    <option value="True">Active</option>
+                    <option value="False">Inactive</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 32px;">
+            <button type="submit" class="btn-submit" id="btn-save" style="padding: 12px 28px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-arrow-down-to-bracket"></i> Register Account
+            </button>
+            <button type="button" onclick="cancelEdit()" id="btn-cancel" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px; display: none;">
+                Cancel / Reset
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tab Content 2: CoA Registry Ledger -->
+<div id="tab-list" class="glass-card" style="display: none; min-height: 500px; margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+        <h3 style="margin: 0; font-size: 1.15rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-folder-tree" style="color: var(--accent-color);"></i>
+            Chart of Accounts Catalog
+        </h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Account Code</th>
+                <th>Account Name</th>
+                <th>Classification</th>
+                <th>Currency</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for acc in accounts %}
+            <tr>
+                <td style="font-weight: 700; color: var(--accent-color);">{{ acc.account_code }}</td>
+                <td><strong style="color: var(--text-primary);">{{ acc.name }}</strong></td>
+                <td>{{ acc.account_type }}</td>
+                <td><code>{{ acc.currency }}</code></td>
+                <td>
+                    <span class="badge {% if acc.is_active %}success{% else %}danger{% endif %}">
+                        {% if acc.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-group">
+                        <button type="button" class="btn-action edit" onclick="editRecord('{{ acc.id }}')" title="Edit Account"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <form method="POST" action="{% url 'billing:chart_of_accounts' %}" style="margin:0;" onsubmit="return confirm('Delete this account from CoA?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_account">
+                            <input type="hidden" name="doc_id" value="{{ acc.id }}">
+                            <button type="submit" class="btn-action delete" title="Delete Account"><i class="fa-solid fa-trash-can"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 48px; color: var(--text-secondary);">No accounts registered.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const coaDb = JSON.parse('{{ accounts_json|escapejs }}');
+
+    function switchTab(tab) {
+        const formDiv = document.getElementById("tab-form");
+        const listDiv = document.getElementById("tab-list");
+        const formBtn = document.getElementById("tab-form-btn");
+        const listBtn = document.getElementById("tab-list-btn");
+
+        if (tab === 'form') {
+            formDiv.style.display = 'block';
+            listDiv.style.display = 'none';
+            formBtn.style.background = 'var(--accent-color)';
+            formBtn.style.color = '#fff';
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#64748b';
+        } else {
+            formDiv.style.display = 'none';
+            listDiv.style.display = 'block';
+            listBtn.style.background = 'var(--accent-color)';
+            listBtn.style.color = '#fff';
+            formBtn.style.background = 'transparent';
+            formBtn.style.color = '#64748b';
+        }
+    }
+
+    function editRecord(id) {
+        const data = coaDb.find(a => a.id === id);
+        if (!data) return;
+
+        switchTab('form');
+        
+        document.getElementById('doc_id').value = id;
+        document.getElementById('account_code').value = data.account_code || '';
+        document.getElementById('name').value = data.name || '';
+        document.getElementById('account_type').value = data.account_type || 'Asset';
+        document.getElementById('currency').value = data.currency || 'USD';
+        document.getElementById('is_active').value = data.is_active ? 'True' : 'False';
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit GL Account';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Account';
+        document.getElementById('btn-cancel').style.display = 'flex';
+    }
+
+    function cancelEdit() {
+        document.getElementById('doc_id').value = '';
+        document.getElementById('coaForm').reset();
+
+        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register General Ledger Account';
+        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Account';
+        document.getElementById('btn-cancel').style.display = 'none';
+    }
+</script>
+{% endblock %}

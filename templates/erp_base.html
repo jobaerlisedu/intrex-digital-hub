@@ -673,11 +673,40 @@
             </li>
             {% endif %}
             {% if 'billing' in user_modules %}
-            <li>
-                <a href="{% url 'billing:index' %}" class="nav-link {% if request.resolver_match.namespace == 'billing' %}active{% endif %}">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Billing</span>
+            <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'billing' %}active open{% endif %}">
+                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'billing-dropdown')">
+                    <span style="display: flex; align-items: center; gap: 14px;">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span>Accounts & Billing</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down dropdown-caret"></i>
                 </a>
+                <ul id="billing-dropdown" class="submenu-links {% if request.resolver_match.namespace == 'billing' %}show{% endif %}">
+                    <li>
+                        <a href="{% url 'billing:index' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'index' %}active{% endif %}">Dashboard</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:chart_of_accounts' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'chart_of_accounts' %}active{% endif %}">Chart of Accounts</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:general_journal' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'general_journal' %}active{% endif %}">General Journal</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:ar_invoices' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'ar_invoices' %}active{% endif %}">AR Invoices</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:ap_bills' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'ap_bills' %}active{% endif %}">AP Bills</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:tax_center' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'tax_center' %}active{% endif %}">Tax Center</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:financial_statements' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'financial_statements' %}active{% endif %}">Financial Statements</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'billing:audit_trail' %}" class="submenu-link {% if request.resolver_match.namespace == 'billing' and request.resolver_match.url_name == 'audit_trail' %}active{% endif %}">Audit Trail</a>
+                    </li>
+                </ul>
             </li>
             {% endif %}
             {% if 'solutions' in user_modules %}
