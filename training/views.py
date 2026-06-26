@@ -577,6 +577,9 @@ def student_list(request):
             isFreeBatch = request.POST.get('isFreeBatch') == 'true'
             message = request.POST.get('message', '').strip()
             
+            from config.contacts_helper import get_or_create_contact
+            contact_id = get_or_create_contact(name=fullName, email=email, phone=phone, role='student')
+
             # Validation: Batch Capacity (Max 10)
             batch_snap = db.collection('learn_batches').document(batch).get()
             batch_capacity = 10
@@ -618,7 +621,8 @@ def student_list(request):
                     'companyName': companyName,
                     'designation': designation,
                     'kam': kam,
-                    'isFreeBatch': isFreeBatch
+                    'isFreeBatch': isFreeBatch,
+                    'contact_id': contact_id
                 })
                 
                 # Sync payment details
@@ -670,6 +674,7 @@ def student_list(request):
                     'designation': designation,
                     'kam': kam,
                     'isFreeBatch': isFreeBatch,
+                    'contact_id': contact_id,
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
                 

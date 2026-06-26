@@ -515,6 +515,11 @@ def employee_database(request):
             last_name = request.POST.get('last_name', '').strip()
             full_name = f"{first_name} {last_name}".strip()
 
+            email = request.POST.get('email', '')
+            phone = request.POST.get('phone', '')
+            from config.contacts_helper import get_or_create_contact
+            contact_id = get_or_create_contact(name=full_name, email=email, phone=phone, role='employee')
+
             # Salary calculations
             basic_salary = float(request.POST.get('basic_salary') or 0)
             house_rent = round(basic_salary * 0.50, 2)
@@ -528,8 +533,8 @@ def employee_database(request):
                 'name': full_name,
                 'first_name': first_name,
                 'last_name': last_name,
-                'email': request.POST.get('email'),
-                'phone': request.POST.get('phone'),
+                'email': email,
+                'phone': phone,
                 'alt_phone': request.POST.get('alt_phone', ''),
                 'national_id': request.POST.get('national_id', ''),
                 'city': request.POST.get('city', ''),
@@ -568,7 +573,8 @@ def employee_database(request):
                 'ec_primary_mobile': request.POST.get('ec_primary_mobile', ''),
                 'ec_secondary_name': request.POST.get('ec_secondary_name', ''),
                 'ec_secondary_relation': request.POST.get('ec_secondary_relation', ''),
-                'ec_secondary_mobile': request.POST.get('ec_secondary_mobile', '')
+                'ec_secondary_mobile': request.POST.get('ec_secondary_mobile', ''),
+                'contact_id': contact_id
             }
 
             if doc_id:

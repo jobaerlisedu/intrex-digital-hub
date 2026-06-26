@@ -10,5 +10,6 @@ urlpatterns = [
     path('sourcing/', views.project_sourcing, name='project_sourcing'),
     path('licenses/', views.licensing_assets, name='licensing_assets'),
     path('stakeholders/', views.client_stakeholders, name='client_stakeholders'),
+    path('contacts/', views.global_contacts, name='global_contacts'),
     path('meetings/', views.meeting_scheduler, name='meeting_scheduler'),
 ]

@@ -126,17 +126,25 @@ def investor_list(request):
             existing = get_collection_data('investors')
             code = f"INV-{len(existing) + 1:04d}"
 
+            email = request.POST.get('email', '')
+            name = request.POST.get('name', '')
+            phone = request.POST.get('phone', '')
+
+            from config.contacts_helper import get_or_create_contact
+            contact_id = get_or_create_contact(name=name, email=email, phone=phone, role='investor')
+
             data = {
                 'investor_code': code,
-                'name': request.POST.get('name'),
+                'name': name,
                 'category': request.POST.get('category', 'Individual'),
                 'kyc_status': request.POST.get('kyc_status', 'Pending'),
                 'tax_id': request.POST.get('tax_id', ''),
-                'email': request.POST.get('email', ''),
-                'phone': request.POST.get('phone', ''),
+                'email': email,
+                'phone': phone,
                 'bank_account_name': request.POST.get('bank_account_name', ''),
                 'bank_account_number': request.POST.get('bank_account_number', ''),
                 'bank_routing_code': request.POST.get('bank_routing_code', ''),
+                'contact_id': contact_id,
                 'created_at': firestore.SERVER_TIMESTAMP
             }
 

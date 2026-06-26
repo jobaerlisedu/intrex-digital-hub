@@ -762,6 +762,9 @@
                         <a href="{% url 'solutions:client_stakeholders' %}" class="submenu-link {% if request.resolver_match.namespace == 'solutions' and request.resolver_match.url_name == 'client_stakeholders' %}active{% endif %}">Client Stakeholders</a>
                     </li>
                     <li>
+                        <a href="{% url 'solutions:global_contacts' %}" class="submenu-link {% if request.resolver_match.namespace == 'solutions' and request.resolver_match.url_name == 'global_contacts' %}active{% endif %}">Global Contacts (MDM)</a>
+                    </li>
+                    <li>
                         <a href="{% url 'solutions:meeting_scheduler' %}" class="submenu-link {% if request.resolver_match.namespace == 'solutions' and request.resolver_match.url_name == 'meeting_scheduler' %}active{% endif %}">Meeting Scheduler</a>
                     </li>
                 </ul>

@@ -216,12 +216,21 @@ def kanban_board(request):
             t['project_name'] = p_info.get('name', 'Unknown Project')
             t['project_code'] = p_info.get('project_code', '')
 
+    # Fetch active employees to populate Task Owner dropdown
+    emp_docs = db.collection('employees').where('status', '==', 'Active').stream()
+    employees = [serialize_doc(emp) for emp in emp_docs]
+    if not employees:
+        emp_docs = db.collection('employees').stream()
+        employees = [serialize_doc(emp) for emp in emp_docs]
+    employees.sort(key=lambda x: x.get('name', ''))
+
     tasks_json = json.dumps(tasks)
 
     return render(request, 'solutions/kanban.html', {
         'tasks': tasks,
         'phases': phases,
         'projects': projects,
+        'employees': employees,
         'tasks_json': tasks_json
     })
 
@@ -395,12 +404,20 @@ def client_stakeholders(request):
         doc_id = request.POST.get('doc_id')
 
         if action == 'add_stakeholder':
+            contact_name = request.POST.get('contact_name')
+            email = request.POST.get('email')
+            phone = request.POST.get('phone')
+
+            from config.contacts_helper import get_or_create_contact
+            contact_id = get_or_create_contact(name=contact_name, email=email, phone=phone, role='client')
+
             data = {
                 'project_id': request.POST.get('project_id'),
-                'contact_name': request.POST.get('contact_name'),
-                'email': request.POST.get('email'),
-                'phone': request.POST.get('phone'),
-                'role': request.POST.get('role', 'Primary Client Contact')
+                'contact_name': contact_name,
+                'email': email,
+                'phone': phone,
+                'role': request.POST.get('role', 'Primary Client Contact'),
+                'contact_id': contact_id
             }
 
             if doc_id:
@@ -435,6 +452,31 @@ def client_stakeholders(request):
         'stakeholders': stakeholders,
         'projects': projects,
         'stakeholders_json': stakeholders_json
+    })
+
+
+@login_required
+@module_access('solutions')
+def global_contacts(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
+
+        if action == 'delete_contact' and doc_id:
+            db.collection('contacts').document(doc_id).delete()
+            messages.success(request, "Global Contact record deleted successfully.")
+        return redirect('solutions:global_contacts')
+
+    # GET
+    contact_docs = db.collection('contacts').stream()
+    contacts = [serialize_doc(c) for c in contact_docs]
+    contacts.sort(key=lambda x: x.get('legal_name', '').lower())
+
+    contacts_json = json.dumps(contacts)
+
+    return render(request, 'solutions/global_contacts.html', {
+        'contacts': contacts,
+        'contacts_json': contacts_json
     })
 
 
