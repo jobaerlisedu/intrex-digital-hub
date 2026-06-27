@@ -52,6 +52,7 @@ def service_business_suite(request):
 
 def training(request):
     courses = []
+    
     try:
         docs = db.collection('learn_courses').stream()
         for doc in docs:
@@ -59,13 +60,10 @@ def training(request):
             c['id'] = doc.id
             if c.get('status') == 'Active':
                 courses.append(c)
-        courses.sort(key=lambda x: x.get('title', ''))
     except Exception as e:
         print(f"Error fetching courses from Firestore: {e}")
         
-    # If no courses fetched, use fallback list
-    if not courses:
-        courses = [c for c in FALLBACK_COURSES if c.get('status') == 'Active']
+    courses.sort(key=lambda x: x.get('title', ''))
         
     return render(request, 'frontend/training.html', {'courses': courses})
 
@@ -143,7 +141,7 @@ def register_course(request):
     company_name = request.POST.get('companyName', '').strip()
     designation = request.POST.get('designation', '').strip()
     
-    if not (full_name and email and phone and course and schedule):
+    if not (full_name and email and phone and course):
         return JsonResponse({'status': 'error', 'message': 'Missing required fields.'}, status=400)
         
     try:

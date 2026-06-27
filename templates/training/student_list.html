@@ -1,5 +1,46 @@
 {% extends 'erp_base.html' %}
 {% block title %}Trainees Directory & Registration - Intrex ERP{% endblock %}
+{% block extra_css %}
+<style>
+/* Custom Toggle Switch */
+.custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.custom-switch input { opacity: 0; width: 0; height: 0; }
+.custom-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  transition: .2s;
+  border-radius: 20px;
+}
+.custom-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px; width: 14px;
+  left: 2px; bottom: 2px;
+  background-color: #94a3b8;
+  transition: .2s;
+  border-radius: 50%;
+}
+
+/* Accent (Green) */
+.custom-switch input:checked + .custom-slider.accent {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+.custom-switch input:checked + .custom-slider.accent:before {
+  transform: translateX(16px);
+  background-color: #ffffff;
+}
+</style>
+{% endblock %}
 {% block content %}
 
 <div class="flex-between" style="margin-bottom: 24px;">
@@ -15,216 +56,283 @@
     </div>
 </div>
 
-<!-- Tab Content 1: Registration Form -->
-<div id="tab-form" class="glass-card" style="margin-bottom: 32px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
-        <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary);">
-            <i class="fa-solid fa-graduation-cap" style="color: var(--accent-color); margin-right: 8px;"></i>
-            Register New Student Course
-        </h3>
-        <!-- Lookup Student ID Panel -->
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="lookup-id-input" class="form-control" style="width: 180px; height: 36px; padding: 6px 12px; font-size: 0.9rem;" placeholder="Reuse Student ID...">
-            <button type="button" onclick="performIdLookup()" class="btn-submit" style="padding: 6px 14px; font-size: 0.85rem; height: 36px; background: #215c5c;">
-                <i class="fa-solid fa-magnifying-glass"></i> Lookup
-            </button>
+<!-- Tab Content 1: Registration Form Layout -->
+<div id="tab-form" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px;">
+    
+    <!-- Left Column: Registration Form -->
+    <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 16px; margin-bottom: 24px;">
+            <h3 id="form-title" style="margin: 0; font-size: 1.15rem; color: var(--text-primary);">
+                <i class="fa-solid fa-graduation-cap" style="color: var(--accent-color); margin-right: 8px;"></i>
+                Course Registration Form
+            </h3>
+            <!-- Lookup Student ID Panel -->
+            <div style="display: flex; gap: 8px; align-items: center; background: rgba(0,0,0,0.02); padding: 6px; border-radius: 8px; border: 1px solid var(--sidebar-border);">
+                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-right: 4px;">Search/Edit:</label>
+                <input type="text" id="lookup-id-input" class="form-control" style="width: 140px; height: 32px; padding: 4px 10px; font-size: 0.85rem;" placeholder="ID (e.g. 495001)">
+                <button type="button" onclick="performIdLookup()" class="btn-submit" style="padding: 4px 12px; font-size: 0.8rem; height: 32px; background: #215c5c;">
+                    <i class="fa-solid fa-magnifying-glass"></i> Lookup
+                </button>
+            </div>
         </div>
-    </div>
 
-    <form id="reg-form" method="POST" action="{% url 'training:student_list' %}">
-        {% csrf_token %}
-        <input type="hidden" name="doc_id" id="form-doc-id">
-        <input type="hidden" name="onlineKey" id="form-online-key">
-        <input type="hidden" name="studentId" id="form-student-id">
+        <form id="reg-form" method="POST" action="{% url 'training:student_list' %}">
+            {% csrf_token %}
+            <input type="hidden" name="doc_id" id="form-doc-id">
+            <input type="hidden" name="onlineKey" id="form-online-key">
+            <input type="hidden" name="studentId" id="form-student-id">
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
-            <!-- Row 1 -->
-            <div class="form-group">
-                <label>Student Full Name <span style="color: #ef4444;">*</span></label>
-                <input type="text" name="fullName" id="form-fullName" class="form-control" required placeholder="e.g. Kamrul Hasan">
-            </div>
-            <div class="form-group">
-                <label>Email Address <span style="color: #ef4444;">*</span></label>
-                <input type="email" name="email" id="form-email" class="form-control" required placeholder="e.g. kamrul@example.com">
-            </div>
-            <div class="form-group">
-                <label>Phone Number <span style="color: #ef4444;">*</span></label>
-                <input type="text" name="phone" id="form-phone" class="form-control" required placeholder="e.g. 017xxxxxxxx">
+            <!-- Row 1: Name + Email -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Full Name <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="fullName" id="form-fullName" class="form-control" required placeholder="e.g. Jobaer Hossain">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Email Address <span style="color: #ef4444;">*</span></label>
+                    <input type="email" name="email" id="form-email" class="form-control" required placeholder="you@example.com">
+                </div>
             </div>
 
-            <!-- Row 2 -->
-            <div class="form-group">
-                <label>Training Course <span style="color: #ef4444;">*</span></label>
-                <select name="course" id="form-course" class="form-control" required>
-                    <option value="" disabled selected>Select Course...</option>
-                    {% for course in courses %}
-                    <option value="{{ course.title }}">{{ course.title }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Assigned Batch <span style="color: #ef4444;">*</span></label>
-                <select name="batch" id="form-batch" class="form-control" required>
-                    <option value="" disabled selected>Select Batch...</option>
-                    {% for batch in batches %}
-                    <option value="{{ batch.batchId }}">{{ batch.batchId }} ({{ batch.courseName }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Highest Education <span style="color: #ef4444;">*</span></label>
-                <select name="education" id="form-education" class="form-control" required>
-                    <option value="" disabled selected>Select Education...</option>
-                    <option value="HSC / Equivalent">HSC / Equivalent</option>
-                    <option value="Diploma in Engineering">Diploma in Engineering</option>
-                    <option value="B.Sc in CSE / EEE">B.Sc in CSE / EEE</option>
-                    <option value="B.Sc / B.A / B.Com / BBA">B.Sc / B.A / B.Com / BBA</option>
-                    <option value="M.Sc / M.A / MBA">M.Sc / M.A / MBA</option>
-                    <option value="Other">Other</option>
-                </select>
+            <!-- Row 2: Phone + Course -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Phone Number <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="phone" id="form-phone" class="form-control" required placeholder="+880 1XXX-XXXXXX">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Course <span style="color: #ef4444;">*</span></label>
+                    <select name="course" id="form-course" class="form-control" required>
+                        <option value="" disabled selected>Select a course</option>
+                        {% for course in courses %}
+                        <option value="{{ course.title }}">{{ course.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
-            <!-- Row 3 -->
-            <div class="form-group">
-                <label>Class Schedule <span style="color: #ef4444;">*</span></label>
-                <select name="schedule" id="form-schedule" class="form-control" required>
-                    <option value="" disabled selected>Select Schedule...</option>
-                    <option value="Morning Shift (10:00 AM - 01:00 PM)">Morning Shift (10:00 AM - 01:00 PM)</option>
-                    <option value="Afternoon Shift (02:00 PM - 05:00 PM)">Afternoon Shift (02:00 PM - 05:00 PM)</option>
-                    <option value="Evening Shift (06:00 PM - 09:00 PM)">Evening Shift (06:00 PM - 09:00 PM)</option>
-                    <option value="Friday / Weekend (03:00 PM - 07:00 PM)">Friday / Weekend (03:00 PM - 07:00 PM)</option>
-                </select>
+            <!-- Row 3: Education, Batch, Schedule, Class Days -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem;">Education Background</label>
+                    <select name="education" id="form-education" class="form-control">
+                        <option value="" selected>Select (optional)</option>
+                        <option value="High School / SSC">High School / SSC</option>
+                        <option value="HSC / Diploma">HSC / Diploma</option>
+                        <option value="Bachelor's Degree">Bachelor's Degree</option>
+                        <option value="Master's Degree">Master's Degree</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem;">Batch <span style="color: #ef4444;">*</span></label>
+                    <select name="batch" id="form-batch" class="form-control" required>
+                        <option value="" disabled selected>Select a batch</option>
+                        {% for batch in batches %}
+                        <option value="{{ batch.batchId }}">{{ batch.batchId }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem;">Preferred Schedule <span style="color: #ef4444;">*</span></label>
+                    <select name="schedule" id="form-schedule" class="form-control" required>
+                        <option value="" disabled selected>Select a slot</option>
+                        <option value="Morning Shift (10:00 AM - 01:00 PM)">Morning</option>
+                        <option value="Afternoon Shift (02:00 PM - 05:00 PM)">Afternoon</option>
+                        <option value="Evening Shift (06:00 PM - 09:00 PM)">Evening</option>
+                        <option value="Friday / Weekend (03:00 PM - 07:00 PM)">Weekend</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.8rem;">Class Days <span style="color: #ef4444;">*</span></label>
+                    <select name="classDays" id="form-classDays" class="form-control" required>
+                        <option value="" disabled selected>Select class days</option>
+                        <option value="Sat, Mon & Wed">Sat, Mon & Wed</option>
+                        <option value="Sun, Tue & Thu">Sun, Tue & Thu</option>
+                        <option value="Fri & Sat">Fri & Sat</option>
+                        <option value="Friday Only">Friday Only</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Class Days <span style="color: #ef4444;">*</span></label>
-                <select name="classDays" id="form-classDays" class="form-control" required>
-                    <option value="" disabled selected>Select Days...</option>
-                    <option value="Sat, Mon & Wed">Sat, Mon & Wed</option>
-                    <option value="Sun, Tue & Thu">Sun, Tue & Thu</option>
-                    <option value="Fri & Sat">Fri & Sat</option>
-                    <option value="Friday Only">Friday Only</option>
-                </select>
+
+            <!-- Row 3.5: Job Holder Check -->
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label class="custom-switch">
+                        <input type="checkbox" id="isJobHolderCheck" onchange="toggleJobSection()">
+                        <span class="custom-slider accent"></span>
+                    </label>
+                    <input type="hidden" name="isJobHolder" id="form-isJobHolder" value="false">
+                    <label for="isJobHolderCheck" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-primary);">Are they currently a job holder?</label>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Key Account Manager (KAM)</label>
-                <select name="kam" id="form-kam" class="form-control">
-                    <option value="" selected>Select Sales Agent / KAM...</option>
+
+            <!-- Job Section -->
+            <div id="job-details-block" style="display: none; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 16px; padding: 16px; background: rgba(0,0,0,0.02); border: 1px dashed var(--sidebar-border); border-radius: 8px;">
+                <div style="grid-column: span 2;">
+                    <h6 style="margin:0; font-size: 0.85rem; color: var(--accent-color);"><i class="fa-solid fa-briefcase me-1"></i> Job Profile Details</h6>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Company Name <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="companyName" id="form-companyName" class="form-control" placeholder="e.g. Intrex Digital">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Designation <span style="color: #ef4444;">*</span></label>
+                    <input type="text" name="designation" id="form-designation" class="form-control" placeholder="e.g. Network Engineer">
+                </div>
+            </div>
+
+            <!-- Row 3.8: Free Batch Switch -->
+            <div style="margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label class="custom-switch">
+                        <input type="checkbox" id="isFreeBatchCheck" onchange="toggleFreeBatch()">
+                        <span class="custom-slider accent"></span>
+                    </label>
+                    <input type="hidden" name="isFreeBatch" id="form-isFreeBatch" value="false">
+                    <label for="isFreeBatchCheck" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #059669;">
+                        <i class="fa-solid fa-gift" style="margin-right: 4px;"></i> Free of Cost Batch
+                    </label>
+                </div>
+            </div>
+
+            <!-- Financial Section -->
+            <div id="financials-block">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Course Fee (BDT) <span style="color: #ef4444;">*</span></label>
+                        <input type="number" name="totalFee" id="form-totalFee" value="0" class="form-control" oninput="calculateFinancials()" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Discount (BDT)</label>
+                        <input type="number" name="discount" id="form-discount" value="0" class="form-control" oninput="calculateFinancials()">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Amount Paid (BDT) <span style="color: #ef4444;">*</span></label>
+                        <input type="number" name="amountPaid" id="form-amountPaid" value="0" class="form-control" oninput="calculateFinancials()" required>
+                    </div>
+                    <!-- Hidden due amount to keep calculation intact -->
+                    <input type="hidden" id="form-dueAmount" value="0">
+                </div>
+
+                <!-- Row 4.5: Installments Switch -->
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label class="custom-switch">
+                            <input type="checkbox" name="enableInstallments" id="enableInstallmentsCheck" value="true" onchange="toggleInstallmentSection()">
+                            <span class="custom-slider accent"></span>
+                        </label>
+                        <label for="enableInstallmentsCheck" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-primary);">Enable Installment Plan</label>
+                    </div>
+                </div>
+
+                <!-- Installment Planner -->
+                <div id="installment-plan-block" style="display: none; padding: 16px; background: rgba(0,0,0,0.02); border: 1px solid var(--sidebar-border); border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h5 style="margin: 0; font-size: 0.9rem; color: var(--text-primary);">Installment Planner</h5>
+                        <button type="button" onclick="addInstallmentRow()" class="btn-submit" style="padding: 4px 10px; font-size: 0.75rem; background: #215c5c;">
+                            <i class="fa-solid fa-plus me-1"></i> Add Row
+                        </button>
+                    </div>
+                    <table class="data-table" style="margin-top: 0;">
+                        <thead>
+                            <tr style="background: rgba(0,0,0,0.05);">
+                                <th style="padding: 8px; font-size: 0.8rem;">#</th>
+                                <th style="padding: 8px; font-size: 0.8rem;">Amount</th>
+                                <th style="padding: 8px; font-size: 0.8rem;">Due Date</th>
+                                <th style="padding: 8px; font-size: 0.8rem;">Status</th>
+                                <th style="padding: 8px; font-size: 0.8rem;">Act</th>
+                            </tr>
+                        </thead>
+                        <tbody id="installment-rows-container">
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                    <input type="hidden" name="installments" id="installments-json-input">
+                </div>
+
+                <!-- Row 5: Payment Method & TxID -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 16px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Payment Method</label>
+                        <select name="paymentType" id="form-paymentType" class="form-control" onchange="toggleTxBlock()">
+                            <option value="Cash" selected>Cash</option>
+                            <option value="bKash">bKash</option>
+                            <option value="Nagad">Nagad</option>
+                            <option value="Rocket">Rocket</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="tx-id-group" style="display: none; margin-bottom: 0;">
+                        <label>Transaction ID</label>
+                        <input type="text" name="transactionId" id="form-transactionId" class="form-control" placeholder="e.g. TRX12345678">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 5.5: KAM -->
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Key Account Manager (KAM) <span style="color: #ef4444;">*</span></label>
+                <select name="kam" id="form-kam" class="form-control" required>
+                    <option value="" disabled selected>Select Key Account Manager</option>
+                    <option value="Direct">None / Direct Enrollment</option>
                     {% for kam in kams %}
                     <option value="{{ kam.id }}">{{ kam.name }}</option>
                     {% endfor %}
                 </select>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Select an assigned Brand Ambassador or Business Development Executive/Manager.</div>
             </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label>Additional Notes <span style="font-weight: normal; color: var(--text-secondary);">(optional)</span></label>
+                <textarea name="message" id="form-message" class="form-control" rows="2" placeholder="Any specific goals or questions..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button type="submit" class="btn-submit" style="flex: 2; padding: 12px;">
+                    <i class="fa-solid fa-cloud-arrow-up me-2"></i> Save Registration & Payment Record
+                </button>
+                <button type="button" id="cancelEditBtn" onclick="cancelEditMode()" class="btn-submit" style="display: none; flex: 1; background: transparent; border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Right Column: Online Tools -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Online Key Quick Fill Card -->
+        <div class="glass-card" style="padding: 20px;">
+            <h4 style="margin: 0 0 16px 0; font-size: 1rem; color: var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom: 12px;">
+                <i class="fa-solid fa-bolt" style="color: var(--accent-color); margin-right: 8px;"></i> Quick Fill from Online Key
+            </h4>
+            <div style="display: flex;">
+                <input type="text" id="lookupOnlineKey" class="form-control" style="border-radius: 8px 0 0 8px; border-right: none;" placeholder="Search Online Key (e.g. REG-123456)">
+                <button type="button" onclick="quickFillByKey()" class="btn-submit" style="border-radius: 0 8px 8px 0; padding: 8px 16px; background: transparent; color: var(--accent-color); border: 1px solid var(--accent-color); white-space: nowrap;">
+                    Quick Fill
+                </button>
+            </div>
+            <span style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;">Enter a student's online registration key to pre-fill the form.</span>
         </div>
 
-        <!-- Toggles Section -->
-        <div style="display: flex; gap: 40px; margin: 24px 0;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="isJobHolderCheck" onchange="toggleJobSection()" style="width: 18px; height: 18px; cursor: pointer;">
-                <input type="hidden" name="isJobHolder" id="form-isJobHolder" value="false">
-                <label for="isJobHolderCheck" style="font-weight: 600; cursor: pointer; color: var(--text-primary);">Is Student currently a Job Holder?</label>
+        <!-- Pending Online Submissions Card -->
+        <div class="glass-card" style="padding: 20px; flex: 1; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 12px;">
+                <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary);">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-color); margin-right: 8px;"></i> Pending Submissions
+                </h4>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="onlinePendingBadge" class="badge danger" style="border-radius: 12px; padding: 2px 8px; font-size: 0.75rem;">0</span>
+                </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="isFreeBatchCheck" onchange="toggleFreeBatch()" style="width: 18px; height: 18px; cursor: pointer;">
-                <input type="hidden" name="isFreeBatch" id="form-isFreeBatch" value="false">
-                <label for="isFreeBatchCheck" style="font-weight: 600; cursor: pointer; color: var(--text-primary);">Is Free of Cost Batch?</label>
-            </div>
-        </div>
-
-        <!-- Job Section -->
-        <div id="job-details-block" style="display: none; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed var(--sidebar-border); border-radius: 8px;">
-            <div class="form-group">
-                <label>Company Name</label>
-                <input type="text" name="companyName" id="form-companyName" class="form-control" placeholder="e.g. Intrex Digital">
-            </div>
-            <div class="form-group">
-                <label>Designation</label>
-                <input type="text" name="designation" id="form-designation" class="form-control" placeholder="e.g. Software Developer">
+            
+            <div id="onlinePendingList" style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="text-align: center; color: var(--text-secondary); font-size: 0.85rem; padding: 20px 0;">
+                    No pending submissions.
+                </div>
             </div>
         </div>
-
-        <!-- Financial Section -->
-        <div id="financials-block">
-            <h4 style="margin: 24px 0 16px 0; font-size: 1rem; border-bottom: 1px solid var(--sidebar-border); padding-bottom: 8px; color: var(--text-primary);">Course Financial Details</h4>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
-                <div class="form-group">
-                    <label>Course Total Fee (BDT)</label>
-                    <input type="number" name="totalFee" id="form-totalFee" value="0" class="form-control" oninput="calculateFinancials()">
-                </div>
-                <div class="form-group">
-                    <label>Discount Amount (BDT)</label>
-                    <input type="number" name="discount" id="form-discount" value="0" class="form-control" oninput="calculateFinancials()">
-                </div>
-                <div class="form-group">
-                    <label>Amount Paid Now (BDT)</label>
-                    <input type="number" name="amountPaid" id="form-amountPaid" value="0" class="form-control" oninput="calculateFinancials()">
-                </div>
-                <div class="form-group">
-                    <label>Remaining Due (BDT)</label>
-                    <input type="number" id="form-dueAmount" value="0" class="form-control" readonly style="background: rgba(0,0,0,0.1);">
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
-                <div class="form-group">
-                    <label>Payment Method</label>
-                    <select name="paymentType" id="form-paymentType" class="form-control" onchange="toggleTxBlock()">
-                        <option value="Cash" selected>Cash</option>
-                        <option value="bKash">bKash</option>
-                        <option value="Nagad">Nagad</option>
-                        <option value="Rocket">Rocket</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                    </select>
-                </div>
-                <div class="form-group" id="tx-id-group" style="display: none;">
-                    <label>Transaction ID / Ref</label>
-                    <input type="text" name="transactionId" id="form-transactionId" class="form-control" placeholder="e.g. TRX12345678">
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 24px;">
-                    <input type="checkbox" name="enableInstallments" id="enableInstallmentsCheck" value="true" onchange="toggleInstallmentSection()" style="width: 18px; height: 18px; cursor: pointer;">
-                    <label for="enableInstallmentsCheck" style="font-weight: 600; cursor: pointer; color: var(--text-primary);">Enable Installments Scheduling</label>
-                </div>
-            </div>
-
-            <!-- Installment Planner -->
-            <div id="installment-plan-block" style="display: none; padding: 18px; background: rgba(255,255,255,0.02); border: 1px solid var(--sidebar-border); border-radius: 8px; margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h5 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">Installment Planner</h5>
-                    <button type="button" onclick="addInstallmentRow()" class="btn-submit" style="padding: 6px 12px; font-size: 0.8rem; background: #28a745;">
-                        <i class="fa-solid fa-plus me-1"></i> Add Installment Row
-                    </button>
-                </div>
-                <table class="data-table" style="margin-top: 0;">
-                    <thead>
-                        <tr style="background: rgba(0,0,0,0.1);">
-                            <th>Installment Number</th>
-                            <th>Amount (BDT)</th>
-                            <th>Due Date</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="installment-rows-container">
-                        <!-- Installment rows added dynamically -->
-                    </tbody>
-                </table>
-                <input type="hidden" name="installments" id="installments-json-input">
-            </div>
-        </div>
-
-        <div class="form-group" style="margin-bottom: 24px;">
-            <label>Registration Message / Notes</label>
-            <textarea name="message" id="form-message" class="form-control" rows="3" placeholder="Additional notes..."></textarea>
-        </div>
-
-        <div style="display: flex; gap: 12px;">
-            <button type="submit" class="btn-submit" style="padding: 12px 28px;">
-                <i class="fa-solid fa-save me-1"></i> Save Registration
-            </button>
-            <button type="button" onclick="cancelEditMode()" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); padding: 12px 28px;">
-                Cancel / Reset
-            </button>
-        </div>
-    </form>
+    </div>
 </div>
 
 <!-- Tab Content 2: Student Directory -->
@@ -299,6 +407,7 @@
 <script>
     // Load student database raw array
     const studentDb = JSON.parse('{{ students_json|escapejs }}');
+    const onlineRegs = JSON.parse('{{ online_regs_json|escapejs }}');
 
     function switchTab(tab) {
         const formDiv = document.getElementById("tab-form");
@@ -593,26 +702,100 @@
         });
     }
 
+    // Quick Fill Logic
+    function populateOnlineData(key) {
+        const record = onlineRegs.find(r => r.id === key);
+        if (!record) {
+            alert("No online registration found with key: " + key);
+            return false;
+        }
+
+        document.getElementById("form-fullName").value = record.fullName || '';
+        document.getElementById("form-email").value = record.email || '';
+        document.getElementById("form-phone").value = record.phone || '';
+        document.getElementById("form-course").value = record.course || '';
+        document.getElementById("form-online-key").value = record.id || '';
+        
+        // Auto-select course if matches exactly
+        const courseSelect = document.getElementById("form-course");
+        for (let i = 0; i < courseSelect.options.length; i++) {
+            if (courseSelect.options[i].value === record.course) {
+                courseSelect.selectedIndex = i;
+                break;
+            }
+        }
+
+        document.getElementById("form-title").innerHTML = `<i class="fa-solid fa-globe text-primary me-2"></i>Convert Pending Online Application`;
+        alert("Autofilled information from web registration! Please assign batch and complete registration details.");
+        return true;
+    }
+
+    function quickFillByKey() {
+        const key = document.getElementById("lookupOnlineKey").value.trim();
+        if (!key) {
+            alert("Please enter an Online Key.");
+            return;
+        }
+        populateOnlineData(key);
+    }
+
+    function renderOnlinePendingList() {
+        const container = document.getElementById("onlinePendingList");
+        const badge = document.getElementById("onlinePendingBadge");
+        
+        container.innerHTML = '';
+        badge.innerText = onlineRegs.length;
+
+        if (onlineRegs.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-secondary); font-size: 0.85rem; padding: 20px 0;">No pending submissions.</div>`;
+            return;
+        }
+
+        onlineRegs.forEach(reg => {
+            const dateStr = reg.createdAt ? new Date(reg.createdAt).toLocaleDateString() : 'Recent';
+            const html = `
+                <div style="background: rgba(0,0,0,0.02); border: 1px solid var(--sidebar-border); border-radius: 8px; padding: 12px; position: relative;">
+                    <div style="position: absolute; top: 12px; right: 12px;">
+                        <span class="badge info" style="font-size: 0.65rem;">${reg.id}</span>
+                    </div>
+                    <h6 style="margin: 0 0 4px 0; font-size: 0.9rem; color: var(--text-primary); padding-right: 60px;">${reg.fullName}</h6>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">
+                        <i class="fa-solid fa-envelope me-1"></i> ${reg.email}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 2px;">
+                        <i class="fa-solid fa-phone me-1"></i> ${reg.phone}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">
+                        <i class="fa-solid fa-book-open me-1"></i> ${reg.course}
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button type="button" onclick="populateOnlineData('${reg.id}')" class="btn-submit" style="flex: 1; padding: 6px; font-size: 0.75rem; background: var(--accent-color);">
+                            <i class="fa-solid fa-bolt me-1"></i> Quick Fill
+                        </button>
+                        <form method="POST" action="{% url 'training:student_list' %}" style="margin:0;" onsubmit="return confirm('Delete this pending online registration?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_online_reg">
+                            <input type="hidden" name="doc_id" value="${reg.id}">
+                            <button type="submit" class="btn-action delete" style="padding: 6px; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
     // Look for online quick fill parameter if redirected from inquiries
     window.onload = function() {
+        renderOnlinePendingList();
+        
         const params = new URLSearchParams(window.location.search);
         const quickFillId = params.get('quickfill');
         if (quickFillId) {
-            // Find online registration details if passed (would need to search online registations, we can fetch from page URL params)
-            const fillName = params.get('name') || '';
-            const fillEmail = params.get('email') || '';
-            const fillPhone = params.get('phone') || '';
-            const fillCourse = params.get('course') || '';
-            const fillKey = params.get('key') || '';
-
-            document.getElementById("form-fullName").value = fillName;
-            document.getElementById("form-email").value = fillEmail;
-            document.getElementById("form-phone").value = fillPhone;
-            document.getElementById("form-course").value = fillCourse;
-            document.getElementById("form-online-key").value = fillKey;
-
-            document.getElementById("form-title").innerHTML = `<i class="fa-solid fa-globe text-primary me-2"></i>Convert Pending Online Application`;
-            alert("Autofilled information from web registration! Please assign batch and complete registration details.");
+            populateOnlineData(quickFillId);
         }
     }
 </script>

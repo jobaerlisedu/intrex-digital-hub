@@ -96,8 +96,16 @@
             transition: background 0.18s;
         }
         .sidebar.collapsed .nav-link:hover,
-        .sidebar.collapsed .nav-link.active {
-            background: rgba(33, 92, 92, 0.08);
+        .sidebar.collapsed .nav-link.active,
+        .sidebar.collapsed .nav-item-dropdown.active > .nav-link {
+            background: rgba(33, 92, 92, 0.12); /* Slightly stronger so it stands out */
+        }
+        
+        .sidebar.collapsed .nav-link.active > i,
+        .sidebar.collapsed .nav-link.active .nav-icon-wrap > i,
+        .sidebar.collapsed .nav-item-dropdown.active > .nav-link > i,
+        .sidebar.collapsed .nav-item-dropdown.active > .nav-link .nav-icon-wrap > i {
+            color: var(--accent-color) !important;
         }
 
         /* ── Icon centering: absolute, dead-centre ────────────────
@@ -319,12 +327,12 @@
             transition: color 0.3s ease;
         }
 
-        .nav-link:hover, .nav-link.active {
+        .nav-link:hover, .nav-link.active, .nav-item-dropdown.active > .nav-link {
             background: rgba(33, 92, 92, 0.05);
             color: var(--accent-color);
         }
 
-        .nav-link:hover i, .nav-link.active i {
+        .nav-link:hover i, .nav-link.active i, .nav-item-dropdown.active > .nav-link i, .nav-item-dropdown.active > .nav-link .nav-icon-wrap i {
             color: var(--accent-color);
         }
 

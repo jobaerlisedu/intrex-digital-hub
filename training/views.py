@@ -559,6 +559,11 @@ def student_list(request):
             log_training_action(request.user, "DELETE", "learn_registrations", doc_id, f"Removed student enrollment registration: {doc_id}")
             return redirect('training:student_list')
             
+        elif action == 'delete_online_reg' and doc_id:
+            db.collection('learn_online_registrations').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "learn_online_registrations", doc_id, f"Deleted online registration ID {doc_id}")
+            return redirect('training:student_list')
+            
         else:
             # Add or Update
             fullName = request.POST.get('fullName').strip()
@@ -738,6 +743,7 @@ def student_list(request):
     batches = get_collection_data('learn_batches')
     ambassadors = get_collection_data('learn_brand_ambassadors')
     employees = get_collection_data('employees')
+    online_regs = get_collection_data('learn_online_registrations')
     bd_employees = [emp for emp in employees if emp.get('status') == 'Active' and ('business development' in emp.get('designation', '').lower() or 'bd' in emp.get('designation', '').lower())]
     
     # Combined KAM directory list
@@ -748,9 +754,11 @@ def student_list(request):
         kams.append({'id': e['employee_id'], 'name': e['employee_name'] + ' (BD Executive)'})
         
     students_json = json.dumps(students, default=str)
+    online_regs_json = json.dumps(online_regs, default=str)
     return render(request, 'training/student_list.html', {
         'students': students, 
         'students_json': students_json,
+        'online_regs_json': online_regs_json,
         'courses': courses, 
         'batches': batches,
         'kams': kams
