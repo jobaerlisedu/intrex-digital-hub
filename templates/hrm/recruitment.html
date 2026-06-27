@@ -88,11 +88,31 @@
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
+                <label>Department</label>
+                <select id="cand-dept" class="form-control" onchange="filterPositionsByDeptSubDept()">
+                    <option value="">Select Department...</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Sub Department</label>
+                <select id="cand-subdept" class="form-control" onchange="filterPositionsByDeptSubDept()">
+                    <option value="">Select Sub Department...</option>
+                    {% for sub in sub_departments %}
+                    <option value="{{ sub.name }}" data-parent="{{ sub.parent_name }}">{{ sub.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
                 <label>Applied Position <span class="asterisk">*</span></label>
-                <select name="position" class="form-control" required>
+                <select name="position" id="cand-position" class="form-control" onchange="onPositionChange()" required>
                     <option value="" disabled selected>Select Position...</option>
                     {% for pos in positions %}
-                    <option value="{{ pos }}">{{ pos }}</option>
+                    <option value="{{ pos.title }}" data-dept="{{ pos.dept_name }}" data-subdept="{{ pos.sub_dept_name }}">{{ pos.title }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -151,7 +171,7 @@
             </thead>
             <tbody id="candidate-tbody">
                 {% for cand in candidates %}
-                <tr class="candidate-row" data-name="{{ cand.name }}" data-position="{{ cand.position }}">
+                <tr class="candidate-row" data-name="{{ cand.name }}" data-position="{{ cand.position }}" data-dept="{{ cand.dept_name|default:'' }}" data-subdept="{{ cand.sub_dept_name|default:'' }}">
                     <td>{{ cand.cand_id }}</td>
                     <td>
                         <div style="font-weight: 600; color: var(--text-primary);">{{ cand.name }}</div>
@@ -291,7 +311,7 @@
             </thead>
             <tbody id="shortlist-tbody">
                 {% for s in shortlists %}
-                <tr class="shortlist-row" data-name="{{ s.name }}" data-position="{{ s.position }}">
+                <tr class="shortlist-row" data-name="{{ s.name }}" data-position="{{ s.position }}" data-dept="{{ s.dept_name|default:'' }}" data-subdept="{{ s.sub_dept_name|default:'' }}">
                     <td><strong>{{ s.name }}</strong></td>
                     <td>{{ s.position }}</td>
                     <td>{{ s.experience|default:"--" }}</td>
@@ -601,6 +621,91 @@
         if (activeStage) activeStage.classList.add('active');
     }
     
+    // Dynamic form filtering
+    function filterPositionsByDeptSubDept() {
+        const selectedDept = document.getElementById('cand-dept').value;
+        const selectedSubDept = document.getElementById('cand-subdept').value;
+        
+        // 1. Filter Sub-Department dropdown based on selected Department
+        const subDeptSelect = document.getElementById('cand-subdept');
+        const subDeptOptions = subDeptSelect.querySelectorAll('option');
+        subDeptOptions.forEach(opt => {
+            if (!opt.value) return; // Skip placeholder
+            const parentDept = opt.getAttribute('data-parent');
+            if (!selectedDept || parentDept === selectedDept) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+        
+        // If current sub-dept is now invalid, reset it
+        const activeSubDeptOpt = subDeptSelect.options[subDeptSelect.selectedIndex];
+        if (activeSubDeptOpt && activeSubDeptOpt.value) {
+            const parentDept = activeSubDeptOpt.getAttribute('data-parent');
+            if (selectedDept && parentDept !== selectedDept) {
+                subDeptSelect.value = '';
+            }
+        }
+        
+        // 2. Filter Position dropdown based on both Department and Sub-Department
+        const posSelect = document.getElementById('cand-position');
+        const posOptions = posSelect.querySelectorAll('option');
+        const currentSelectedSubDept = subDeptSelect.value;
+        
+        posOptions.forEach(opt => {
+            if (!opt.value) return; // Skip placeholder
+            const dept = opt.getAttribute('data-dept');
+            const subdept = opt.getAttribute('data-subdept');
+            
+            let matchDept = !selectedDept || dept === selectedDept;
+            let matchSubDept = !currentSelectedSubDept || subdept === currentSelectedSubDept;
+            
+            if (matchDept && matchSubDept) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+        
+        // If current position is now invalid, reset it
+        const activePosOpt = posSelect.options[posSelect.selectedIndex];
+        if (activePosOpt && activePosOpt.value) {
+            const dept = activePosOpt.getAttribute('data-dept');
+            const subdept = activePosOpt.getAttribute('data-subdept');
+            let matchDept = !selectedDept || dept === selectedDept;
+            let matchSubDept = !currentSelectedSubDept || subdept === currentSelectedSubDept;
+            if (!matchDept || !matchSubDept) {
+                posSelect.value = '';
+            }
+        }
+    }
+
+    function onPositionChange() {
+        const posSelect = document.getElementById('cand-position');
+        const selectedOpt = posSelect.options[posSelect.selectedIndex];
+        if (selectedOpt && selectedOpt.value) {
+            const dept = selectedOpt.getAttribute('data-dept');
+            const subdept = selectedOpt.getAttribute('data-subdept');
+            
+            // Set department
+            document.getElementById('cand-dept').value = dept || '';
+            
+            // Filter sub-department options
+            const subDeptSelect = document.getElementById('cand-subdept');
+            subDeptSelect.querySelectorAll('option').forEach(opt => {
+                if (!opt.value) return;
+                const parent = opt.getAttribute('data-parent');
+                if (!dept || parent === dept) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            subDeptSelect.value = subdept || '';
+        }
+    }
+
     // Live filters
     function filterCandidates() {
         const query = document.getElementById('search-candidate').value.toLowerCase();
@@ -610,7 +715,9 @@
         rows.forEach(row => {
             const name = row.getAttribute('data-name').toLowerCase();
             const position = row.getAttribute('data-position').toLowerCase();
-            if (name.includes(query) || position.includes(query)) {
+            const dept = (row.getAttribute('data-dept') || '').toLowerCase();
+            const subdept = (row.getAttribute('data-subdept') || '').toLowerCase();
+            if (name.includes(query) || position.includes(query) || dept.includes(query) || subdept.includes(query)) {
                 row.style.display = '';
                 visibleCount++;
             } else {
@@ -629,7 +736,9 @@
         rows.forEach(row => {
             const name = row.getAttribute('data-name').toLowerCase();
             const position = row.getAttribute('data-position').toLowerCase();
-            if (name.includes(query) || position.includes(query)) {
+            const dept = (row.getAttribute('data-dept') || '').toLowerCase();
+            const subdept = (row.getAttribute('data-subdept') || '').toLowerCase();
+            if (name.includes(query) || position.includes(query) || dept.includes(query) || subdept.includes(query)) {
                 row.style.display = '';
                 visibleCount++;
             } else {

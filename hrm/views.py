@@ -291,15 +291,27 @@ def recruitment(request):
     interviews = get_collection_data('hrm_interviews', [])
     selections = get_collection_data('hrm_selections', [])
     positions_data = get_cached_collection('hrm_positions')
+    departments = get_cached_collection('hrm_departments')
+    sub_departments = get_cached_collection('hrm_sub_departments')
 
-    positions = [p.get('title') or p.get('name') for p in positions_data if (p.get('title') or p.get('name'))]
+    positions = []
+    for p in positions_data:
+        title = p.get('title') or p.get('name')
+        if title:
+            positions.append({
+                'title': title,
+                'dept_name': p.get('dept_name', ''),
+                'sub_dept_name': p.get('sub_dept_name', '')
+            })
 
     return render(request, 'hrm/recruitment.html', {
         'candidates': candidates,
         'shortlists': shortlists,
         'interviews': interviews,
         'selections': selections,
-        'positions': positions
+        'positions': positions,
+        'departments': departments,
+        'sub_departments': sub_departments
     })
 
 @module_access('hrm')

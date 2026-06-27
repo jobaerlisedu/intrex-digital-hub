@@ -180,7 +180,7 @@
         <div class="form-grid-2">
           <div class="form-group">
             <label style="color:#ef4444;font-weight:600;">Department <span class="asterisk">*</span></label>
-            <select name="department" id="pi-dept" onchange="filterPiSubDept()" class="form-control" required>
+            <select name="department" id="pi-dept" onchange="filterPiSubDeptAndPositions()" class="form-control" required>
               <option value="" disabled selected>Select Department...</option>
               {% for d in departments %}
               <option value="{{ d.name }}">{{ d.name }}</option>
@@ -189,7 +189,7 @@
           </div>
           <div class="form-group">
             <label>Sub Department</label>
-            <select name="sub_department" id="pi-subdept" class="form-control">
+            <select name="sub_department" id="pi-subdept" onchange="filterPiPositions()" class="form-control">
               <option value="" selected>Select sub-department</option>
               {% for sd in sub_departments %}
               <option value="{{ sd.name }}" data-parent="{{ sd.parent_name|default:'' }}">{{ sd.name }}</option>
@@ -198,10 +198,10 @@
           </div>
           <div class="form-group">
             <label style="color:#ef4444;font-weight:600;">Position <span class="asterisk">*</span></label>
-            <select name="position" class="form-control" required>
+            <select name="position" id="pi-position" onchange="onPiPositionChange()" class="form-control" required>
               <option value="" disabled selected>Select position</option>
               {% for p in positions %}
-              <option value="{{ p.title }}">{{ p.title }}</option>
+              <option value="{{ p.title }}" data-dept="{{ p.dept_name }}" data-subdept="{{ p.sub_dept_name }}">{{ p.title }}</option>
               {% endfor %}
             </select>
           </div>
@@ -479,10 +479,12 @@ function calcSalary() {
   document.getElementById('gross_display').value = gross.toFixed(2);
 }
 
-// Filter sub-department based on selected department (by name match)
-function filterPiSubDept() {
+// Filter sub-department and positions based on selected department (by name match)
+function filterPiSubDeptAndPositions() {
   const deptName = document.getElementById('pi-dept').value;
   const subSelect = document.getElementById('pi-subdept');
+  
+  // Filter sub-department options
   for (let i = 0; i < subSelect.options.length; i++) {
     const opt = subSelect.options[i];
     if (!opt.value) continue;
@@ -490,6 +492,69 @@ function filterPiSubDept() {
     opt.style.display = (!deptName || parent === deptName) ? '' : 'none';
   }
   subSelect.value = '';
+  
+  // Now filter positions
+  filterPiPositions();
+}
+
+// Filter positions based on selected department and sub-department
+function filterPiPositions() {
+  const deptName = document.getElementById('pi-dept').value;
+  const subDeptName = document.getElementById('pi-subdept').value;
+  const posSelect = document.getElementById('pi-position');
+  
+  for (let i = 0; i < posSelect.options.length; i++) {
+    const opt = posSelect.options[i];
+    if (!opt.value) continue;
+    const dept = opt.getAttribute('data-dept');
+    const subdept = opt.getAttribute('data-subdept');
+    
+    let matchDept = !deptName || dept === deptName;
+    let matchSubDept = !subDeptName || subdept === subDeptName;
+    
+    if (matchDept && matchSubDept) {
+      opt.style.display = '';
+    } else {
+      opt.style.display = 'none';
+    }
+  }
+  
+  // Reset selected position if it is no longer valid
+  const activeOpt = posSelect.options[posSelect.selectedIndex];
+  if (activeOpt && activeOpt.value) {
+    const dept = activeOpt.getAttribute('data-dept');
+    const subdept = activeOpt.getAttribute('data-subdept');
+    let matchDept = !deptName || dept === deptName;
+    let matchSubDept = !subDeptName || subdept === subDeptName;
+    if (!matchDept || !matchSubDept) {
+      posSelect.value = '';
+    }
+  }
+}
+
+// Auto-select department/sub-department when position is loaded (e.g. during record edit)
+function onPiPositionChange() {
+  const posSelect = document.getElementById('pi-position');
+  const selectedOpt = posSelect.options[posSelect.selectedIndex];
+  if (selectedOpt && selectedOpt.value) {
+    const dept = selectedOpt.getAttribute('data-dept');
+    const subdept = selectedOpt.getAttribute('data-subdept');
+    
+    if (dept) {
+      document.getElementById('pi-dept').value = dept;
+      // Filter sub-departments
+      const subSelect = document.getElementById('pi-subdept');
+      for (let i = 0; i < subSelect.options.length; i++) {
+        const opt = subSelect.options[i];
+        if (!opt.value) continue;
+        const parent = opt.getAttribute('data-parent');
+        opt.style.display = parent === dept ? '' : 'none';
+      }
+      if (subdept) {
+        subSelect.value = subdept;
+      }
+    }
+  }
 }
 
 // Employee list filters
