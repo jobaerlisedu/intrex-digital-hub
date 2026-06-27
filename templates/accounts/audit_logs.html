@@ -1,141 +1,490 @@
 {% extends 'erp_base.html' %}
-{% block title %}System Audit Logs — Intrex ERP{% endblock %}
+{% block title %}Security Command Center & Audit Logs — Intrex ERP{% endblock %}
 
 {% block extra_css %}
 <style>
-.audit-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
-.audit-header h2 { margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:12px; }
-.audit-header h2 i { color:var(--accent-color); }
+/* Security Command Center Theme */
+.security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
 
-.audit-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.audit-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:16px; }
-.audit-search-wrapper { display:flex; gap:12px; align-items:center; }
-.audit-search { padding:8px 14px; border:1px solid var(--sidebar-border); border-radius:8px; font-size:0.9rem; width:300px; font-family:inherit; outline:none; }
-.audit-search:focus { border-color:var(--accent-color); }
+.security-card {
+    background: #fff;
+    border: 1px solid var(--sidebar-border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    transition: transform 0.15s ease-in-out;
+}
 
-.audit-filters { display:flex; gap:8px; }
-.btn-filter { padding:6px 14px; border-radius:20px; border:1px solid var(--sidebar-border); background:#fff; font-size:0.82rem; font-weight:600; color:var(--text-secondary); cursor:pointer; transition:all .15s; }
-.btn-filter:hover, .btn-filter.active { border-color:var(--accent-color); color:var(--accent-color); background:rgba(33,92,92,0.03); }
+.security-card:hover {
+    transform: translateY(-2px);
+}
 
-.audit-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
-.audit-table th { text-align:left; padding:10px 14px; font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--sidebar-border); }
-.audit-table td { padding:14px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
-.audit-table tr:last-child td { border-bottom:none; }
-.audit-table tr:hover td { background:#fafafa; }
+.security-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
 
-.audit-user { display:flex; align-items:center; gap:8px; }
-.audit-avatar { width:24px; height:24px; border-radius:50%; background:#215e5a; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.75rem; }
+.security-icon.integrity { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.security-icon.integrity.compromised { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.security-icon.sessions { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.security-icon.alerts { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.security-icon.alerts.active-alerts { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
-.action-badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase; }
-.action-badge.login      { background:#d1fae5; color:#065f46; }
-.action-badge.login-failed { background:#fee2e2; color:#991b1b; }
-.action-badge.logout     { background:#e2e8f0; color:#475569; }
-.action-badge.create     { background:#eff6ff; color:#1e40af; }
-.action-badge.edit       { background:#fef3c7; color:#92400e; }
-.action-badge.toggle     { background:#f5e6ff; color:#6b21a8; }
-.action-badge.default    { background:#f1f5f9; color:#334155; }
+.security-details h3 {
+    margin: 0 0 4px 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
 
-.module-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:20px; font-size:0.78rem; font-weight:600; background:#f1f5f9; border:1px solid #e2e8f0; color:#475569; }
+.security-details p {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
 
-.empty-state { text-align:center; padding:60px 24px; color:var(--text-secondary); }
-.empty-state i { font-size:2.5rem; color:#cbd5e1; margin-bottom:12px; }
+.panel-tabs {
+    display: flex;
+    gap: 16px;
+    border-bottom: 2px solid var(--sidebar-border);
+    margin-bottom: 24px;
+}
+
+.panel-tab {
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+}
+
+.panel-tab:hover, .panel-tab.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.table-card {
+    background: #fff;
+    border: 1px solid var(--sidebar-border);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.audit-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.audit-filters { display: flex; gap: 8px; }
+
+.btn-filter {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--sidebar-border);
+    background: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-filter:hover, .btn-filter.active {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(33,92,92,0.03);
+}
+
+.audit-search-wrapper { display: flex; gap: 12px; align-items: center; }
+.audit-search {
+    padding: 8px 14px;
+    border: 1px solid var(--sidebar-border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    width: 300px;
+    font-family: inherit;
+    outline: none;
+}
+.audit-search:focus { border-color: var(--accent-color); }
+
+.premium-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.premium-table th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    border-bottom: 1px solid var(--sidebar-border);
+}
+
+.premium-table td {
+    padding: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.premium-table tr:last-child td { border-bottom: none; }
+.premium-table tr:hover td { background: #fafafa; }
+
+.action-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.action-badge.login          { background: #d1fae5; color: #065f46; }
+.action-badge.login-failed   { background: #fee2e2; color: #991b1b; }
+.action-badge.logout         { background: #e2e8f0; color: #475569; }
+.action-badge.create         { background: #eff6ff; color: #1e40af; }
+.action-badge.edit           { background: #fef3c7; color: #92400e; }
+.action-badge.toggle         { background: #f5e6ff; color: #6b21a8; }
+.action-badge.session-revoke { background: #fee2e2; color: #b91c1c; }
+.action-badge.default        { background: #f1f5f9; color: #334155; }
+
+.module-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+
+.btn-revoke {
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+}
+
+.btn-revoke:hover {
+    background: #dc2626;
+}
+
+.empty-state { text-align: center; padding: 60px 24px; color: var(--text-secondary); }
+.empty-state i { font-size: 2.5rem; color: #cbd5e1; margin-bottom: 12px; }
+
+/* Alert Banner styling */
+.alert-banner {
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+}
+.alert-banner i { font-size: 1.25rem; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="audit-header">
-    <h2><i class="fa-solid fa-clock-rotate-left"></i> System Audit Logs</h2>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+    <h2 style="margin:0; font-size:1.4rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:12px;">
+        <i class="fa-solid fa-shield-halved" style="color:var(--accent-color);"></i> Security Command Center & Audit Logs
+    </h2>
 </div>
 
-<div class="audit-table-card">
-    <div class="audit-table-header">
-        <div class="audit-filters">
-            <button class="btn-filter active" onclick="filterLogs('all')">All Logs</button>
-            <button class="btn-filter" onclick="filterLogs('auth')">Auth Events</button>
-            <button class="btn-filter" onclick="filterLogs('accounts')">User Admin</button>
-            <button class="btn-filter" onclick="filterLogs('hrm')">HRM</button>
+<!-- Anomalies or Data Alterations Alert -->
+{% if integrity_status == 'COMPROMISED' %}
+<div class="alert-banner">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    <span>WARNING: Cryptographic integrity verification failed! One or more audit log hashes do not match the chain. Data modification detected in ids: {{ compromised_log_ids|join:", " }}.</span>
+</div>
+{% endif %}
+
+{% if failed_logins_24h >= 5 or has_mass_exports_24h %}
+<div class="alert-banner" style="background:#fffbeb; border-color:#fef3c7; color:#92400e;">
+    <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>
+    <span>Security Telemetry: {% if failed_logins_24h >= 5 %}{{ failed_logins_24h }} failed login attempts detected in last 24h. {% endif %}{% if has_mass_exports_24h %}Recent data exports detected. Please monitor access logs.{% endif %}</span>
+</div>
+{% endif %}
+
+<!-- Security Telemetry Dashboard -->
+<div class="security-grid">
+    <div class="security-card">
+        <div class="security-icon integrity {% if integrity_status == 'COMPROMISED' %}compromised{% endif %}">
+            <i class="fa-solid {% if integrity_status == 'SECURE' %}fa-square-check{% else %}fa-triangle-exclamation{% endif %}"></i>
         </div>
-        <div class="audit-search-wrapper">
-            <input class="audit-search" type="text" id="audit-search" onkeyup="searchLogs()" placeholder="Search by description, user, action…">
+        <div class="security-details">
+            <h3>Ledger Integrity</h3>
+            <p style="color: {% if integrity_status == 'SECURE' %}#10b981{% else %}#ef4444{% endif %};">
+                {{ integrity_status }}
+            </p>
+        </div>
+    </div>
+    
+    <div class="security-card">
+        <div class="security-icon sessions">
+            <i class="fa-solid fa-users-viewfinder"></i>
+        </div>
+        <div class="security-details">
+            <h3>Active Sessions</h3>
+            <p>{{ active_sessions|length }}</p>
         </div>
     </div>
 
-    {% if logs %}
-    <table class="audit-table" id="audit-table">
-        <thead>
-            <tr>
-                <th style="width: 180px;">Timestamp</th>
-                <th style="width: 140px;">User</th>
-                <th style="width: 140px;">Action</th>
-                <th style="width: 120px;">Module</th>
-                <th style="width: 130px;">IP Address</th>
-                <th>Description</th>
-            </tr>
-        </thead>
-        <tbody id="audit-tbody">
-        {% for log in logs %}
-        <tr class="audit-row" 
-            data-module="{{ log.module }}" 
-            data-action="{{ log.action }}" 
-            data-search="{{ log.user.username|default:'anonymous' }} {{ log.action }} {{ log.module }} {{ log.description }} {{ log.ip_address|default:'' }}">
-            <td style="color:var(--text-secondary);font-size:0.85rem;">
-                {{ log.timestamp|date:"Y-m-d H:i:s" }}
-            </td>
-            <td>
-                <div class="audit-user">
-                    {% if log.user %}
-                    <div class="audit-avatar">{{ log.user.username|first|upper }}</div>
-                    <span style="font-weight:600;color:var(--text-primary);">@{{ log.user.username }}</span>
-                    {% else %}
-                    <span style="color:var(--text-secondary);font-style:italic;">System / Guest</span>
-                    {% endif %}
-                </div>
-            </td>
-            <td>
-                {% if log.action == 'LOGIN' %}
-                    <span class="action-badge login">Login</span>
-                {% elif log.action == 'LOGIN_FAILED' %}
-                    <span class="action-badge login-failed">Failed Login</span>
-                {% elif log.action == 'LOGOUT' %}
-                    <span class="action-badge logout">Logout</span>
-                {% elif log.action == 'USER_CREATE' %}
-                    <span class="action-badge create">Create</span>
-                {% elif log.action == 'USER_EDIT' %}
-                    <span class="action-badge edit">Edit</span>
-                {% elif log.action == 'USER_TOGGLE_ACTIVE' %}
-                    <span class="action-badge toggle">Toggle Active</span>
-                {% else %}
-                    <span class="action-badge default">{{ log.action }}</span>
-                {% endif %}
-            </td>
-            <td>
-                <span class="module-badge">
-                    <i class="fa-solid {% if log.module == 'hrm' %}fa-users{% elif log.module == 'auth' %}fa-key{% elif log.module == 'accounts' %}fa-users-gear{% else %}fa-circle-dot{% endif %}"></i>
-                    {{ log.module }}
-                </span>
-            </td>
-            <td style="font-family:monospace;color:var(--text-secondary);font-size:0.85rem;">
-                {{ log.ip_address|default:"—" }}
-            </td>
-            <td style="color:var(--text-primary);font-weight:500;">
-                {{ log.description }}
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="empty-state">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <p style="margin-top:12px;">No audit logs recorded yet.</p>
+    <div class="security-card">
+        <div class="security-icon alerts {% if failed_logins_24h >= 5 %}active-alerts{% endif %}">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="security-details">
+            <h3>Failed Logins (24h)</h3>
+            <p>{{ failed_logins_24h }}</p>
+        </div>
     </div>
-    {% endif %}
+</div>
+
+<div class="panel-tabs">
+    <div class="panel-tab active" onclick="switchTab('audit-stream-tab')">Audit Log Stream</div>
+    <div class="panel-tab" onclick="switchTab('sessions-tab')">Session Management</div>
+</div>
+
+<!-- Tab 1: Audit Log Stream -->
+<div id="audit-stream-tab" class="tab-content active">
+    <div class="table-card">
+        <div class="audit-table-header">
+            <div class="audit-filters">
+                <button class="btn-filter active" onclick="filterLogs('all')">All Logs</button>
+                <button class="btn-filter" onclick="filterLogs('auth')">Auth Events</button>
+                <button class="btn-filter" onclick="filterLogs('accounts')">User Admin</button>
+                <button class="btn-filter" onclick="filterLogs('hrm')">HRM</button>
+                <button class="btn-filter" onclick="filterLogs('billing')">Billing</button>
+                <button class="btn-filter" onclick="filterLogs('solutions')">Solutions</button>
+            </div>
+            <div class="audit-search-wrapper">
+                <input class="audit-search" type="text" id="audit-search" onkeyup="searchLogs()" placeholder="Search by description, user, action…">
+            </div>
+        </div>
+
+        {% if logs %}
+        <div style="overflow-x:auto;">
+            <table class="premium-table" id="audit-table">
+                <thead>
+                    <tr>
+                        <th style="width: 170px;">Timestamp</th>
+                        <th style="width: 130px;">User</th>
+                        <th style="width: 130px;">Action</th>
+                        <th style="width: 110px;">Module</th>
+                        <th style="width: 120px;">IP Address</th>
+                        <th>Description</th>
+                        <th style="width: 100px;">Verification</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-tbody">
+                {% for log in logs %}
+                <tr class="audit-row" 
+                    data-module="{{ log.module }}" 
+                    data-action="{{ log.action }}" 
+                    data-search="{{ log.user.username|default:'anonymous' }} {{ log.action }} {{ log.module }} {{ log.description }} {{ log.ip_address|default:'' }}">
+                    <td style="color:var(--text-secondary);font-size:0.85rem;">
+                        {{ log.timestamp|date:"Y-m-d H:i:s.u"|slice:":23" }}
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            {% if log.user %}
+                            <div style="width:24px; height:24px; border-radius:50%; background:#215e5a; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.75rem;">
+                                {{ log.user.username|first|upper }}
+                            </div>
+                            <span style="font-weight:600;color:var(--text-primary);">@{{ log.user.username }}</span>
+                            {% else %}
+                            <span style="color:var(--text-secondary);font-style:italic;">System / Guest</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if log.action == 'LOGIN' %}
+                            <span class="action-badge login">Login</span>
+                        {% elif log.action == 'LOGIN_FAILED' %}
+                            <span class="action-badge login-failed">Failed Login</span>
+                        {% elif log.action == 'LOGOUT' %}
+                            <span class="action-badge logout">Logout</span>
+                        {% elif log.action == 'USER_CREATE' %}
+                            <span class="action-badge create">Create</span>
+                        {% elif log.action == 'USER_EDIT' %}
+                            <span class="action-badge edit">Edit</span>
+                        {% elif log.action == 'USER_TOGGLE_ACTIVE' %}
+                            <span class="action-badge toggle">Toggle Active</span>
+                        {% elif log.action == 'SESSION_REVOKE' %}
+                            <span class="action-badge session-revoke">Revoked</span>
+                        {% else %}
+                            <span class="action-badge default">{{ log.action }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="module-badge">
+                            <i class="fa-solid {% if log.module == 'hrm' %}fa-users{% elif log.module == 'auth' %}fa-key{% elif log.module == 'accounts' %}fa-users-gear{% elif log.module == 'billing' %}fa-file-invoice-dollar{% elif log.module == 'solutions' %}fa-lightbulb{% else %}fa-circle-dot{% endif %}"></i>
+                            {{ log.module }}
+                        </span>
+                    </td>
+                    <td style="font-family:monospace;color:var(--text-secondary);font-size:0.85rem;">
+                        {{ log.ip_address|default:"—" }}
+                    </td>
+                    <td style="color:var(--text-primary);font-weight:500;">
+                        {{ log.description }}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if log.id in compromised_log_ids %}
+                        <span style="color: #ef4444;" title="Hash check failed!"><i class="fa-solid fa-triangle-exclamation"></i> Error</span>
+                        {% else %}
+                        <span style="color: #10b981;" title="SHA-256 cryptographically verified"><i class="fa-solid fa-shield-halved"></i> Valid</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <p style="margin-top:12px;">No audit logs recorded yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tab 2: Session Management -->
+<div id="sessions-tab" class="tab-content">
+    <div class="table-card">
+        <h3 style="margin-top:0; margin-bottom:20px; font-size:1.1rem; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-users-viewfinder" style="color:var(--accent-color);"></i> Active Operator Sessions
+        </h3>
+        
+        {% if active_sessions %}
+        <div style="overflow-x:auto;">
+            <table class="premium-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>IP Address</th>
+                        <th>User Agent</th>
+                        <th>Session Initialized</th>
+                        <th>Last Active</th>
+                        <th style="width: 140px; text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for sess in active_sessions %}
+                <tr>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:28px; height:28px; border-radius:50%; background:#3b82f6; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center; font-size:0.8rem;">
+                                {{ sess.user.username|first|upper }}
+                            </div>
+                            <div>
+                                <span style="font-weight:600;color:var(--text-primary);">@{{ sess.user.username }}</span>
+                                <div style="font-size:0.75rem;color:var(--text-secondary);">{{ sess.user.email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-family:monospace;color:var(--text-secondary);">
+                        {{ sess.ip_address|default:"—" }}
+                    </td>
+                    <td style="color:var(--text-secondary);font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ sess.user_agent }}">
+                        {{ sess.user_agent }}
+                    </td>
+                    <td style="color:var(--text-secondary);font-size:0.85rem;">
+                        {{ sess.created_at|date:"Y-m-d H:i:s" }}
+                    </td>
+                    <td style="color:var(--text-primary);font-weight:600;font-size:0.85rem;">
+                        {{ sess.last_activity|date:"Y-m-d H:i:s" }}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if user.is_superuser %}
+                        <form action="{% url 'accounts:revoke_session' sess.id %}" method="POST" onsubmit="return confirm('Are you sure you want to forcibly terminate the session for @{{ sess.user.username }}? They will be logged out instantly.');" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-revoke">
+                                <i class="fa-solid fa-user-slash"></i> Terminate
+                            </button>
+                        </form>
+                        {% else %}
+                        <span style="font-size:0.8rem;color:var(--text-secondary);font-style:italic;">Superuser required</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fa-solid fa-users-slash"></i>
+            <p style="margin-top:12px;">No active sessions registered.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let currentCategory = 'all';
+
+function switchTab(tabId) {
+    document.querySelectorAll('.panel-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.currentTarget.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+}
 
 function filterLogs(category) {
     currentCategory = category;
@@ -162,12 +511,8 @@ function applyFilters() {
         let matchesCategory = false;
         if (currentCategory === 'all') {
             matchesCategory = true;
-        } else if (currentCategory === 'auth') {
-            matchesCategory = (module === 'auth');
-        } else if (currentCategory === 'accounts') {
-            matchesCategory = (module === 'accounts');
-        } else if (currentCategory === 'hrm') {
-            matchesCategory = (module === 'hrm');
+        } else {
+            matchesCategory = (module === currentCategory);
         }
         
         let matchesSearch = searchData.includes(q);

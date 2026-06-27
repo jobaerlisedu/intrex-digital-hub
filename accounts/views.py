@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User, Group
 from django.contrib import messages
+from django.utils import timezone
+from datetime import timedelta
+import hashlib
 from .decorators import staff_required, superuser_required, module_access, ERP_MODULES
-from .models import log_action, get_client_ip, AuditLog
+from .models import log_action, get_client_ip, AuditLog, ActiveSession
 
 
 # ─────────────────────────────────────────────
@@ -181,12 +184,70 @@ def user_toggle_active(request, user_id):
 
 
 # ─────────────────────────────────────────────
-# Audit Logs
+# Audit Logs & Session Monitor
 # ─────────────────────────────────────────────
 @module_access('audit_logs')
 def audit_logs(request):
     logs = AuditLog.objects.select_related('user').all().order_by('-timestamp')
+    active_sessions = ActiveSession.objects.select_related('user').all().order_by('-last_activity')
+    
+    # Perform a integrity check on the cryptographic hash chain
+    integrity_status = "SECURE"
+    altered_logs = []
+    
+    prev_hash = "0" * 64
+    # Check from oldest to newest to verify chain validity
+    for log in reversed(list(logs)):
+        if not log.sha256_hash:
+            # Skip legacy log entries created before the hash chain was introduced
+            continue
+        payload = f"{log.user_id or ''}|{log.action}|{log.module}|{log.description}|{log.ip_address or ''}|{prev_hash}"
+        expected_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()
+        if log.sha256_hash != expected_hash:
+            integrity_status = "COMPROMISED"
+            altered_logs.append(log.id)
+        prev_hash = log.sha256_hash
+
+    # Anomaly alerts: e.g. recent failed login count (last 24 hours) or mass exports
+    failed_logins = AuditLog.objects.filter(action='LOGIN_FAILED', timestamp__gte=timezone.now() - timedelta(days=1)).count()
+    has_mass_exports = AuditLog.objects.filter(action__icontains='EXPORT', timestamp__gte=timezone.now() - timedelta(days=1)).exists()
+
     return render(request, 'accounts/audit_logs.html', {
         'logs': logs,
+        'active_sessions': active_sessions,
+        'integrity_status': integrity_status,
+        'compromised_log_ids': altered_logs,
+        'failed_logins_24h': failed_logins,
+        'has_mass_exports_24h': has_mass_exports,
     })
+
+
+@superuser_required
+def revoke_session(request, session_id):
+    from django.contrib.sessions.models import Session
+    active_sess = get_object_or_404(ActiveSession, id=session_id)
+    username = active_sess.user.username
+    session_key = active_sess.session_key
+    
+    # Log the revocation
+    log_action(
+        user=request.user,
+        action='SESSION_REVOKE',
+        module='auth',
+        description=f"Administratively revoked active session for user '{username}'.",
+        ip_address=get_client_ip(request)
+    )
+    
+    # Delete from Django session store
+    try:
+        s = Session.objects.get(session_key=session_key)
+        s.delete()
+    except Session.DoesNotExist:
+        pass
+    
+    # Delete from ActiveSession registry
+    active_sess.delete()
+    
+    messages.success(request, f"Successfully terminated session for operator @{username}.")
+    return redirect('accounts:audit_logs')
 
