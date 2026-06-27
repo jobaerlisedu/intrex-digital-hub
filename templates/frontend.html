@@ -86,13 +86,13 @@
                 <ul class="dropdown-menu">
                   <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_network' %}">Network Solution</a></li>
                   <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_cloud' %}">Cloud Solution</a></li>
-                  <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_hosting' %}">Domain & Hosting</a></li>
+                  <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_hosting' %}">Web & Application Development</a></li>
                   <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_managed_it' %}">IT Managed Services</a></li>
                   <li><a class="nav-link dropdown-item" href="{% url 'frontend:service_business_suite' %}">Business Suite</a></li>
                 </ul>
               </li>
               <li class="nav-item"><a class="nav-link" href="{% url 'frontend:training' %}">Training</a></li>
-              <li class="nav-item"><a class="nav-link scroll-link" href="{% if request.path == '/' or request.path == '/index.html' %}#pricing{% else %}{% url 'frontend:index' %}#pricing{% endif %}">Pricing</a></li>
+
               <li class="nav-item"><a class="nav-link scroll-link" href="{% if request.path == '/' or request.path == '/index.html' %}#testimonials{% else %}{% url 'frontend:index' %}#testimonials{% endif %}">Testimonials</a></li>
               <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'contact' %}active{% endif %}" href="{% url 'frontend:contact' %}">Contact</a></li>
             </ul>
@@ -160,7 +160,7 @@
                 <ul class="list-unstyled">
                   <li><a href="{% url 'frontend:service_network' %}">Network Solution</a></li>
                   <li><a href="{% url 'frontend:service_cloud' %}">Cloud Solution</a></li>
-                  <li><a href="{% url 'frontend:service_hosting' %}">Domain & Hosting</a></li>
+                  <li><a href="{% url 'frontend:service_hosting' %}">Web & Application Development</a></li>
                   <li><a href="{% url 'frontend:service_managed_it' %}">IT Managed Services</a></li>
                   <li><a href="{% url 'frontend:service_business_suite' %}">Business Suite</a></li>
                   <li><a href="{% url 'frontend:training' %}">Professional Training</a></li>
@@ -172,7 +172,7 @@
                   <li><a href="{% url 'frontend:index' %}#home">Home</a></li>
                   <li><a href="{% url 'frontend:about_background' %}">About Us</a></li>
                   <li><a href="{% url 'frontend:verify_certificate' %}">Verify Certificate</a></li>
-                  <li><a href="{% url 'frontend:index' %}#pricing">Pricing Plans</a></li>
+
                   <li><a href="{% url 'frontend:index' %}#testimonials">Testimonials</a></li>
                   <li><a href="{% url 'frontend:index' %}#faq">FAQ</a></li>
                 </ul>
