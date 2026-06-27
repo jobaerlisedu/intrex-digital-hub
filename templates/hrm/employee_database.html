@@ -392,6 +392,9 @@
           <td>
             {{ emp|json_script:emp.id }}
             <div class="action-group">
+                <button type="button" class="btn-action view" onclick="viewRecord('{{ emp.id }}')" style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); border: 1px solid var(--accent-color); border-radius: 4px; padding: 4px 8px; display: inline-flex; align-items: center; justify-content: center;" title="View Profile">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
                 <button type="button" class="btn-action edit" onclick="editRecord('{{ emp.id }}')"><i class="fa-solid fa-pen-to-square"></i></button>
                 <form method="POST" action="{% url 'hrm:employee_database' %}" style="margin:0;" onsubmit="return confirm('Delete this employee record?');">
               {% csrf_token %}
@@ -622,6 +625,214 @@ function editRecord(id) {
     
     // Scroll to form
     form.scrollIntoView({ behavior: 'smooth' });
+}
+
+function viewRecord(id) {
+    const record = JSON.parse(document.getElementById(id).textContent);
+    if (!record) return;
+
+    const email = record.email ? `<a href="mailto:${record.email}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-envelope" style="color: var(--accent-color); margin-right: 8px;"></i>${record.email}</a>` : '—';
+    const phone = record.phone ? `<a href="tel:${record.phone}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-phone" style="color: var(--accent-color); margin-right: 8px;"></i>${record.phone}</a>` : '—';
+    const statusClass = record.status === 'Active' ? 'success' : record.status === 'On Leave' ? 'warning' : 'danger';
+    
+    let typeBadgeClass = "secondary";
+    if (record.employee_type === "Permanent") {
+        typeBadgeClass = "success";
+    } else if (record.employee_type === "Contractual") {
+        typeBadgeClass = "warning";
+    } else if (record.employee_type === "Part-time" || record.employee_type === "Intern") {
+        typeBadgeClass = "info";
+    }
+
+    const htmlContent = `
+        <div class="view-detail-grid">
+            <!-- Basic Information -->
+            <div style="grid-column: span 2; margin-top: 10px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-user" style="margin-right: 8px;"></i>Basic Information</h4>
+            </div>
+            
+            <div class="view-detail-item">
+                <div class="view-detail-label">EMPLOYEE ID</div>
+                <div class="view-detail-value" style="font-family: monospace; font-weight: bold; color: var(--accent-color);">${record.emp_id || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">EMPLOYMENT STATUS</div>
+                <div class="view-detail-value">
+                    <span class="badge ${statusClass}">${record.status || 'Active'}</span>
+                </div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">FULL NAME</div>
+                <div class="view-detail-value">${record.name || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">DESIGNATION</div>
+                <div class="view-detail-value">${record.position || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">DEPARTMENT</div>
+                <div class="view-detail-value">${record.department || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">SUB DEPARTMENT</div>
+                <div class="view-detail-value">${record.sub_department || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">EMPLOYEE TYPE</div>
+                <div class="view-detail-value">
+                    <span class="badge ${typeBadgeClass}" style="font-size: 0.85rem;">${record.employee_type || 'Permanent'}</span>
+                </div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">JOINING DATE</div>
+                <div class="view-detail-value">${record.joining_date || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">MOBILE PHONE</div>
+                <div class="view-detail-value">${phone}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">EMAIL ADDRESS</div>
+                <div class="view-detail-value">${email}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">ALTERNATE PHONE</div>
+                <div class="view-detail-value">${record.alt_phone || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">NATIONAL ID NO</div>
+                <div class="view-detail-value">${record.national_id || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">CITY</div>
+                <div class="view-detail-value">${record.city || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">ZIP CODE</div>
+                <div class="view-detail-value">${record.zip || '—'}</div>
+            </div>
+
+            <!-- Salary & Bank Info -->
+            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-money-check-dollar" style="margin-right: 8px;"></i>Salary & Bank Info</h4>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">ACCOUNT HOLDER NAME</div>
+                <div class="view-detail-value">${record.account_holder || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">ACCOUNT NUMBER</div>
+                <div class="view-detail-value">${record.account_number || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">BANK NAME</div>
+                <div class="view-detail-value">${record.bank_name || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">BRANCH NAME</div>
+                <div class="view-detail-value">${record.branch_name || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">GROSS SALARY</div>
+                <div class="view-detail-value" style="color: #ef4444;">${record.gross_salary ? parseFloat(record.gross_salary).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">BASIC SALARY</div>
+                <div class="view-detail-value">${record.basic_salary ? parseFloat(record.basic_salary).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">HOUSE RENT (50% OF BASIC)</div>
+                <div class="view-detail-value">${record.house_rent ? parseFloat(record.house_rent).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">MEDICAL ALLOWANCE (20%)</div>
+                <div class="view-detail-value">${record.medical_allowance ? parseFloat(record.medical_allowance).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">CONVEYANCE ALLOWANCE (20%)</div>
+                <div class="view-detail-value">${record.conveyance_allowance ? parseFloat(record.conveyance_allowance).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">UTILITY ALLOWANCE (10%)</div>
+                <div class="view-detail-value">${record.utility ? parseFloat(record.utility).toFixed(2) : '—'}</div>
+            </div>
+            <div class="view-detail-item" style="grid-column: span 2;">
+                <div class="view-detail-label">MOBILE BILL</div>
+                <div class="view-detail-value">${record.mobile_bill ? parseFloat(record.mobile_bill).toFixed(2) : '—'}</div>
+            </div>
+
+            <!-- Biological Information -->
+            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-dna" style="margin-right: 8px;"></i>Biological Information</h4>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">DATE OF BIRTH</div>
+                <div class="view-detail-value">${record.dob || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">GENDER</div>
+                <div class="view-detail-value">${record.gender || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">MARITAL STATUS</div>
+                <div class="view-detail-value">${record.marital_status || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">RELIGION</div>
+                <div class="view-detail-value">${record.religion || '—'}</div>
+            </div>
+
+            <!-- Emergency Contact Information -->
+            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-kit-medical" style="margin-right: 8px;"></i>Emergency Contacts</h4>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">PRIMARY CONTACT NAME</div>
+                <div class="view-detail-value">${record.ec_primary_name || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">PRIMARY RELATIONSHIP</div>
+                <div class="view-detail-value">${record.ec_primary_relation || '—'}</div>
+            </div>
+            <div class="view-detail-item" style="grid-column: span 2;">
+                <div class="view-detail-label">PRIMARY MOBILE NUMBER</div>
+                <div class="view-detail-value">${record.ec_primary_mobile ? `<a href="tel:${record.ec_primary_mobile}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-phone" style="color: var(--accent-color); margin-right: 8px;"></i>${record.ec_primary_mobile}</a>` : '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">SECONDARY CONTACT NAME</div>
+                <div class="view-detail-value">${record.ec_secondary_name || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">SECONDARY RELATIONSHIP</div>
+                <div class="view-detail-value">${record.ec_secondary_relation || '—'}</div>
+            </div>
+            <div class="view-detail-item" style="grid-column: span 2;">
+                <div class="view-detail-label">SECONDARY MOBILE NUMBER</div>
+                <div class="view-detail-value">${record.ec_secondary_mobile ? `<a href="tel:${record.ec_secondary_mobile}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-phone" style="color: var(--accent-color); margin-right: 8px;"></i>${record.ec_secondary_mobile}</a>` : '—'}</div>
+            </div>
+            
+            <!-- Exit Details (If applicable) -->
+            ${(record.exit_date || record.exit_type || record.exit_reason) ? `
+            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: #ef4444; font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-door-open" style="margin-right: 8px;"></i>Exit Details</h4>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">EXIT DATE</div>
+                <div class="view-detail-value">${record.exit_date || '—'}</div>
+            </div>
+            <div class="view-detail-item">
+                <div class="view-detail-label">EXIT TYPE</div>
+                <div class="view-detail-value">${record.exit_type || '—'}</div>
+            </div>
+            <div class="view-detail-item" style="grid-column: span 2;">
+                <div class="view-detail-label">EXIT REASON</div>
+                <div class="view-detail-value">${record.exit_reason || '—'}</div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    openGlobalModal("Employee Profile - " + (record.emp_id || 'N/A'), htmlContent, record.name, "PERSONNEL RECORD");
 }
 </script>
 {% endblock %}

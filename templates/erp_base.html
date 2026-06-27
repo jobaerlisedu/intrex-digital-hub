@@ -714,6 +714,27 @@
     align-items: center;
 }
 
+.global-modal-footer .btn-modal-action {
+    background-color: var(--accent-color);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    padding: 12px 28px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    text-decoration: none;
+}
+
+.global-modal-footer .btn-modal-action:hover {
+    opacity: 0.9;
+}
+
 </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -1388,8 +1409,8 @@
                 <!-- Content injected via JS -->
             </div>
             <div class="global-modal-footer">
-                <button type="button" class="btn btn-white hover-outline" style="border: 1px solid #cbd5e1; color: var(--text-primary);" onclick="closeGlobalModal()">Close</button>
-                <button type="button" class="btn" style="background-color: #215e5a; color: white;" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Details</button>
+                <button type="button" class="btn-modal-action" onclick="closeGlobalModal()">Close</button>
+                <button type="button" class="btn-modal-action" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Details</button>
             </div>
         </div>
     </div>
