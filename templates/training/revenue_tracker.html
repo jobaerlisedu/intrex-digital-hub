@@ -36,7 +36,7 @@
             </div>
             
             <div class="form-group">
-                <label>Amount (৳) <span class="asterisk">*</span></label>
+                <label>Amount (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="amount" id="amount" class="form-control" required placeholder="e.g. 5000.00">
             </div>
 
@@ -86,7 +86,7 @@
         <thead>
             <tr>
                 <th>Revenue Source</th>
-                <th>Amount (৳)</th>
+                <th>Amount (BDT)</th>
                 <th>Date</th>
                 <th>Payment Method</th>
                 <th>Notes</th>
@@ -97,7 +97,7 @@
             {% for rev in revenue %}
             <tr>
                 <td style="font-weight: 600; color: var(--text-primary);">{{ rev.source }}</td>
-                <td>৳{{ rev.amount|floatformat:2 }}</td>
+                <td>BDT {{ rev.amount|floatformat:2 }}</td>
                 <td>{{ rev.date }}</td>
                 <td><span class="badge success">{{ rev.payment_method }}</span></td>
                 <td style="font-size: 0.9rem; color: var(--text-secondary);">{{ rev.notes }}</td>

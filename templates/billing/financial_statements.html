@@ -27,8 +27,8 @@
                 <th>Account Code</th>
                 <th>Account Name</th>
                 <th>Classification</th>
-                <th style="text-align: right;">Debit Balance ($)</th>
-                <th style="text-align: right;">Credit Balance ($)</th>
+                <th style="text-align: right;">Debit Balance (BDT)</th>
+                <th style="text-align: right;">Credit Balance (BDT)</th>
             </tr>
         </thead>
         <tbody id="trial-tbody">
@@ -37,8 +37,8 @@
                 <td><code style="font-weight:700;">{{ t.account_code }}</code></td>
                 <td><strong style="color:var(--text-primary);">{{ t.name }}</strong></td>
                 <td>{{ t.type }}</td>
-                <td style="text-align: right; color:#10b981; font-weight:600;">{% if t.debit > 0 %}${{ t.debit|floatformat:2 }}{% else %}--{% endif %}</td>
-                <td style="text-align: right; color:var(--accent-color); font-weight:600;">{% if t.credit > 0 %}${{ t.credit|floatformat:2 }}{% else %}--{% endif %}</td>
+                <td style="text-align: right; color:#10b981; font-weight:600;">{% if t.debit > 0 %}BDT {{ t.debit|floatformat:2 }}{% else %}--{% endif %}</td>
+                <td style="text-align: right; color:var(--accent-color); font-weight:600;">{% if t.credit > 0 %}BDT {{ t.credit|floatformat:2 }}{% else %}--{% endif %}</td>
             </tr>
             {% endfor %}
             <!-- Totals row added via JavaScript -->
@@ -56,12 +56,12 @@
         {% for rev in income_statement.revenues %}
         <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px dashed var(--sidebar-border);">
             <span>{{ rev.code }} - {{ rev.name }}</span>
-            <span style="font-weight: 600; color: var(--text-primary);">${{ rev.balance|floatformat:2 }}</span>
+            <span style="font-weight: 600; color: var(--text-primary);">BDT {{ rev.balance|floatformat:2 }}</span>
         </div>
         {% endfor %}
         <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); font-weight: 700; border-radius:6px; margin-top: 8px;">
             <span>Total Revenue</span>
-            <span style="color: #10b981;">${{ income_statement.total_revenue|floatformat:2 }}</span>
+            <span style="color: #10b981;">BDT {{ income_statement.total_revenue|floatformat:2 }}</span>
         </div>
     </div>
 
@@ -71,19 +71,19 @@
         {% for exp in income_statement.expenses %}
         <div style="display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px dashed var(--sidebar-border);">
             <span>{{ exp.code }} - {{ exp.name }}</span>
-            <span style="font-weight: 600; color: var(--text-primary);">${{ exp.balance|floatformat:2 }}</span>
+            <span style="font-weight: 600; color: var(--text-primary);">BDT {{ exp.balance|floatformat:2 }}</span>
         </div>
         {% endfor %}
         <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.02); font-weight: 700; border-radius:6px; margin-top: 8px;">
             <span>Total Operating Expenses</span>
-            <span style="color: #ef4444;">${{ income_statement.total_expense|floatformat:2 }}</span>
+            <span style="color: #ef4444;">BDT {{ income_statement.total_expense|floatformat:2 }}</span>
         </div>
     </div>
 
     <!-- Net Profit -->
     <div style="display: flex; justify-content: space-between; padding: 18px; background: rgba(16,185,129,0.1); border: 1px solid #10b981; border-radius: 8px; font-weight: 800; font-size: 1.15rem; margin-top: 36px;">
         <span style="color:var(--text-primary);">NET PROFIT / INCOME</span>
-        <span style="color: #10b981;">${{ income_statement.net_profit|floatformat:2 }}</span>
+        <span style="color: #10b981;">BDT {{ income_statement.net_profit|floatformat:2 }}</span>
     </div>
 </div>
 
@@ -99,12 +99,12 @@
                 {% for asset in balance_sheet.assets %}
                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
                     <span>{{ asset.code }} - {{ asset.name }}</span>
-                    <span style="font-weight: 600; color: var(--text-primary);">${{ asset.balance|floatformat:2 }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">BDT {{ asset.balance|floatformat:2 }}</span>
                 </div>
                 {% endfor %}
                 <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--sidebar-border); margin-top: 16px;">
                     <span>TOTAL ASSETS</span>
-                    <span style="color:#10b981;">${{ balance_sheet.total_assets|floatformat:2 }}</span>
+                    <span style="color:#10b981;">BDT {{ balance_sheet.total_assets|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
@@ -117,7 +117,7 @@
                 {% for liab in balance_sheet.liabilities %}
                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
                     <span>{{ liab.code }} - {{ liab.name }}</span>
-                    <span style="font-weight: 600; color: var(--text-primary);">${{ liab.balance|floatformat:2 }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">BDT {{ liab.balance|floatformat:2 }}</span>
                 </div>
                 {% endfor %}
                 
@@ -125,13 +125,13 @@
                 {% for eq in balance_sheet.equity %}
                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--sidebar-border);">
                     <span>{{ eq.code }} - {{ eq.name }}</span>
-                    <span style="font-weight: 600; color: var(--text-primary);">${{ eq.balance|floatformat:2 }}</span>
+                    <span style="font-weight: 600; color: var(--text-primary);">BDT {{ eq.balance|floatformat:2 }}</span>
                 </div>
                 {% endfor %}
 
                 <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--sidebar-border); margin-top: 16px;">
                     <span>TOTAL LIABILITIES & EQUITY</span>
-                    <span style="color:var(--accent-color);">${{ balance_sheet.total_liabilities|add:balance_sheet.total_equity|floatformat:2 }}</span>
+                    <span style="color:var(--accent-color);">BDT {{ balance_sheet.total_liabilities|add:balance_sheet.total_equity|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
@@ -195,8 +195,8 @@
         row.style.borderTop = '2px solid var(--sidebar-border)';
         row.innerHTML = `
             <td colspan="3">Total Balances</td>
-            <td style="text-align: right; color: #10b981;">$${totalDebit.toFixed(2)}</td>
-            <td style="text-align: right; color: var(--accent-color);">$${totalCredit.toFixed(2)}</td>
+            <td style="text-align: right; color: #10b981;">BDT ${totalDebit.toFixed(2)}</td>
+            <td style="text-align: right; color: var(--accent-color);">BDT ${totalCredit.toFixed(2)}</td>
         `;
         tbody.appendChild(row);
     }

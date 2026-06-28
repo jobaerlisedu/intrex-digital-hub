@@ -41,15 +41,15 @@
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
             <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); padding: 16px; border-radius: 8px;">
                 <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 500;">Total Revenue</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: #10b981; margin-top: 4px;">৳{{ report_summary.total_revenue|floatformat:0 }}</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #10b981; margin-top: 4px;">BDT {{ report_summary.total_revenue|floatformat:0 }}</div>
             </div>
             <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); padding: 16px; border-radius: 8px;">
                 <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 500;">Total Expenses</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: #ef4444; margin-top: 4px;">৳{{ report_summary.total_expenses|floatformat:0 }}</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #ef4444; margin-top: 4px;">BDT {{ report_summary.total_expenses|floatformat:0 }}</div>
             </div>
             <div style="background: rgba(33, 92, 92, 0.05); border: 1px solid rgba(33, 92, 92, 0.2); padding: 16px; border-radius: 8px;">
                 <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 500;">Net Income</div>
-                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent-color); margin-top: 4px;">৳{{ report_summary.net_income|floatformat:0 }}</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent-color); margin-top: 4px;">BDT {{ report_summary.net_income|floatformat:0 }}</div>
             </div>
         </div>
 
@@ -69,8 +69,8 @@
                 <tr>
                     <td style="font-weight: 600; color: var(--text-primary);">{{ perf.title }}</td>
                     <td style="text-align: center;"><span class="badge info">{{ perf.enrolled }}</span></td>
-                    <td style="text-align: right; font-weight: 600; color: #10b981;">৳{{ perf.collected|floatformat:0 }}</td>
-                    <td style="text-align: right; font-weight: 600; color: #ef4444;">৳{{ perf.due|floatformat:0 }}</td>
+                    <td style="text-align: right; font-weight: 600; color: #10b981;">BDT {{ perf.collected|floatformat:0 }}</td>
+                    <td style="text-align: right; font-weight: 600; color: #ef4444;">BDT {{ perf.due|floatformat:0 }}</td>
                 </tr>
                 {% empty %}
                 <tr>

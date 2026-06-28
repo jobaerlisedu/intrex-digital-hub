@@ -51,21 +51,21 @@
     <div class="glass-card kpi-card" style="margin-bottom: 0;">
         <i class="fa-solid fa-vault kpi-icon"></i>
         <div class="kpi-label">Capital Managed</div>
-        <div class="kpi-value">${{ total_capital_managed|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ total_capital_managed|floatformat:2 }}</div>
         <small style="color: #10b981; font-weight: 600;"><i class="fa-solid fa-circle-arrow-up"></i> Active Pool</small>
     </div>
     
     <div class="glass-card kpi-card" style="margin-bottom: 0;">
         <i class="fa-solid fa-chart-pie kpi-icon"></i>
         <div class="kpi-label">Outbound Allocated</div>
-        <div class="kpi-value">${{ total_outbound|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ total_outbound|floatformat:2 }}</div>
         <small style="color: var(--accent-color); font-weight: 600;"><i class="fa-solid fa-circle-info"></i> Project Allocation</small>
     </div>
 
     <div class="glass-card kpi-card" style="margin-bottom: 0;">
         <i class="fa-solid fa-hand-holding-dollar kpi-icon"></i>
         <div class="kpi-label">Interest Due</div>
-        <div class="kpi-value">${{ total_interest_due|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ total_interest_due|floatformat:2 }}</div>
         <small style="color: #ef4444; font-weight: 600;"><i class="fa-solid fa-clock"></i> Unpaid Schedules</small>
     </div>
 
@@ -111,8 +111,8 @@
                     <tr>
                         <td style="font-weight: 600; color: var(--text-primary);">{{ p.investor_name }}</td>
                         <td>{{ p.due_date }}</td>
-                        <td>${{ p.interest|floatformat:2 }}</td>
-                        <td style="font-weight: 600; color: #ef4444;">${{ p.total|floatformat:2 }}</td>
+                        <td>BDT {{ p.interest|floatformat:2 }}</td>
+                        <td style="font-weight: 600; color: #ef4444;">BDT {{ p.total|floatformat:2 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -144,7 +144,7 @@
                 labels: {{ chart_months|safe }},
                 datasets: [
                     {
-                        label: 'Inbound Capital Inflow ($)',
+                        label: 'Inbound Capital Inflow (BDT)',
                         data: {{ inflow_data|safe }},
                         borderColor: '#0f766e',
                         backgroundColor: 'rgba(15, 118, 110, 0.1)',
@@ -153,7 +153,7 @@
                         tension: 0.4
                     },
                     {
-                        label: 'Servicing Outflows ($)',
+                        label: 'Servicing Outflows (BDT)',
                         data: {{ outflow_data|safe }},
                         borderColor: '#ef4444',
                         backgroundColor: 'rgba(239, 68, 68, 0.05)',

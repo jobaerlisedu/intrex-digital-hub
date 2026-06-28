@@ -54,7 +54,7 @@
             </div>
             
             <div class="form-group">
-                <label>Annual Package (৳)</label>
+                <label>Annual Package (BDT)</label>
                 <input type="number" step="0.01" name="package" id="package" class="form-control" placeholder="e.g. 360000.00">
             </div>
 
@@ -104,7 +104,7 @@
                 <td style="font-weight: 600; color: var(--text-primary);">{{ plc.student_name }}</td>
                 <td>{{ plc.company }}</td>
                 <td>{{ plc.role }}</td>
-                <td>৳{{ plc.package|floatformat:2 }}</td>
+                <td>BDT {{ plc.package|floatformat:2 }}</td>
                 <td>
                     <span class="badge {% if plc.status == 'Placed' %}success{% else %}warning{% endif %}">
                         {{ plc.status }}

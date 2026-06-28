@@ -333,12 +333,14 @@ def project_sourcing(request):
         r['phase_name'] = ph_map.get(ph_id, {}).get('phase_name', 'Unknown')
 
     requisitions_json = json.dumps(requisitions)
+    phases_json = json.dumps(phases)
 
     return render(request, 'solutions/sourcing.html', {
         'requisitions': requisitions,
         'projects': projects,
         'phases': phases,
-        'requisitions_json': requisitions_json
+        'requisitions_json': requisitions_json,
+        'phases_json': phases_json
     })
 
 

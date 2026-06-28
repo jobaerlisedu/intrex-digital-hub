@@ -49,7 +49,7 @@
             </div>
 
             <div class="form-group">
-                <label>Face Value ($) <span class="asterisk">*</span></label>
+                <label>Face Value (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="face_value" id="face_value" class="form-control" required placeholder="10.00">
             </div>
             
@@ -112,7 +112,7 @@
             <tr>
                 <td style="font-weight: 700; color: var(--accent-color);">{{ inst.instrument_code }}</td>
                 <td>{{ inst.type }}</td>
-                <td>${{ inst.face_value|floatformat:2 }}</td>
+                <td>BDT {{ inst.face_value|floatformat:2 }}</td>
                 <td>{% if inst.coupon_rate %}{{ inst.coupon_rate }}%{% else %}--{% endif %}</td>
                 <td>{{ inst.total_units_issued }}</td>
                 <td>{{ inst.units_outstanding }}</td>

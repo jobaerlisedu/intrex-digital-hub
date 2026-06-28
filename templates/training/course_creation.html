@@ -126,7 +126,7 @@
                 </td>
                 <td>{{ course.target }}</td>
                 <td style="text-align: center;">{{ course.duration }}</td>
-                <td style="text-align: right; font-weight: 600; color: var(--text-primary);">৳{{ course.fee|floatformat:0 }}</td>
+                <td style="text-align: right; font-weight: 600; color: var(--text-primary);">BDT {{ course.fee|floatformat:0 }}</td>
                 <td style="text-align: center;">
                     <span class="badge {% if course.status == 'Active' %}success{% else %}danger{% endif %}">
                         {{ course.status }}

@@ -54,12 +54,12 @@
             </div>
 
             <div class="form-group">
-                <label>Allocated Capital ($) <span class="asterisk">*</span></label>
+                <label>Allocated Capital (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="allocated_capital" id="allocated_capital" class="form-control" required placeholder="0.00">
             </div>
             
             <div class="form-group">
-                <label>Current Valuation ($) <span class="asterisk">*</span></label>
+                <label>Current Valuation (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="current_valuation" id="current_valuation" class="form-control" required placeholder="0.00">
             </div>
 
@@ -115,8 +115,8 @@
             <tr>
                 <td style="font-weight: 600; color: var(--text-primary);">{{ out.project_name }}</td>
                 <td>{{ out.entity_type }}</td>
-                <td>${{ out.allocated_capital|floatformat:2 }}</td>
-                <td style="font-weight: 600; color: #10b981;">${{ out.current_valuation|floatformat:2 }}</td>
+                <td>BDT {{ out.allocated_capital|floatformat:2 }}</td>
+                <td style="font-weight: 600; color: #10b981;">BDT {{ out.current_valuation|floatformat:2 }}</td>
                 <td>{{ out.roi_expected_annual }}%</td>
                 <td>
                     <span class="badge {% if out.status == 'Active' %}success{% elif out.status == 'Liquidated' %}warning{% else %}danger{% endif %}">

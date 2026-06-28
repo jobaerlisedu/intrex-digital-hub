@@ -100,7 +100,7 @@
           {% for adv in advances %}
           <tr class="adv-row" data-name="{{ adv.employee }}">
             <td><strong>{{ adv.employee }}</strong></td>
-            <td>${{ adv.amount|floatformat:2 }}</td>
+            <td>BDT {{ adv.amount|floatformat:2 }}</td>
             <td>{{ adv.deduct_month }}</td>
             <td>
               <span class="badge {% if adv.status == 'Deducted' %}success{% else %}warning{% endif %}">
@@ -176,11 +176,11 @@
           </tr>
         </thead>
         <tbody>
-          {% for pr in payrolls %}
-          <tr>
-            <td><strong>{{ pr.period }}</strong></td>
-            <td>{{ pr.employee_count }}</td>
-            <td>${{ pr.total_net_pay|floatformat:2 }}</td>
+           {% for pr in payrolls %}
+           <tr>
+             <td><strong>{{ pr.period }}</strong></td>
+             <td>{{ pr.employee_count }}</td>
+             <td>BDT {{ pr.total_net_pay|floatformat:2 }}</td>
             <td>
               {% if pr.id %}
               <div style="display: flex; gap: 8px; align-items: center;">
@@ -317,19 +317,19 @@ function showPayslip() {
                     <p><strong>Period:</strong> ${data.period}</p>
                     <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 20px 0;">
                     <table style="width: 100%; text-align: left;">
-                        <tr><td style="padding: 8px 0;">Basic Salary</td><td style="text-align: right;">$${data.basic_salary.toFixed(2)}</td></tr>
-                        <tr><td style="padding: 8px 0;">House Rent Allowance</td><td style="text-align: right;">$${data.house_rent.toFixed(2)}</td></tr>
-                        <tr><td style="padding: 8px 0;">Medical Allowance</td><td style="text-align: right;">$${data.medical_allowance.toFixed(2)}</td></tr>
+                        <tr><td style="padding: 8px 0;">Basic Salary</td><td style="text-align: right;">BDT ${data.basic_salary.toFixed(2)}</td></tr>
+                        <tr><td style="padding: 8px 0;">House Rent Allowance</td><td style="text-align: right;">BDT ${data.house_rent.toFixed(2)}</td></tr>
+                        <tr><td style="padding: 8px 0;">Medical Allowance</td><td style="text-align: right;">BDT ${data.medical_allowance.toFixed(2)}</td></tr>
                         <tr>
                             <td style="padding: 8px 0; color: #ef4444;">
                                 Absent Deduction (${data.absent_days} Days absent)
                             </td>
-                            <td style="text-align: right; color: #ef4444;">-$${data.absent_deduction.toFixed(2)}</td>
+                            <td style="text-align: right; color: #ef4444;">-BDT ${data.absent_deduction.toFixed(2)}</td>
                         </tr>
-                        <tr><td style="padding: 8px 0; color: #ef4444;">Advance Deduction</td><td style="text-align: right; color: #ef4444;">-$${data.advance_deduction.toFixed(2)}</td></tr>
-                        <tr><td style="padding: 8px 0; color: #ef4444;">Tax Deduction (5%)</td><td style="text-align: right; color: #ef4444;">-$${data.tax_deduction.toFixed(2)}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #ef4444;">Advance Deduction</td><td style="text-align: right; color: #ef4444;">-BDT ${data.advance_deduction.toFixed(2)}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #ef4444;">Tax Deduction (5%)</td><td style="text-align: right; color: #ef4444;">-BDT ${data.tax_deduction.toFixed(2)}</td></tr>
                         <tr><td colspan="2"><hr style="border: 0; border-top: 1px dashed var(--sidebar-border); margin: 10px 0;"></td></tr>
-                        <tr><td><strong>Net Pay</strong></td><td style="text-align: right;"><strong>$${data.net_pay.toFixed(2)}</strong></td></tr>
+                        <tr><td><strong>Net Pay</strong></td><td style="text-align: right;"><strong>BDT ${data.net_pay.toFixed(2)}</strong></td></tr>
                     </table>
                 </div>
             `;

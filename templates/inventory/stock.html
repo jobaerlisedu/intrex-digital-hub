@@ -57,7 +57,7 @@
             </div>
 
             <div class="form-group">
-                <label>Unit Value ($) <span class="asterisk">*</span></label>
+                <label>Unit Value (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="unit_price" id="unit_price" class="form-control" required placeholder="0.00">
             </div>
 
@@ -107,9 +107,9 @@
                 <td><strong style="color: var(--text-primary);">{{ p.item_name }}</strong></td>
                 <td>{{ p.category }}</td>
                 <td>{{ p.storage_location }}</td>
-                <td>${{ p.unit_price|floatformat:2 }}</td>
+                <td>BDT {{ p.unit_price|floatformat:2 }}</td>
                 <td style="font-weight: 700; {% if p.quantity <= 10 %}color: #ef4444;{% endif %}">{{ p.quantity }}</td>
-                <td style="font-weight: 600; color: var(--text-primary);">${{ p.quantity|add:0|multiply:p.unit_price|floatformat:2 }}</td>
+                <td style="font-weight: 600; color: var(--text-primary);">BDT {{ p.total_value|floatformat:2 }}</td>
                 <td>
                     {{ p|json_script:p.id }}
                     <div class="action-group">
@@ -159,7 +159,7 @@
                 <td style="font-weight: 700; {% if entry.quantity_change > 0 %}color: #10b981;{% else %}color: #ef4444;{% endif %}">
                     {% if entry.quantity_change > 0 %}+{% endif %}{{ entry.quantity_change }}
                 </td>
-                <td>{% if entry.unit_cost > 0 %}${{ entry.unit_cost|floatformat:2 }}{% else %}--{% endif %}</td>
+                <td>{% if entry.unit_cost > 0 %}BDT {{ entry.unit_cost|floatformat:2 }}{% else %}--{% endif %}</td>
                 <td>
                     <span class="badge {% if entry.transaction_type == 'PO_Receipt' %}success{% elif entry.transaction_type == 'Client_Handover' %}danger{% else %}warning{% endif %}">
                         {{ entry.transaction_type }}

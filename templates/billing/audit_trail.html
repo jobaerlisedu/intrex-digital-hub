@@ -55,11 +55,7 @@
 
 {% block extra_js %}
 <script>
-    {% if trail %}
-    const trailDb = JSON.parse('{{ trail|json_script:"trail-data" }}' ? document.getElementById('trail-data').textContent : '[]');
-    {% else %}
-    const trailDb = [];
-    {% endif %}
+    const trailDb = JSON.parse('{{ trail_json|escapejs }}');
 
     function viewAuditDiff(id) {
         const log = trailDb.find(t => t.id === id);

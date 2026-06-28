@@ -58,7 +58,7 @@
             </div>
 
             <div class="form-group">
-                <label>Estimated Total Cost ($) <span class="asterisk">*</span></label>
+                <label>Estimated Total Cost (BDT) <span class="asterisk">*</span></label>
                 <input type="number" step="0.01" name="estimated_cost" id="estimated_cost" class="form-control" required placeholder="0.00">
             </div>
         </div>
@@ -102,7 +102,7 @@
                 <td><strong style="color: var(--text-primary);">{{ req.phase_name }}</strong></td>
                 <td>{{ req.item_name }}</td>
                 <td>{{ req.quantity|floatformat:1 }}</td>
-                <td style="font-weight: 700;">${{ req.estimated_cost|floatformat:2 }}</td>
+                <td style="font-weight: 700;">BDT {{ req.estimated_cost|floatformat:2 }}</td>
                 <td>
                     <span class="badge {% if req.status == 'Approved' %}success{% else %}warning{% endif %}">
                         {{ req.status }}
@@ -145,12 +145,7 @@
 <script>
     const requisitionsDb = JSON.parse('{{ requisitions_json|escapejs }}');
     
-    // Inject phases database
-    {% if phases %}
-    const phasesDb = JSON.parse('{{ phases|json_script:"phases-data" }}' ? document.getElementById('phases-data').textContent : '[]');
-    {% else %}
-    const phasesDb = [];
-    {% endif %}
+    const phasesDb = JSON.parse('{{ phases_json|escapejs }}');
 
     function switchTab(tab) {
         const formDiv = document.getElementById("tab-form");
@@ -188,7 +183,7 @@
         filteredPhases.forEach(ph => {
             const opt = document.createElement('option');
             opt.value = ph.id;
-            opt.innerText = `${ph.phase_name} (Budget: $${ph.budget_allocation.toFixed(2)})`;
+            opt.innerText = `${ph.phase_name} (Budget: BDT ${ph.budget_allocation.toFixed(2)})`;
             phaseSelect.appendChild(opt);
         });
     }

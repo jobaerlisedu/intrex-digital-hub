@@ -297,12 +297,14 @@ def rfq_list(request):
         r['quotes'] = [q for q in quotations if q.get('rfq_id') == r['id']]
 
     rfqs_json = json.dumps(rfqs)
+    requisitions_json = json.dumps(requisitions)
 
     return render(request, 'inventory/rfq.html', {
         'rfqs': rfqs,
         'requisitions': requisitions,
         'vendors': vendors,
-        'rfqs_json': rfqs_json
+        'rfqs_json': rfqs_json,
+        'requisitions_json': requisitions_json
     })
 
 
@@ -456,11 +458,13 @@ def grn_list(request):
     po_docs = db.collection('purchase_orders').where('status', 'in', ['Approved', 'Partially Received']).stream()
     purchase_orders = [serialize_doc(po) for po in po_docs]
     po_json = json.dumps(purchase_orders)
+    grns_json = json.dumps(grns)
 
     return render(request, 'inventory/grn.html', {
         'goods_receipts': grns,
         'purchase_orders': purchase_orders,
-        'pos_json': po_json
+        'pos_json': po_json,
+        'grns_json': grns_json
     })
 
 
@@ -514,6 +518,8 @@ def stock_list(request):
     # GET context
     prod_docs = db.collection('products').stream()
     products = [serialize_doc(p) for p in prod_docs]
+    for p in products:
+        p['total_value'] = float(p.get('quantity', 0.0)) * float(p.get('unit_price', 0.0))
     products_json = json.dumps(products)
 
     ledger_docs = db.collection('inventory_ledger').stream()

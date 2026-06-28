@@ -65,9 +65,9 @@
                 <td><strong style="color: var(--text-primary);" class="investor-name">{{ s.investor_name }}</strong></td>
                 <td><span class="inst-num">{{ s.installment_number }}</span></td>
                 <td><span class="due-date">{{ s.due_date }}</span></td>
-                <td><span class="principal-due">${{ s.scheduled_principal|floatformat:2 }}</span></td>
-                <td><span class="interest-due">${{ s.scheduled_interest|floatformat:2 }}</span></td>
-                <td style="font-weight: 600; color: var(--text-primary);">${{ s.scheduled_principal|add:s.scheduled_interest|floatformat:2 }}</td>
+                <td><span class="principal-due">BDT {{ s.scheduled_principal|floatformat:2 }}</span></td>
+                <td><span class="interest-due">BDT {{ s.scheduled_interest|floatformat:2 }}</span></td>
+                <td style="font-weight: 600; color: var(--text-primary);">BDT {{ s.scheduled_principal|add:s.scheduled_interest|floatformat:2 }}</td>
                 <td>
                     <span class="badge payment-status {% if s.payment_status == 'Paid' %}status-paid{% else %}status-unpaid{% endif %}">
                         {{ s.payment_status }}

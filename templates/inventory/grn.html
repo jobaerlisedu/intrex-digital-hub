@@ -134,13 +134,8 @@
 
 {% block extra_js %}
 <script>
-    {% if purchase_orders %}
-    const posDb = JSON.parse('{{ purchase_orders|json_script:"pos-data" }}' ? document.getElementById('pos-data').textContent : '[]');
-    {% else %}
-    const posDb = [];
-    {% endif %}
-
-    const grnsDb = {{ goods_receipts|safe|default:"[]" }};
+    const posDb = JSON.parse('{{ pos_json|escapejs }}');
+    const grnsDb = JSON.parse('{{ grns_json|escapejs }}');
 
     document.addEventListener('DOMContentLoaded', () => {
         const dateInput = document.getElementById('received_date');

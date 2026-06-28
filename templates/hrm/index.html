@@ -28,7 +28,7 @@
                 <input type="text" name="department" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Salary ($)</label>
+                <label>Salary (BDT)</label>
                 <input type="number" name="salary" class="form-control" required>
             </div>
             <div class="form-group">
@@ -65,7 +65,7 @@
                 </td>
                 <td>{{ emp.position }}</td>
                 <td>{{ emp.department }}</td>
-                <td>${{ emp.salary }}</td>
+                <td>BDT {{ emp.salary }}</td>
                 <td>
                     <span class="badge {% if emp.status == 'Active' %}success{% elif emp.status == 'On Leave' %}warning{% else %}danger{% endif %}">
                         {{ emp.status }}

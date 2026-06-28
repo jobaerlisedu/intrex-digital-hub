@@ -52,8 +52,8 @@
             <thead>
                 <tr>
                     <th style="width: 50%;">General Ledger Account</th>
-                    <th style="width: 20%;">Debit Amount ($)</th>
-                    <th style="width: 20%;">Credit Amount ($)</th>
+                    <th style="width: 20%;">Debit Amount (BDT)</th>
+                    <th style="width: 20%;">Credit Amount (BDT)</th>
                     <th style="width: 10%;">Action</th>
                 </tr>
             </thead>
@@ -64,9 +64,9 @@
 
         <!-- Line item totals check -->
         <div style="display: flex; justify-content: flex-end; gap: 24px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--sidebar-border); border-top: none; font-weight: 700; border-radius: 0 0 8px 8px;">
-            <div>Total Debits: <span id="sum-debits" style="color:var(--accent-color);">$0.00</span></div>
-            <div>Total Credits: <span id="sum-credits" style="color:var(--accent-color);">$0.00</span></div>
-            <div>Out of Balance: <span id="balance-check" style="color:#ef4444;">$0.00</span></div>
+            <div>Total Debits: <span id="sum-debits" style="color:var(--accent-color);">BDT 0.00</span></div>
+            <div>Total Credits: <span id="sum-credits" style="color:var(--accent-color);">BDT 0.00</span></div>
+            <div>Out of Balance: <span id="balance-check" style="color:#ef4444;">BDT 0.00</span></div>
         </div>
 
         <button type="button" onclick="addNewLine()" class="btn-submit" style="background: rgba(255,255,255,0.05); border: 1px solid var(--sidebar-border); color: var(--text-primary); margin-top: 12px;">
@@ -167,11 +167,7 @@
     const journalsDb = JSON.parse('{{ journals_json|escapejs }}');
     
     // Pass accounts context for dynamic rows
-    {% if accounts %}
-    const accountsDb = JSON.parse('{{ accounts|json_script:"accounts-data" }}' ? document.getElementById('accounts-data').textContent : '[]');
-    {% else %}
-    const accountsDb = [];
-    {% endif %}
+    const accountsDb = JSON.parse('{{ accounts_json|escapejs }}');
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('posting_date').value = new Date().toISOString().substring(0, 10);
@@ -246,12 +242,12 @@
             credits += parseFloat(input.value || 0.0);
         });
 
-        document.getElementById('sum-debits').innerText = `$${debits.toFixed(2)}`;
-        document.getElementById('sum-credits').innerText = `$${credits.toFixed(2)}`;
+        document.getElementById('sum-debits').innerText = `BDT ${debits.toFixed(2)}`;
+        document.getElementById('sum-credits').innerText = `BDT ${credits.toFixed(2)}`;
         
         const balance = Math.abs(debits - credits);
         const checkSpan = document.getElementById('balance-check');
-        checkSpan.innerText = `$${balance.toFixed(2)}`;
+        checkSpan.innerText = `BDT ${balance.toFixed(2)}`;
 
         if (balance < 0.001 && debits > 0) {
             checkSpan.style.color = '#10b981'; // Green (Balanced)
@@ -320,8 +316,8 @@
             linesHtml += `
                 <tr>
                     <td><strong>${line.account_name}</strong></td>
-                    <td style="text-align: right; font-weight: 600; color: #10b981;">${line.debit_amount > 0 ? '$' + line.debit_amount.toFixed(2) : '--'}</td>
-                    <td style="text-align: right; font-weight: 600; color: var(--accent-color);">${line.credit_amount > 0 ? '$' + line.credit_amount.toFixed(2) : '--'}</td>
+                    <td style="text-align: right; font-weight: 600; color: #10b981;">${line.debit_amount > 0 ? 'BDT ' + line.debit_amount.toFixed(2) : '--'}</td>
+                    <td style="text-align: right; font-weight: 600; color: var(--accent-color);">${line.credit_amount > 0 ? 'BDT ' + line.credit_amount.toFixed(2) : '--'}</td>
                 </tr>
             `;
             totalDeb += parseFloat(line.debit_amount || 0.0);
@@ -331,8 +327,8 @@
         linesHtml += `
             <tr style="font-weight: 700; border-top: 2px solid var(--sidebar-border);">
                 <td>Total Balances</td>
-                <td style="text-align: right; color: #10b981;">$${totalDeb.toFixed(2)}</td>
-                <td style="text-align: right; color: var(--accent-color);">$${totalCred.toFixed(2)}</td>
+                <td style="text-align: right; color: #10b981;">BDT ${totalDeb.toFixed(2)}</td>
+                <td style="text-align: right; color: var(--accent-color);">BDT ${totalCred.toFixed(2)}</td>
             </tr>
             </tbody></table>
         `;

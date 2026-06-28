@@ -34,9 +34,9 @@
                     <div style="font-size: 0.85rem; color: var(--text-secondary);">Batch: {{ p.batch }}</div>
                 </td>
                 <td>
-                    <div>Total Fee: ৳{{ p.totalFee|floatformat:0 }}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Discount: ৳{{ p.discount|floatformat:0 }} | Paid: ৳{{ p.amountPaid|floatformat:0 }}</div>
-                    <div style="font-weight: 600; color: #ef4444; font-size: 0.85rem;">Due: ৳{{ p.dueAmount|floatformat:0 }}</div>
+                    <div>Total Fee: BDT {{ p.totalFee|floatformat:0 }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Discount: BDT {{ p.discount|floatformat:0 }} | Paid: BDT {{ p.amountPaid|floatformat:0 }}</div>
+                    <div style="font-weight: 600; color: #ef4444; font-size: 0.85rem;">Due: BDT {{ p.dueAmount|floatformat:0 }}</div>
                 </td>
                 <td>
                     <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -45,7 +45,7 @@
                             <span class="badge {% if inst.status == 'Paid' or inst.status == 'paid' %}success{% else %}danger{% endif %}" style="padding: 2px 6px; font-size: 0.7rem;">
                                 {{ inst.status|upper }}
                             </span>
-                            <span style="color: var(--text-primary);">৳{{ inst.amount|floatformat:0 }}</span>
+                            <span style="color: var(--text-primary);">BDT {{ inst.amount|floatformat:0 }}</span>
                             <span style="color: var(--text-secondary); font-size: 0.8rem;">(Due: {{ inst.dueDate }})</span>
                         </div>
                         {% endfor %}

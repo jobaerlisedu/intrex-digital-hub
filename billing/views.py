@@ -122,7 +122,7 @@ def chart_of_accounts(request):
                 'account_code': request.POST.get('account_code'),
                 'name': request.POST.get('name'),
                 'account_type': request.POST.get('account_type'),
-                'currency': request.POST.get('currency', 'USD'),
+                'currency': request.POST.get('currency', 'BDT'),
                 'is_active': request.POST.get('is_active') == 'True'
             }
 
@@ -183,7 +183,7 @@ def general_journal(request):
 
             # Enforce double-entry integrity
             if abs(total_debit - total_credit) > 0.001:
-                messages.error(request, f"Unbalanced Journal: Sum of Debits (${total_debit}) must equal Credits (${total_credit})!")
+                messages.error(request, f"Unbalanced Journal: Sum of Debits (BDT {total_debit}) must equal Credits (BDT {total_credit})!")
                 return redirect('billing:general_journal')
 
             data = {
@@ -257,11 +257,13 @@ def general_journal(request):
             line['account_name'] = acc_map.get(line.get('account_id'), 'Unknown Account')
 
     journals_json = json.dumps(journals)
+    accounts_json = json.dumps(accounts)
 
     return render(request, 'billing/general_journal.html', {
         'journals': journals,
         'accounts': accounts,
-        'journals_json': journals_json
+        'journals_json': journals_json,
+        'accounts_json': accounts_json
     })
 
 
@@ -600,6 +602,9 @@ def audit_trail(request):
     # Sort descending by timestamp
     trail.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
 
+    trail_json = json.dumps(trail)
+
     return render(request, 'billing/audit_trail.html', {
-        'trail': trail
+        'trail': trail,
+        'trail_json': trail_json
     })

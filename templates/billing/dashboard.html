@@ -56,22 +56,22 @@
 <div class="kpi-container">
     <div class="kpi-card green">
         <div class="kpi-label">Liquid Cash Balance</div>
-        <div class="kpi-value">${{ cash_balance|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ cash_balance|floatformat:2 }}</div>
         <div style="font-size: 0.8rem; color: #10b981;"><i class="fa-solid fa-circle-check"></i> Reconciled</div>
     </div>
     <div class="kpi-card orange">
         <div class="kpi-label">Receivables Overdue</div>
-        <div class="kpi-value">${{ receivables_overdue|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ receivables_overdue|floatformat:2 }}</div>
         <div style="font-size: 0.8rem; color: var(--text-secondary);">Sales pending collection</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-label">Accounts Payable Due</div>
-        <div class="kpi-value">${{ payables_due|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ payables_due|floatformat:2 }}</div>
         <div style="font-size: 0.8rem; color: var(--text-secondary);">Scheduled vendor bills</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Net Profit / Margin</div>
-        <div class="kpi-value">${{ net_profit|floatformat:2 }}</div>
+        <div class="kpi-value">BDT {{ net_profit|floatformat:2 }}</div>
         <div style="font-size: 0.8rem; color: var(--accent-color); font-weight:700;"><i class="fa-solid fa-percent"></i> {{ net_profit_margin|floatformat:1 }}% Margin</div>
     </div>
 </div>
@@ -129,7 +129,7 @@
                 <tr>
                     <td style="font-weight: 700; color: var(--accent-color);">{{ inv.invoice_number }}</td>
                     <td>{{ inv.client_name }}</td>
-                    <td style="font-weight: 600;">${{ inv.grand_total|floatformat:2 }}</td>
+                    <td style="font-weight: 600;">BDT {{ inv.grand_total|floatformat:2 }}</td>
                     <td>
                         <span class="badge {% if inv.status == 'Paid' %}success{% else %}warning{% endif %}">{{ inv.status }}</span>
                     </td>
@@ -160,7 +160,7 @@
                 <tr>
                     <td style="font-weight: 700; color: var(--accent-color);">{{ bill.bill_number }}</td>
                     <td>{{ bill.vendor_name }}</td>
-                    <td style="font-weight: 600;">${{ bill.grand_total|floatformat:2 }}</td>
+                    <td style="font-weight: 600;">BDT {{ bill.grand_total|floatformat:2 }}</td>
                     <td>
                         <span class="badge {% if bill.status == 'Paid' %}success{% else %}warning{% endif %}">{{ bill.status }}</span>
                     </td>
@@ -187,7 +187,7 @@
                 labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
                 datasets: [
                     {
-                        label: 'Cash Inflow ($)',
+                        label: 'Cash Inflow (BDT)',
                         data: [12000, 19000, 15000, 24000, 22000, 30000],
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -195,7 +195,7 @@
                         fill: true
                     },
                     {
-                        label: 'Cash Outflow ($)',
+                        label: 'Cash Outflow (BDT)',
                         data: [8000, 12000, 11000, 15000, 18000, 21000],
                         borderColor: '#ef4444',
                         backgroundColor: 'rgba(239, 68, 68, 0.1)',
