@@ -78,6 +78,21 @@
         color: #ffffff;
         border-color: var(--accent-color);
     }
+    /* Dynamic filter select styling */
+    .filter-select {
+        width: auto !important;
+        padding: 8px 32px 8px 12px !important;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23475569%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 10px center !important;
+        background-size: 14px !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
 </style>
 {% endblock %}
 
@@ -167,7 +182,7 @@
             
             <div style="display: flex; gap: 8px; align-items: center;">
                 <input type="text" id="search-dept" onkeyup="filterDepts()" class="form-control" placeholder="Search name..." style="width: 180px; padding: 8px 12px;">
-                <select id="filter-dept-status" onchange="filterDepts()" class="form-control" style="width: 130px; padding: 8px 12px;">
+                <select id="filter-dept-status" onchange="filterDepts()" class="form-control filter-select" style="min-width: 120px;">
                     <option value="all">All Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -304,9 +319,15 @@
                 <i class="fa-solid fa-sitemap" style="color: var(--accent-color);"></i> Sub Department Directory
             </h3>
             
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="text" id="search-subdept" onkeyup="filterSubDepts()" class="form-control" placeholder="Search..." style="width: 180px; padding: 8px 12px;">
-                <select id="filter-subdept-status" onchange="filterSubDepts()" class="form-control" style="width: 130px; padding: 8px 12px;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="search-subdept" onkeyup="filterSubDepts()" class="form-control" placeholder="Search..." style="width: 150px; padding: 8px 12px;">
+                <select id="filter-subdept-dept" onchange="filterSubDepts()" class="form-control filter-select" style="min-width: 160px; max-width: 250px;">
+                    <option value="all">All Departments</option>
+                    {% for d in departments %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+                <select id="filter-subdept-status" onchange="filterSubDepts()" class="form-control filter-select" style="min-width: 120px;">
                     <option value="all">All Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -429,9 +450,21 @@
                     <i class="fa-solid fa-id-card" style="color: var(--accent-color);"></i> Position Directory
                 </h3>
                 
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="search-position" onkeyup="searchPositions()" class="form-control" placeholder="Search..." style="width: 180px; padding: 8px 12px;">
-                    <select id="filter-position-status" onchange="searchPositions()" class="form-control" style="width: 130px; padding: 8px 12px;">
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="search-position" onkeyup="searchPositions()" class="form-control" placeholder="Search..." style="width: 130px; padding: 8px 12px;">
+                    <select id="filter-position-dept" onchange="filterPositionSubDepts(); searchPositions();" class="form-control filter-select" style="min-width: 160px; max-width: 250px;">
+                        <option value="all">All Departments</option>
+                        {% for d in departments %}
+                        <option value="{{ d.name }}" data-id="{{ d.id }}">{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="filter-position-subdept" onchange="searchPositions()" class="form-control filter-select" style="min-width: 160px; max-width: 250px;">
+                        <option value="all">All Sub Depts</option>
+                        {% for sd in sub_departments %}
+                        <option value="{{ sd.name }}" data-parent-id="{{ sd.parent_id }}">{{ sd.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select id="filter-position-status" onchange="searchPositions()" class="form-control filter-select" style="min-width: 120px;">
                         <option value="all">All Status</option>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -554,18 +587,20 @@
     // Filters for Sub Department Directory
     function filterSubDepts() {
         const query = document.getElementById('search-subdept').value.toLowerCase();
+        const deptVal = document.getElementById('filter-subdept-dept').value;
         const statusVal = document.getElementById('filter-subdept-status').value;
         const rows = document.querySelectorAll('.subdept-row');
         
         rows.forEach(row => {
             const name = row.getAttribute('data-name').toLowerCase();
-            const parent = row.getAttribute('data-parent').toLowerCase();
+            const parent = row.getAttribute('data-parent');
             const status = row.getAttribute('data-status');
             
-            const matchQuery = name.includes(query) || parent.includes(query);
+            const matchQuery = name.includes(query) || parent.toLowerCase().includes(query);
+            const matchDept = (deptVal === 'all' || parent === deptVal);
             const matchStatus = (statusVal === 'all' || status === statusVal);
             
-            if (matchQuery && matchStatus) {
+            if (matchQuery && matchDept && matchStatus) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
@@ -596,6 +631,32 @@
             subDeptSelect.value = "";
         }
     }
+
+    // Dynamic Filter for Sub Department selection dropdown in Position Directory filters
+    function filterPositionSubDepts() {
+        const deptSelect = document.getElementById('filter-position-dept');
+        const subDeptSelect = document.getElementById('filter-position-subdept');
+        const selectedDeptOpt = deptSelect.options[deptSelect.selectedIndex];
+        const selectedDeptId = selectedDeptOpt ? selectedDeptOpt.getAttribute('data-id') : '';
+        
+        let hasVisibleSelected = false;
+        for (let i = 0; i < subDeptSelect.options.length; i++) {
+            const opt = subDeptSelect.options[i];
+            if (opt.value === "all") continue;
+            
+            const parentId = opt.getAttribute('data-parent-id');
+            if (!selectedDeptId || parentId === selectedDeptId) {
+                opt.style.display = '';
+                if (opt.selected) hasVisibleSelected = true;
+            } else {
+                opt.style.display = 'none';
+            }
+        }
+        
+        if (!hasVisibleSelected && subDeptSelect.value !== "all") {
+            subDeptSelect.value = "all";
+        }
+    }
     
     // Client-side Pagination & Search for Position Directory
     let currentPosPage = 1;
@@ -604,20 +665,24 @@
     
     function searchPositions() {
         const query = document.getElementById('search-position').value.toLowerCase();
+        const deptVal = document.getElementById('filter-position-dept').value;
+        const subdeptVal = document.getElementById('filter-position-subdept').value;
         const statusVal = document.getElementById('filter-position-status').value;
         const rows = document.querySelectorAll('.position-row');
         
         filteredPosRows = [];
         rows.forEach(row => {
             const title = row.getAttribute('data-title').toLowerCase();
-            const dept = row.getAttribute('data-dept').toLowerCase();
-            const subdept = row.getAttribute('data-subdept').toLowerCase();
+            const dept = row.getAttribute('data-dept');
+            const subdept = row.getAttribute('data-subdept');
             const status = row.getAttribute('data-status');
             
-            const matchQuery = title.includes(query) || dept.includes(query) || subdept.includes(query);
+            const matchQuery = title.includes(query) || dept.toLowerCase().includes(query) || subdept.toLowerCase().includes(query);
+            const matchDept = (deptVal === 'all' || dept === deptVal);
+            const matchSubdept = (subdeptVal === 'all' || subdept === subdeptVal);
             const matchStatus = (statusVal === 'all' || status === statusVal);
             
-            if (matchQuery && matchStatus) {
+            if (matchQuery && matchDept && matchSubdept && matchStatus) {
                 filteredPosRows.push(row);
             } else {
                 row.style.display = 'none';

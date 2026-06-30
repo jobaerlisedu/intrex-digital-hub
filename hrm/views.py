@@ -560,6 +560,19 @@ def employee_database(request):
             mobile_bill = float(request.POST.get('mobile_bill') or 1000)
             gross_salary = round(basic_salary + house_rent + medical + conveyance + utility + mobile_bill, 2)
 
+            # Additional Roles
+            additional_depts = request.POST.getlist('additional_dept')
+            additional_subdepts = request.POST.getlist('additional_subdept')
+            additional_positions = request.POST.getlist('additional_position')
+            additional_roles = []
+            for d, sd, p in zip(additional_depts, additional_subdepts, additional_positions):
+                if d and p:
+                    additional_roles.append({
+                        'department': d,
+                        'sub_department': sd or '',
+                        'position': p
+                    })
+
             data = {
                 'name': full_name,
                 'first_name': first_name,
@@ -587,6 +600,7 @@ def employee_database(request):
                 'department': request.POST.get('department', ''),
                 'sub_department': request.POST.get('sub_department', ''),
                 'position': request.POST.get('position', ''),
+                'additional_roles': additional_roles,
                 'employee_type': request.POST.get('employee_type', 'Permanent'),
                 'joining_date': request.POST.get('joining_date', ''),
                 'status': request.POST.get('employment_status', 'Active'),

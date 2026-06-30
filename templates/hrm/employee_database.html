@@ -227,6 +227,20 @@
               <option value="Terminated">Terminated</option>
             </select>
           </div>
+        </div>
+        
+        <!-- Additional Roles Section -->
+        <hr style="border:0;border-top:1px solid var(--sidebar-border);margin:24px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <p style="font-weight:700;color:var(--text-primary);margin:0;">Additional Roles / Assignments (Optional):</p>
+            <button type="button" class="btn-submit" onclick="addAdditionalRoleRow()" style="padding:6px 12px;font-size:0.85rem;background:var(--accent-color);color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                <i class="fa-solid fa-plus"></i> Add Role
+            </button>
+        </div>
+        <div id="additional-roles-container" style="margin-bottom:24px;"></div>
+        <hr style="border:0;border-top:1px solid var(--sidebar-border);margin:24px 0;">
+
+        <div class="form-grid-2">
           <div class="form-group">
             <label>Exit Date</label>
             <input type="date" name="exit_date" class="form-control">
@@ -371,18 +385,26 @@
         <tr class="emp-row"
             data-name="{{ emp.name }}"
             data-id="{{ emp.emp_id|default:'' }}"
-            data-dept="{{ emp.department|default:'' }}"
+            data-dept="{{ emp.department|default:'' }}{% for role in emp.additional_roles %},{{ role.department }}{% endfor %}"
             data-status="{{ emp.status|default:'Active' }}">
           <td style="font-weight:600;color:var(--accent-color);">{{ emp.emp_id|default:"--" }}</td>
           <td>
             <div style="font-weight:600;color:var(--text-primary);">{{ emp.name }}</div>
             <div style="font-size:.8rem;color:var(--text-secondary);">{{ emp.email|default:"" }}</div>
           </td>
-          <td>{{ emp.position|default:"--" }}</td>
+          <td>
+            <div>{{ emp.position|default:"--" }}</div>
+            {% for role in emp.additional_roles %}
+            <div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px;">{{ role.position }} <span style="font-size:0.7rem;opacity:0.8;">(Secondary)</span></div>
+            {% endfor %}
+          </td>
           <td>
             {% if emp.department %}
-            <span class="badge" style="background:#f1f5f9;border:1px solid var(--sidebar-border);color:var(--text-primary);">{{ emp.department }}</span>
-            {% else %}--{% endif %}
+            <span class="badge" style="background:#f1f5f9;border:1px solid var(--sidebar-border);color:var(--text-primary);margin-bottom:4px;display:inline-block;">{{ emp.department }}</span>
+            {% endif %}
+            {% for role in emp.additional_roles %}
+            <span class="badge" style="background:#f8fafc;border:1px solid var(--sidebar-border);color:var(--text-secondary);margin-bottom:4px;display:inline-block;">{{ role.department }} <span style="font-size:0.75rem;opacity:0.8;">(Sec)</span></span>
+            {% endfor %}
           </td>
           <td>
             <span class="badge {% if emp.status == 'Active' %}success{% elif emp.status == 'On Leave' %}warning{% else %}danger{% endif %}">
@@ -568,13 +590,247 @@ function filterEmployees() {
   document.querySelectorAll('.emp-row').forEach(row => {
     const name = row.getAttribute('data-name').toLowerCase();
     const id = row.getAttribute('data-id').toLowerCase();
-    const rowDept = row.getAttribute('data-dept');
+    const rowDeptList = row.getAttribute('data-dept').split(',');
     const rowStatus = row.getAttribute('data-status');
     const matchQ = name.includes(q) || id.includes(q);
-    const matchDept = (dept === 'all' || rowDept === dept);
+    const matchDept = (dept === 'all' || rowDeptList.includes(dept));
     const matchStatus = (status === 'all' || rowStatus === status);
     row.style.display = (matchQ && matchDept && matchStatus) ? '' : 'none';
   });
+}
+
+// Dynamic addition of secondary roles/assignments
+function addAdditionalRoleRow(deptVal = '', subDeptVal = '', positionVal = '') {
+    const container = document.getElementById('additional-roles-container');
+    const index = container.children.length;
+    
+    const row = document.createElement('div');
+    row.className = 'form-grid-2';
+    row.style.gridTemplateColumns = '1.2fr 1.2fr 1.2fr auto';
+    row.style.gap = '12px';
+    row.style.alignItems = 'end';
+    row.style.marginBottom = '12px';
+    
+    // Create Department select
+    const deptGroup = document.createElement('div');
+    deptGroup.className = 'form-group';
+    deptGroup.style.marginBottom = '0';
+    const deptLabel = document.createElement('label');
+    deptLabel.textContent = 'Department';
+    const deptSelect = document.createElement('select');
+    deptSelect.name = 'additional_dept';
+    deptSelect.className = 'form-control filter-select';
+    deptSelect.style.width = '100%';
+    deptSelect.required = true;
+    
+    // Clone options from primary dept select
+    const primaryDept = document.getElementById('pi-dept');
+    Array.from(primaryDept.options).forEach(opt => {
+        if (opt.value) {
+            const newOpt = document.createElement('option');
+            newOpt.value = opt.value;
+            newOpt.textContent = opt.textContent;
+            deptSelect.appendChild(newOpt);
+        }
+    });
+    // Add placeholder option if not already selected
+    if (!deptVal) {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select Department...';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        deptSelect.insertBefore(placeholder, deptSelect.firstChild);
+    }
+    deptGroup.appendChild(deptLabel);
+    deptGroup.appendChild(deptSelect);
+    
+    // Create Sub Department select
+    const subDeptGroup = document.createElement('div');
+    subDeptGroup.className = 'form-group';
+    subDeptGroup.style.marginBottom = '0';
+    const subDeptLabel = document.createElement('label');
+    subDeptLabel.textContent = 'Sub Department';
+    const subDeptSelect = document.createElement('select');
+    subDeptSelect.name = 'additional_subdept';
+    subDeptSelect.className = 'form-control filter-select';
+    subDeptSelect.style.width = '100%';
+    
+    const subDeptPlaceholder = document.createElement('option');
+    subDeptPlaceholder.value = '';
+    subDeptPlaceholder.textContent = 'Select sub-dept';
+    subDeptSelect.appendChild(subDeptPlaceholder);
+    
+    const primarySubDept = document.getElementById('pi-subdept');
+    Array.from(primarySubDept.options).forEach(opt => {
+        if (opt.value) {
+            const newOpt = document.createElement('option');
+            newOpt.value = opt.value;
+            newOpt.textContent = opt.textContent;
+            newOpt.setAttribute('data-parent', opt.getAttribute('data-parent'));
+            subDeptSelect.appendChild(newOpt);
+        }
+    });
+    subDeptGroup.appendChild(subDeptLabel);
+    subDeptGroup.appendChild(subDeptSelect);
+    
+    // Create Position select
+    const posGroup = document.createElement('div');
+    posGroup.className = 'form-group';
+    posGroup.style.marginBottom = '0';
+    const posLabel = document.createElement('label');
+    posLabel.textContent = 'Position';
+    const posSelect = document.createElement('select');
+    posSelect.name = 'additional_position';
+    posSelect.className = 'form-control filter-select';
+    posSelect.style.width = '100%';
+    posSelect.required = true;
+    
+    const posPlaceholder = document.createElement('option');
+    posPlaceholder.value = '';
+    posPlaceholder.textContent = 'Select position';
+    posSelect.appendChild(posPlaceholder);
+    
+    const primaryPos = document.getElementById('pi-position');
+    Array.from(primaryPos.options).forEach(opt => {
+        if (opt.value) {
+            const newOpt = document.createElement('option');
+            newOpt.value = opt.value;
+            newOpt.textContent = opt.textContent;
+            newOpt.setAttribute('data-dept', opt.getAttribute('data-dept'));
+            newOpt.setAttribute('data-subdept', opt.getAttribute('data-subdept'));
+            posSelect.appendChild(newOpt);
+        }
+    });
+    posGroup.appendChild(posLabel);
+    posGroup.appendChild(posSelect);
+    
+    // Create Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-action delete';
+    deleteBtn.style.height = '42px';
+    deleteBtn.style.width = '42px';
+    deleteBtn.style.padding = '0';
+    deleteBtn.style.display = 'flex';
+    deleteBtn.style.alignItems = 'center';
+    deleteBtn.style.justifyContent = 'center';
+    deleteBtn.style.border = '1px solid #ef4444';
+    deleteBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+    deleteBtn.style.color = '#ef4444';
+    deleteBtn.style.borderRadius = '8px';
+    deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+    deleteBtn.onclick = function() {
+        row.remove();
+    };
+    
+    // Wire up dynamic filtering for this row
+    function filterRowSubDeptAndPositions() {
+        const deptName = deptSelect.value;
+        
+        // Filter sub-department options
+        for (let i = 0; i < subDeptSelect.options.length; i++) {
+            const opt = subDeptSelect.options[i];
+            if (!opt.value) continue;
+            const parent = opt.getAttribute('data-parent');
+            opt.style.display = (!deptName || parent === deptName) ? '' : 'none';
+        }
+        subDeptSelect.value = '';
+        
+        filterRowPositions();
+    }
+    
+    function filterRowPositions() {
+        const deptName = deptSelect.value;
+        const subDeptName = subDeptSelect.value;
+        
+        for (let i = 0; i < posSelect.options.length; i++) {
+            const opt = posSelect.options[i];
+            if (!opt.value) continue;
+            const dept = opt.getAttribute('data-dept');
+            const subdept = opt.getAttribute('data-subdept');
+            
+            let matchDept = !deptName || dept === deptName;
+            let matchSubDept = !subDeptName || subdept === subDeptName;
+            
+            if (matchDept && matchSubDept) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+            }
+        }
+        
+        const activeOpt = posSelect.options[posSelect.selectedIndex];
+        if (activeOpt && activeOpt.value) {
+            const dept = activeOpt.getAttribute('data-dept');
+            const subdept = activeOpt.getAttribute('data-subdept');
+            let matchDept = !deptName || dept === deptName;
+            let matchSubDept = !subDeptName || subdept === subDeptName;
+            if (!matchDept || !matchSubDept) {
+                posSelect.value = '';
+            }
+        }
+    }
+    
+    function onRowPositionChange() {
+        const selectedOpt = posSelect.options[posSelect.selectedIndex];
+        if (selectedOpt && selectedOpt.value) {
+            const dept = selectedOpt.getAttribute('data-dept');
+            const subdept = selectedOpt.getAttribute('data-subdept');
+            
+            if (dept) {
+                deptSelect.value = dept;
+                for (let i = 0; i < subDeptSelect.options.length; i++) {
+                    const opt = subDeptSelect.options[i];
+                    if (!opt.value) continue;
+                    const parent = opt.getAttribute('data-parent');
+                    opt.style.display = parent === dept ? '' : 'none';
+                }
+                if (subdept) {
+                    subDeptSelect.value = subdept;
+                }
+            }
+        }
+    }
+    
+    deptSelect.onchange = filterRowSubDeptAndPositions;
+    subDeptSelect.onchange = filterRowPositions;
+    posSelect.onchange = onRowPositionChange;
+    
+    // Set initial values if provided
+    if (deptVal) {
+        deptSelect.value = deptVal;
+        // Filter sub departments based on deptVal
+        for (let i = 0; i < subDeptSelect.options.length; i++) {
+            const opt = subDeptSelect.options[i];
+            if (!opt.value) continue;
+            const parent = opt.getAttribute('data-parent');
+            opt.style.display = parent === deptVal ? '' : 'none';
+        }
+        if (subDeptVal) {
+            subDeptSelect.value = subDeptVal;
+        }
+        // Filter positions based on deptVal and subDeptVal
+        for (let i = 0; i < posSelect.options.length; i++) {
+            const opt = posSelect.options[i];
+            if (!opt.value) continue;
+            const dept = opt.getAttribute('data-dept');
+            const subdept = opt.getAttribute('data-subdept');
+            let matchDept = dept === deptVal;
+            let matchSubDept = !subDeptVal || subdept === subDeptVal;
+            opt.style.display = (matchDept && matchSubDept) ? '' : 'none';
+        }
+        if (positionVal) {
+            posSelect.value = positionVal;
+        }
+    }
+    
+    row.appendChild(deptGroup);
+    row.appendChild(subDeptGroup);
+    row.appendChild(posGroup);
+    row.appendChild(deleteBtn);
+    
+    container.appendChild(row);
 }
 
 // On load
@@ -588,6 +844,15 @@ function editRecord(id) {
     switchEmpTab('entry');
     goStep(0);
     const data = JSON.parse(document.getElementById(id).textContent);
+    
+    // Clear and populate additional roles
+    const container = document.getElementById('additional-roles-container');
+    if (container) container.innerHTML = '';
+    if (data.additional_roles && data.additional_roles.length > 0) {
+        data.additional_roles.forEach(role => {
+            addAdditionalRoleRow(role.department, role.sub_department, role.position);
+        });
+    }
     
     const form = document.getElementById('empForm');
     if (!form) return;
@@ -644,6 +909,41 @@ function viewRecord(id) {
         typeBadgeClass = "info";
     }
 
+    // Prepare separate Roles & Assignments cards
+    let rolesHtml = '';
+    
+    // Primary Role
+    rolesHtml += `
+        <div class="view-detail-item" style="border: 1px solid var(--sidebar-border); border-radius: 8px; padding: 14px; background: rgba(0, 0, 0, 0.015);">
+            <div class="view-detail-label" style="font-weight: 700; color: var(--accent-color); border-bottom: 1px solid var(--sidebar-border); padding-bottom: 6px; margin-bottom: 10px; font-size: 0.78rem;">PRIMARY ROLE</div>
+            <div class="view-detail-value" style="font-size: 0.9rem; line-height: 1.5;">
+                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${record.position || '—'}</div>
+                <div style="color: var(--text-secondary); margin-bottom: 4px;">${record.department || '—'}</div>
+                ${record.department !== 'Leadership & Strategic Management' && record.sub_department ? `
+                    <div style="color: var(--text-secondary);">${record.sub_department}</div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // Secondary Roles
+    if (record.additional_roles && record.additional_roles.length > 0) {
+        record.additional_roles.forEach((r, idx) => {
+            rolesHtml += `
+                <div class="view-detail-item" style="border: 1px solid var(--sidebar-border); border-radius: 8px; padding: 14px; background: rgba(0, 0, 0, 0.015);">
+                    <div class="view-detail-label" style="font-weight: 700; color: var(--accent-color); border-bottom: 1px solid var(--sidebar-border); padding-bottom: 6px; margin-bottom: 10px; font-size: 0.78rem;">SECONDARY ROLE ${idx + 1}</div>
+                    <div class="view-detail-value" style="font-size: 0.9rem; line-height: 1.5;">
+                        <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">${r.position || '—'}</div>
+                        <div style="color: var(--text-secondary); margin-bottom: 4px;">${r.department || '—'}</div>
+                        ${r.department !== 'Leadership & Strategic Management' && r.sub_department ? `
+                            <div style="color: var(--text-secondary);">${r.sub_department}</div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
     const htmlContent = `
         <div class="view-detail-grid">
             <!-- Basic Information -->
@@ -664,18 +964,6 @@ function viewRecord(id) {
             <div class="view-detail-item">
                 <div class="view-detail-label">FULL NAME</div>
                 <div class="view-detail-value">${record.name || '—'}</div>
-            </div>
-            <div class="view-detail-item">
-                <div class="view-detail-label">DESIGNATION</div>
-                <div class="view-detail-value">${record.position || '—'}</div>
-            </div>
-            <div class="view-detail-item">
-                <div class="view-detail-label">DEPARTMENT</div>
-                <div class="view-detail-value">${record.department || '—'}</div>
-            </div>
-            <div class="view-detail-item">
-                <div class="view-detail-label">SUB DEPARTMENT</div>
-                <div class="view-detail-value">${record.sub_department || '—'}</div>
             </div>
             <div class="view-detail-item">
                 <div class="view-detail-label">EMPLOYEE TYPE</div>
@@ -711,6 +999,12 @@ function viewRecord(id) {
                 <div class="view-detail-label">ZIP CODE</div>
                 <div class="view-detail-value">${record.zip || '—'}</div>
             </div>
+
+            <!-- Roles & Assignments -->
+            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
+                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-briefcase" style="margin-right: 8px;"></i>Roles & Assignments</h4>
+            </div>
+            ${rolesHtml}
 
             <!-- Salary & Bank Info -->
             <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
