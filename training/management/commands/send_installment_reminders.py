@@ -8,7 +8,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Checking for upcoming student installments due in 3 days...")
         try:
-            payments_ref = db.collection('learn_payments').stream()
+            payments_ref = db.collection('trn_payments').stream()
             reminders_sent = 0
             
             # Target date is exactly 3 days from now

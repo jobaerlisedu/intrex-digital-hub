@@ -51,6 +51,9 @@ urlpatterns = [
     path('billing/', include('billing.urls', namespace='billing')),
     path('users/', include('accounts.urls', namespace='accounts')),
 
+    # REST API v1
+    path('api/v1/', include('config.api')),
+
     # Documentation
     path('docs/', config_views.documentation_viewer, name='docs_index'),
     path('docs/<path:path>/', config_views.documentation_viewer, name='docs_page'),

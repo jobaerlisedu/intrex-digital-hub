@@ -3,6 +3,7 @@
 {% endblock %}
 
 {% block extra_css %}
+{{ block.super }}
 <style>
 .lv-tabs { display:flex; gap:16px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; }
 .lv-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
@@ -26,6 +27,16 @@
 .btn-icon { width:32px; height:32px; background:var(--accent-color); border:none; border-radius:6px; cursor:pointer; color:#fff; display:inline-flex; align-items:center; justify-content:center; }
 .payslip-preview { background:#f8fafc; border:1px solid var(--sidebar-border); border-radius:12px; padding:60px 32px; text-align:center; color:var(--text-secondary); }
 .payslip-preview i { font-size:2.5rem; color:#cbd5e1; margin-bottom:16px; }
+@media print {
+    body * { visibility: hidden; }
+    #payslip-preview-area, #payslip-preview-area * { visibility: visible; }
+    #payslip-preview-area {
+        position: absolute; left: 0; top: 0; width: 100%;
+        border: none; box-shadow: none; padding: 40px;
+    }
+    .lv-tabs, .lv-table-header button, .btn-icon { display: none !important; }
+    .payslip-preview { border: none; box-shadow: none; }
+}
 </style>
 {% endblock %}
 

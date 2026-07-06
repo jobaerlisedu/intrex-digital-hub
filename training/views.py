@@ -81,10 +81,10 @@ def get_next_seq_id(collection_name, prefix, id_field, padding_size=4):
 # Audit logging helper
 def log_training_action(user, action_type, collection_name, record_id, details):
     try:
-        log_id = get_next_seq_id('learn_tbl_audit_logs', 'LOG-', 'log_id', 5)
+        log_id = get_next_seq_id('sys_audit_logs', 'LOG-', 'log_id', 5)
         user_email = getattr(user, 'email', '') or getattr(user, 'username', '') or str(user)
         local_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        db.collection('learn_tbl_audit_logs').document(log_id).set({
+        db.collection('sys_audit_logs').document(log_id).set({
             'log_id': log_id,
             'user_email': user_email,
             'action_type': action_type,
@@ -104,16 +104,16 @@ def index(request):
 @module_access('training')
 def overview(request):
     try:
-        registrations = get_collection_data('learn_registrations')
-        payments = get_collection_data('learn_payments')
-        expenses = get_collection_data('learn_expenses')
-        placements = get_collection_data('learn_job_placements')
-        batches = get_collection_data('learn_batches')
-        inquiries = get_collection_data('learn_online_inquiries')
-        online_regs = get_collection_data('learn_online_registrations')
-        employees = get_collection_data('employees')
-        commissions = get_collection_data('learn_commissions')
-        courses = get_collection_data('learn_courses')
+        registrations = get_collection_data('trn_registrations')
+        payments = get_collection_data('trn_payments')
+        expenses = get_collection_data('trn_expenses')
+        placements = get_collection_data('trn_job_placements')
+        batches = get_collection_data('trn_batches')
+        inquiries = get_collection_data('trn_inquiries')
+        online_regs = get_collection_data('trn_registrations')
+        employees = get_collection_data('hrm_employees')
+        commissions = get_collection_data('trn_commissions')
+        courses = get_collection_data('trn_courses')
         
         # Calculate stats
         total_students = len({r.get('studentId') for r in registrations if r.get('studentId')})
@@ -138,7 +138,7 @@ def overview(request):
         collection_rate = (total_collected / (total_collected + total_due) * 100) if (total_collected + total_due) > 0 else 0
         
         # Fetch audit logs (recent 10)
-        logs = get_collection_data('learn_tbl_audit_logs')[:10]
+        logs = get_collection_data('sys_audit_logs')[:10]
         
         # Chart data formatting
         # 1. Course Enrollment Count
@@ -239,17 +239,17 @@ def inquiries(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_online_inquiries').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_online_inquiries", doc_id, f"Deleted course inquiry ID {doc_id}")
+            db.collection('trn_inquiries').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_inquiries", doc_id, f"Deleted course inquiry ID {doc_id}")
             messages.success(request, "Inquiry deleted successfully!")
             return redirect('/training/inquiries/?tab=directory')
         elif action == 'delete_online_reg' and doc_id:
-            db.collection('learn_online_registrations').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_online_registrations", doc_id, f"Deleted online registration ID {doc_id}")
+            db.collection('trn_registrations').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_registrations", doc_id, f"Deleted online registration ID {doc_id}")
             messages.success(request, "Online registration deleted successfully!")
             return redirect('/training/inquiries/?tab=pending')
         else:
-            inquiry_key = get_next_seq_id('learn_online_inquiries', 'INQ-', 'inquiryKey', 6)
+            inquiry_key = get_next_seq_id('trn_inquiries', 'INQ-', 'inquiryKey', 6)
             data = {
                 'inquiryKey': inquiry_key,
                 'name': request.POST.get('name'),
@@ -261,14 +261,14 @@ def inquiries(request):
                 'status': request.POST.get('status', 'New'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_online_inquiries').document(inquiry_key).set(data)
-            log_training_action(request.user, "CREATE", "learn_online_inquiries", inquiry_key, f"Logged manual inquiry: {data['name']} - {data['subject']}")
+            db.collection('trn_inquiries').document(inquiry_key).set(data)
+            log_training_action(request.user, "CREATE", "trn_inquiries", inquiry_key, f"Logged manual inquiry: {data['name']} - {data['subject']}")
             messages.success(request, "Inquiry saved successfully!")
             return redirect('/training/inquiries/?tab=directory')
 
-    inquiries_list = get_collection_data('learn_online_inquiries')
-    online_regs = get_collection_data('learn_online_registrations')
-    courses = get_collection_data('learn_courses')
+    inquiries_list = get_collection_data('trn_inquiries')
+    online_regs = get_collection_data('trn_registrations')
+    courses = get_collection_data('trn_courses')
     return render(request, 'training/inquiries.html', {
         'inquiries': inquiries_list, 
         'online_registrations': online_regs,
@@ -278,7 +278,7 @@ def inquiries(request):
 @module_access('training')
 def employee_database(request):
     # Read-only central employee listing
-    employees = get_collection_data('employees')
+    employees = get_collection_data('hrm_employees')
     employees_json = json.dumps(employees, default=str)
     return render(request, 'training/employee_database.html', {
         'employees': employees,
@@ -288,7 +288,7 @@ def employee_database(request):
 @module_access('training')
 def trainer_database(request):
     # Filter trainers from central employee registry
-    employees = get_collection_data('employees')
+    employees = get_collection_data('hrm_employees')
     trainers = []
     for emp in employees:
         desig = emp.get('designation', '').lower()
@@ -307,13 +307,13 @@ def contact_directory(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_public_institutes').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_public_institutes", doc_id, f"Deleted public institute record ID {doc_id}")
+            db.collection('trn_institutes').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_institutes", doc_id, f"Deleted public institute record ID {doc_id}")
             messages.success(request, "Institute contact deleted successfully!")
         else:
             is_new = not doc_id
             if is_new:
-                doc_id = get_next_seq_id('learn_public_institutes', 'INST-', 'id', 4)
+                doc_id = get_next_seq_id('trn_institutes', 'INST-', 'id', 4)
             
             data = {
                 'id': doc_id,
@@ -330,21 +330,21 @@ def contact_directory(request):
             if is_new:
                 data['createdAt'] = firestore.SERVER_TIMESTAMP
             
-            db.collection('learn_public_institutes').document(doc_id).set(data, merge=True)
+            db.collection('trn_institutes').document(doc_id).set(data, merge=True)
             log_training_action(
                 request.user, 
                 "CREATE" if is_new else "UPDATE", 
-                "learn_public_institutes", 
+                "trn_institutes", 
                 doc_id, 
                 f"{'Registered' if is_new else 'Updated'} public training institute: {data['name']}"
             )
             messages.success(request, "Institute contact saved successfully!")
         return redirect('training:contact_directory')
 
-    students = get_collection_data('learn_registrations')
-    institutes = get_collection_data('learn_public_institutes')
-    courses = get_collection_data('learn_courses')
-    payments = get_collection_data('learn_payments')
+    students = get_collection_data('trn_registrations')
+    institutes = get_collection_data('trn_institutes')
+    courses = get_collection_data('trn_courses')
+    payments = get_collection_data('trn_payments')
 
     # Resolve payment status for each student registration
     for reg in students:
@@ -385,13 +385,13 @@ def brand_ambassadors(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_brand_ambassadors').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_brand_ambassadors", doc_id, f"Deleted brand ambassador record ID {doc_id}")
+            db.collection('trn_ambassadors').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_ambassadors", doc_id, f"Deleted brand ambassador record ID {doc_id}")
             messages.success(request, "Brand ambassador deleted successfully!")
         else:
             is_new = not doc_id
             if is_new:
-                doc_id = get_next_seq_id('learn_brand_ambassadors', 'AMB-', 'id', 4)
+                doc_id = get_next_seq_id('trn_ambassadors', 'AMB-', 'id', 4)
             
             comm_rate_str = request.POST.get('commissionRate')
             try:
@@ -412,18 +412,18 @@ def brand_ambassadors(request):
             if is_new:
                 data['createdAt'] = firestore.SERVER_TIMESTAMP
             
-            db.collection('learn_brand_ambassadors').document(doc_id).set(data, merge=True)
+            db.collection('trn_ambassadors').document(doc_id).set(data, merge=True)
             log_training_action(
                 request.user, 
                 "CREATE" if is_new else "UPDATE", 
-                "learn_brand_ambassadors", 
+                "trn_ambassadors", 
                 doc_id, 
                 f"{'Registered' if is_new else 'Updated'} brand ambassador: {data['name']}"
             )
             messages.success(request, "Brand ambassador saved successfully!")
         return redirect('training:brand_ambassadors')
 
-    ambassadors = get_collection_data('learn_brand_ambassadors')
+    ambassadors = get_collection_data('trn_ambassadors')
     ambassadors_json = json.dumps(ambassadors, default=str)
     return render(request, 'training/brand_ambassadors.html', {
         'ambassadors': ambassadors,
@@ -436,8 +436,8 @@ def course_creation(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_courses').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_courses", doc_id, f"Deleted course ID {doc_id}")
+            db.collection('trn_courses').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_courses", doc_id, f"Deleted course ID {doc_id}")
             messages.success(request, "Course deleted successfully!")
         else:
             title = request.POST.get('title')
@@ -455,14 +455,14 @@ def course_creation(request):
                 'icon': request.POST.get('icon', 'bi bi-book'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_courses').document(clean_title).set(data, merge=True)
-            log_training_action(request.user, "CREATE", "learn_courses", clean_title, f"Saved training course: {clean_title}")
+            db.collection('trn_courses').document(clean_title).set(data, merge=True)
+            log_training_action(request.user, "CREATE", "trn_courses", clean_title, f"Saved training course: {clean_title}")
             messages.success(request, "Course saved successfully!")
         return redirect('training:course_creation')
 
-    courses = get_collection_data('learn_courses')
-    batches = get_collection_data('learn_batches')
-    employees = get_collection_data('employees')
+    courses = get_collection_data('trn_courses')
+    batches = get_collection_data('trn_batches')
+    employees = get_collection_data('hrm_employees')
     trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
     return render(request, 'training/course_creation.html', {
         'courses': courses,
@@ -476,8 +476,8 @@ def batch_management(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_batches').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_batches", doc_id, f"Deleted batch ID {doc_id}")
+            db.collection('trn_batches').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_batches", doc_id, f"Deleted batch ID {doc_id}")
             messages.success(request, "Batch deleted successfully!")
         else:
             batch_id = request.POST.get('batchId')
@@ -495,15 +495,15 @@ def batch_management(request):
                 'totalClasses': int(request.POST.get('totalClasses', 12)),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_batches').document(batch_id).set(data, merge=True)
-            log_training_action(request.user, "CREATE", "learn_batches", batch_id, f"Saved training batch: {batch_id} for course {data['courseName']}")
+            db.collection('trn_batches').document(batch_id).set(data, merge=True)
+            log_training_action(request.user, "CREATE", "trn_batches", batch_id, f"Saved training batch: {batch_id} for course {data['courseName']}")
             messages.success(request, "Batch saved successfully!")
         return redirect('training:batch_management')
 
-    batches = get_collection_data('learn_batches')
-    courses = get_collection_data('learn_courses')
-    registrations = get_collection_data('learn_registrations')
-    employees = get_collection_data('employees')
+    batches = get_collection_data('trn_batches')
+    courses = get_collection_data('trn_courses')
+    registrations = get_collection_data('trn_registrations')
+    employees = get_collection_data('hrm_employees')
     trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
     return render(request, 'training/batch_management.html', {
         'batches': batches, 
@@ -518,8 +518,8 @@ def class_calendar(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_classes').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_classes", doc_id, f"Cancelled scheduled class ID {doc_id}")
+            db.collection('trn_classes').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_classes", doc_id, f"Cancelled scheduled class ID {doc_id}")
             messages.success(request, "Scheduled class cancelled successfully!")
         else:
             data = {
@@ -530,16 +530,16 @@ def class_calendar(request):
                 'classroom_or_link': request.POST.get('classroom_or_link'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_classes').add(data)
-            log_training_action(request.user, "CREATE", "learn_classes", "new_class", f"Scheduled class: {data['class_title']}")
+            db.collection('trn_classes').add(data)
+            log_training_action(request.user, "CREATE", "trn_classes", "new_class", f"Scheduled class: {data['class_title']}")
             messages.success(request, "Class scheduled successfully!")
         return redirect('training:class_calendar')
 
-    classes = get_collection_data('learn_classes')
-    courses = get_collection_data('learn_courses')
-    batches = get_collection_data('learn_batches')
-    employees = get_collection_data('employees')
-    registrations = get_collection_data('learn_registrations')
+    classes = get_collection_data('trn_classes')
+    courses = get_collection_data('trn_courses')
+    batches = get_collection_data('trn_batches')
+    employees = get_collection_data('hrm_employees')
+    registrations = get_collection_data('trn_registrations')
 
     trainers = [emp for emp in employees if 'trainer' in emp.get('designation', '').lower() or emp.get('employee_type') == 'External Professionals']
 
@@ -568,15 +568,15 @@ def student_list(request):
         
         if action == 'delete' and doc_id:
             # Delete registration and corresponding payment record
-            db.collection('learn_registrations').document(doc_id).delete()
-            db.collection('learn_payments').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_registrations", doc_id, f"Removed student enrollment registration: {doc_id}")
+            db.collection('trn_registrations').document(doc_id).delete()
+            db.collection('trn_payments').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_registrations", doc_id, f"Removed student enrollment registration: {doc_id}")
             messages.success(request, "Student enrollment deleted successfully!")
             return redirect('training:student_list')
             
         elif action == 'delete_online_reg' and doc_id:
-            db.collection('learn_online_registrations').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_online_registrations", doc_id, f"Deleted online registration ID {doc_id}")
+            db.collection('trn_registrations').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_registrations", doc_id, f"Deleted online registration ID {doc_id}")
             messages.success(request, "Online registration deleted successfully!")
             return redirect('training:student_list')
             
@@ -602,7 +602,7 @@ def student_list(request):
             contact_id = get_or_create_contact(name=fullName, email=email, phone=phone, role='student')
 
             # Validation: Batch Capacity (Max 10)
-            batch_snap = db.collection('learn_batches').document(batch).get()
+            batch_snap = db.collection('trn_batches').document(batch).get()
             batch_capacity = 10
             if batch_snap.exists:
                 batch_capacity = int(batch_snap.to_dict().get('capacity', 10))
@@ -610,7 +610,7 @@ def student_list(request):
             # Find current registrations in batch
             studentId = request.POST.get('studentId', '').strip()
             existing_count = 0
-            all_regs = get_collection_data('learn_registrations')
+            all_regs = get_collection_data('trn_registrations')
             for r in all_regs:
                 if r.get('batch') == batch and r.get('id') != doc_id:
                      existing_count += 1
@@ -627,7 +627,7 @@ def student_list(request):
 
             if doc_id:
                 # Update
-                reg_ref = db.collection('learn_registrations').document(doc_id)
+                reg_ref = db.collection('trn_registrations').document(doc_id)
                 reg_ref.update({
                     'fullName': fullName,
                     'email': email,
@@ -647,7 +647,7 @@ def student_list(request):
                 })
                 
                 # Sync payment details
-                pay_ref = db.collection('learn_payments').document(doc_id)
+                pay_ref = db.collection('trn_payments').document(doc_id)
                 pay_snap = pay_ref.get()
                 if pay_snap.exists:
                     pay_data = pay_snap.to_dict()
@@ -668,7 +668,7 @@ def student_list(request):
                         'updatedAt': firestore.SERVER_TIMESTAMP
                     })
                 
-                log_training_action(request.user, "UPDATE", "learn_registrations", doc_id, f"Updated student registration: {fullName}")
+                log_training_action(request.user, "UPDATE", "trn_registrations", doc_id, f"Updated student registration: {fullName}")
                 messages.success(request, "Student enrollment updated successfully!")
                 
             else:
@@ -680,7 +680,7 @@ def student_list(request):
                 generated_doc_id = f"{studentId}_{clean_course}"
                 
                 # Write registration
-                db.collection('learn_registrations').document(generated_doc_id).set({
+                db.collection('trn_registrations').document(generated_doc_id).set({
                     'studentId': studentId,
                     'fullName': fullName,
                     'email': email,
@@ -722,7 +722,7 @@ def student_list(request):
                 status = "Fully Paid" if (effective == 0.0 or isFreeBatch) else ("Fully Paid" if amountPaid >= effective else ("Partially Paid" if amountPaid > 0 else "Unpaid"))
                 
                 # Write payment record
-                db.collection('learn_payments').document(generated_doc_id).set({
+                db.collection('trn_payments').document(generated_doc_id).set({
                     'studentId': studentId,
                     'studentName': fullName,
                     'email': email,
@@ -741,27 +741,27 @@ def student_list(request):
                     'installments': installments
                 })
                 
-                log_training_action(request.user, "CREATE", "learn_registrations", generated_doc_id, f"Registered student {fullName} in course {course} batch {batch}")
+                log_training_action(request.user, "CREATE", "trn_registrations", generated_doc_id, f"Registered student {fullName} in course {course} batch {batch}")
                 messages.success(request, "Student enrollment saved successfully!")
                 
                 # If online registration or inquiry conversion
                 online_key = request.POST.get('onlineKey')
                 if online_key:
                     if online_key.startswith('INQ-'):
-                        db.collection('learn_online_inquiries').document(online_key).update({'status': 'Converted'})
-                        log_training_action(request.user, "UPDATE", "learn_online_inquiries", online_key, f"Converted inquiry {online_key} to registered student")
+                        db.collection('trn_inquiries').document(online_key).update({'status': 'Converted'})
+                        log_training_action(request.user, "UPDATE", "trn_inquiries", online_key, f"Converted inquiry {online_key} to registered student")
                     else:
-                        db.collection('learn_online_registrations').document(online_key).delete()
-                        log_training_action(request.user, "DELETE", "learn_online_registrations", online_key, f"Deleted processed online registration key: {online_key}")
+                        db.collection('trn_registrations').document(online_key).delete()
+                        log_training_action(request.user, "DELETE", "trn_registrations", online_key, f"Deleted processed online registration key: {online_key}")
             
             return redirect('training:student_list')
 
-    students = get_collection_data('learn_registrations')
-    courses = get_collection_data('learn_courses')
-    batches = get_collection_data('learn_batches')
-    ambassadors = get_collection_data('learn_brand_ambassadors')
-    employees = get_collection_data('employees')
-    online_regs = get_collection_data('learn_online_registrations')
+    students = get_collection_data('trn_registrations')
+    courses = get_collection_data('trn_courses')
+    batches = get_collection_data('trn_batches')
+    ambassadors = get_collection_data('trn_ambassadors')
+    employees = get_collection_data('hrm_employees')
+    online_regs = get_collection_data('trn_registrations')
     bd_employees = [emp for emp in employees if emp.get('status') == 'Active' and ('business development' in emp.get('designation', '').lower() or 'bd' in emp.get('designation', '').lower())]
     
     # Combined KAM directory list
@@ -788,7 +788,7 @@ def installment_plan(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'update_payment' and doc_id:
-            pay_ref = db.collection('learn_payments').document(doc_id)
+            pay_ref = db.collection('trn_payments').document(doc_id)
             pay_snap = pay_ref.get()
             if pay_snap.exists:
                 pay_data = pay_snap.to_dict()
@@ -812,7 +812,7 @@ def installment_plan(request):
                 due = max(0.0, effective_fee - amount_paid)
                 
                 # Check registration isFreeBatch status
-                reg_snap = db.collection('learn_registrations').document(doc_id).get()
+                reg_snap = db.collection('trn_registrations').document(doc_id).get()
                 is_free = False
                 if reg_snap.exists:
                     is_free = reg_snap.to_dict().get('isFreeBatch', False)
@@ -828,12 +828,12 @@ def installment_plan(request):
                 collected_diff = amount_paid - old_paid
                 if collected_diff > 0:
                     try:
-                        coa_cash = list(db.collection('chart_of_accounts').where('account_code', '==', '11100').stream())
-                        coa_ar = list(db.collection('chart_of_accounts').where('account_code', '==', '11200').stream())
+                        coa_cash = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11100').stream())
+                        coa_ar = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11200').stream())
                         cash_id = coa_cash[0].id if coa_cash else '11100_fallback'
                         ar_id = coa_ar[0].id if coa_ar else '11200_fallback'
                         
-                        entry_id = get_next_seq_id('journal_entries', 'JV-', 'entry_code', 4)
+                        entry_id = get_next_seq_id('fin_journal_entries', 'JV-', 'entry_code', 4)
                         journal_data = {
                             'entry_code': entry_id,
                             'posting_date': datetime.now().strftime('%Y-%m-%d'),
@@ -848,8 +848,8 @@ def installment_plan(request):
                             ],
                             'created_at': firestore.SERVER_TIMESTAMP
                         }
-                        db.collection('journal_entries').document(entry_id).set(journal_data)
-                        log_training_action(request.user, "CREATE", "journal_entries", entry_id, f"Posted automated journal entry {entry_id} for collected payment {collected_diff}")
+                        db.collection('fin_journal_entries').document(entry_id).set(journal_data)
+                        log_training_action(request.user, "CREATE", "fin_journal_entries", entry_id, f"Posted automated journal entry {entry_id} for collected payment {collected_diff}")
                     except Exception as ge_err:
                         print(f"Error posting automatic journal entry for payment: {ge_err}")
                 
@@ -872,12 +872,12 @@ def installment_plan(request):
                     try:
                         clean_course = re.sub(r'[^a-zA-Z0-9]', '', pay_data.get('courseName', ''))
                         assess_id = f"{pay_data.get('studentId')}_{clean_course}"
-                        assess_snap = db.collection('learn_course_assessments').document(assess_id).get()
+                        assess_snap = db.collection('trn_assessments').document(assess_id).get()
                         if assess_snap.exists:
                             assess_data = assess_snap.to_dict() or {}
                             if assess_data.get('status') == 'Passed':
                                 cert_id = f"CERT-{pay_data.get('studentId')}"
-                                cert_snap = db.collection('learn_certificates').document(cert_id).get()
+                                cert_snap = db.collection('trn_certificates').document(cert_id).get()
                                 if not cert_snap.exists:
                                     cert_data = {
                                         'certificateId': cert_id,
@@ -889,20 +889,20 @@ def installment_plan(request):
                                         'status': 'Issued',
                                         'createdAt': firestore.SERVER_TIMESTAMP
                                     }
-                                    db.collection('learn_certificates').document(cert_id).set(cert_data, merge=True)
-                                    log_training_action(request.user, "CREATE", "learn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon balance clearance")
+                                    db.collection('trn_certificates').document(cert_id).set(cert_data, merge=True)
+                                    log_training_action(request.user, "CREATE", "trn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon balance clearance")
                     except Exception as cert_err:
                         print(f"Error auto-issuing certificate on payment update: {cert_err}")
                         
         return redirect('training:installment_plan')
         
-    payments = get_collection_data('learn_payments')
+    payments = get_collection_data('trn_payments')
     installment_plans = [p for p in payments if len(p.get('installments', [])) > 0]
     return render(request, 'training/installment_plan.html', {'payments': installment_plans})
 
 @module_access('training')
 def revenue_tracker(request):
-    payments = get_collection_data('learn_payments')
+    payments = get_collection_data('trn_payments')
     collected_payments = [p for p in payments if float(p.get('amountPaid', 0.0)) > 0.0]
     return render(request, 'training/revenue_tracker.html', {'payments': collected_payments})
 
@@ -912,13 +912,13 @@ def expense_tracker(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_expenses').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_expenses", doc_id, f"Removed training expense ID {doc_id}")
+            db.collection('trn_expenses').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_expenses", doc_id, f"Removed training expense ID {doc_id}")
             messages.success(request, "Training expense removed successfully!")
         else:
             is_new = not doc_id
             if is_new:
-                doc_id = get_next_seq_id('learn_expenses', 'EXP-', 'id', 4)
+                doc_id = get_next_seq_id('trn_expenses', 'EXP-', 'id', 4)
             data = {
                 'id': doc_id,
                 'category': request.POST.get('category'),
@@ -929,12 +929,12 @@ def expense_tracker(request):
                 'paymentMethod': request.POST.get('paymentMethod', 'Cash'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_expenses').document(doc_id).set(data, merge=True)
-            log_training_action(request.user, "CREATE" if is_new else "UPDATE", "learn_expenses", doc_id, f"Logged expense of {data['amount']} under category {data['category']}")
+            db.collection('trn_expenses').document(doc_id).set(data, merge=True)
+            log_training_action(request.user, "CREATE" if is_new else "UPDATE", "trn_expenses", doc_id, f"Logged expense of {data['amount']} under category {data['category']}")
             messages.success(request, "Training expense logged successfully!")
         return redirect('training:expense_tracker')
 
-    expenses = get_collection_data('learn_expenses')
+    expenses = get_collection_data('trn_expenses')
     return render(request, 'training/expense_tracker.html', {'expenses': expenses})
 
 @module_access('training')
@@ -943,11 +943,11 @@ def sales_management(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_commissions').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_commissions", doc_id, f"Deleted sales commission payout ID {doc_id}")
+            db.collection('trn_commissions').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_commissions", doc_id, f"Deleted sales commission payout ID {doc_id}")
             messages.success(request, "Sales commission payout deleted successfully!")
         else:
-            comm_id = get_next_seq_id('learn_commissions', 'COMM-', 'id', 4)
+            comm_id = get_next_seq_id('trn_commissions', 'COMM-', 'id', 4)
             data = {
                 'id': comm_id,
                 'agentId': request.POST.get('agentId'),
@@ -960,14 +960,14 @@ def sales_management(request):
                 'notes': request.POST.get('notes'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_commissions').document(comm_id).set(data)
-            log_training_action(request.user, "CREATE", "learn_commissions", comm_id, f"Created sales commission payout of {data['payoutAmount']} for {data['agentName']}")
+            db.collection('trn_commissions').document(comm_id).set(data)
+            log_training_action(request.user, "CREATE", "trn_commissions", comm_id, f"Created sales commission payout of {data['payoutAmount']} for {data['agentName']}")
             messages.success(request, "Sales commission payout saved successfully!")
         return redirect('training:sales_management')
 
-    commissions = get_collection_data('learn_commissions')
-    ambassadors = get_collection_data('learn_brand_ambassadors')
-    employees = get_collection_data('employees')
+    commissions = get_collection_data('trn_commissions')
+    ambassadors = get_collection_data('trn_ambassadors')
+    employees = get_collection_data('hrm_employees')
     bd_employees = [emp for emp in employees if emp.get('status') == 'Active' and ('business development' in emp.get('designation', '').lower() or 'bd' in emp.get('designation', '').lower())]
     
     # Combine agents/kams list
@@ -978,8 +978,8 @@ def sales_management(request):
         agents.append({'id': e['employee_id'], 'name': e['employee_name'] + ' (BD Executive)', 'rate': 0.0, 'isAmbassador': False})
 
     # Group registrations by agent to count referrals
-    registrations = get_collection_data('learn_registrations')
-    payments = get_collection_data('learn_payments')
+    registrations = get_collection_data('trn_registrations')
+    payments = get_collection_data('trn_payments')
 
     return render(request, 'training/sales_management.html', {
         'commissions': commissions,
@@ -994,8 +994,8 @@ def course_assessments(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_course_assessments').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_course_assessments", doc_id, f"Deleted assessment record ID {doc_id}")
+            db.collection('trn_assessments').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_assessments", doc_id, f"Deleted assessment record ID {doc_id}")
             messages.success(request, "Course assessment deleted successfully!")
         else:
             studentId = request.POST.get('studentId').strip()
@@ -1016,21 +1016,21 @@ def course_assessments(request):
                 'remarks': request.POST.get('remarks', ''),
                 'updatedAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_course_assessments').document(assess_id).set(data, merge=True)
-            log_training_action(request.user, "CREATE", "learn_course_assessments", assess_id, f"Saved marks/grades assessment for student {data['studentName']} in course {courseName}")
+            db.collection('trn_assessments').document(assess_id).set(data, merge=True)
+            log_training_action(request.user, "CREATE", "trn_assessments", assess_id, f"Saved marks/grades assessment for student {data['studentName']} in course {courseName}")
             messages.success(request, "Course assessment saved successfully!")
             
             # Check certificate trigger: student passed and outstanding balance is zero
             if data['status'] == 'Passed':
                 try:
                     pay_id = f"{studentId}_{clean_course}"
-                    pay_snap = db.collection('learn_payments').document(pay_id).get()
+                    pay_snap = db.collection('trn_payments').document(pay_id).get()
                     if pay_snap.exists:
                         pay_data = pay_snap.to_dict() or {}
                         due = float(pay_data.get('dueAmount', 0.0))
                         if due <= 0.0:
                             cert_id = f"CERT-{studentId}"
-                            cert_snap = db.collection('learn_certificates').document(cert_id).get()
+                            cert_snap = db.collection('trn_certificates').document(cert_id).get()
                             if not cert_snap.exists:
                                 cert_data = {
                                     'certificateId': cert_id,
@@ -1042,16 +1042,16 @@ def course_assessments(request):
                                     'status': 'Issued',
                                     'createdAt': firestore.SERVER_TIMESTAMP
                                 }
-                                db.collection('learn_certificates').document(cert_id).set(cert_data, merge=True)
-                                log_training_action(request.user, "CREATE", "learn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon assessment pass")
+                                db.collection('trn_certificates').document(cert_id).set(cert_data, merge=True)
+                                log_training_action(request.user, "CREATE", "trn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon assessment pass")
                 except Exception as cert_err:
                     print(f"Error auto-issuing certificate on assessment update: {cert_err}")
                     
         return redirect('training:course_assessments')
 
-    assessments = get_collection_data('learn_course_assessments')
-    students = get_collection_data('learn_registrations')
-    courses = get_collection_data('learn_courses')
+    assessments = get_collection_data('trn_assessments')
+    students = get_collection_data('trn_registrations')
+    courses = get_collection_data('trn_courses')
     return render(request, 'training/course_assessments.html', {
         'assessments': assessments,
         'students': students,
@@ -1064,8 +1064,8 @@ def certificates(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_certificates').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_certificates", doc_id, f"Deleted issued certificate ID {doc_id}")
+            db.collection('trn_certificates').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_certificates", doc_id, f"Deleted issued certificate ID {doc_id}")
             messages.success(request, "Certificate deleted successfully!")
         else:
             cert_id = request.POST.get('certificateId').strip()
@@ -1080,16 +1080,16 @@ def certificates(request):
                 'batch': request.POST.get('batch', '').strip(),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_certificates').document(cert_id).set(data)
-            log_training_action(request.user, "CREATE", "learn_certificates", cert_id, f"Issued verification certificate to {data['studentName']} for course {data['courseName']}")
+            db.collection('trn_certificates').document(cert_id).set(data)
+            log_training_action(request.user, "CREATE", "trn_certificates", cert_id, f"Issued verification certificate to {data['studentName']} for course {data['courseName']}")
             messages.success(request, "Verification certificate issued successfully!")
         return redirect('training:certificates')
 
-    certificates_list = get_collection_data('learn_certificates')
-    students = get_collection_data('learn_registrations')
-    payments = get_collection_data('learn_payments')
-    assessments = get_collection_data('learn_course_assessments')
-    courses = get_collection_data('learn_courses')
+    certificates_list = get_collection_data('trn_certificates')
+    students = get_collection_data('trn_registrations')
+    payments = get_collection_data('trn_payments')
+    assessments = get_collection_data('trn_assessments')
+    courses = get_collection_data('trn_courses')
     
     # Calculate eligibility contexts to pass to template for search
     eligibility_map = {}
@@ -1139,13 +1139,13 @@ def job_placement(request):
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
         if action == 'delete' and doc_id:
-            db.collection('learn_job_placements').document(doc_id).delete()
-            log_training_action(request.user, "DELETE", "learn_job_placements", doc_id, f"Deleted job placement record ID {doc_id}")
+            db.collection('trn_job_placements').document(doc_id).delete()
+            log_training_action(request.user, "DELETE", "trn_job_placements", doc_id, f"Deleted job placement record ID {doc_id}")
             messages.success(request, "Job placement deleted successfully!")
         else:
             is_new = not doc_id
             if is_new:
-                doc_id = get_next_seq_id('learn_job_placements', 'PLACE-', 'id', 4)
+                doc_id = get_next_seq_id('trn_job_placements', 'PLACE-', 'id', 4)
             data = {
                 'id': doc_id,
                 'studentId': request.POST.get('studentId').strip(),
@@ -1160,13 +1160,13 @@ def job_placement(request):
                 'notes': request.POST.get('notes'),
                 'createdAt': firestore.SERVER_TIMESTAMP
             }
-            db.collection('learn_job_placements').document(doc_id).set(data, merge=True)
-            log_training_action(request.user, "CREATE" if is_new else "UPDATE", "learn_job_placements", doc_id, f"Recorded job placement for graduate {data['studentName']} at {data['company']}")
+            db.collection('trn_job_placements').document(doc_id).set(data, merge=True)
+            log_training_action(request.user, "CREATE" if is_new else "UPDATE", "trn_job_placements", doc_id, f"Recorded job placement for graduate {data['studentName']} at {data['company']}")
             messages.success(request, "Job placement recorded successfully!")
         return redirect('training:job_placement')
 
-    placements = get_collection_data('learn_job_placements')
-    students = get_collection_data('learn_registrations')
+    placements = get_collection_data('trn_job_placements')
+    students = get_collection_data('trn_registrations')
     return render(request, 'training/job_placement.html', {
         'placements': placements,
         'students': students
@@ -1174,11 +1174,11 @@ def job_placement(request):
 
 @module_access('training')
 def reports(request):
-    courses = get_collection_data('learn_courses')
-    students = get_collection_data('learn_registrations')
-    revenue = get_collection_data('learn_payments')
-    expenses = get_collection_data('learn_expenses')
-    placements = get_collection_data('learn_job_placements')
+    courses = get_collection_data('trn_courses')
+    students = get_collection_data('trn_registrations')
+    revenue = get_collection_data('trn_payments')
+    expenses = get_collection_data('trn_expenses')
+    placements = get_collection_data('trn_job_placements')
     
     total_revenue = sum(float(r.get('amountPaid', 0)) for r in revenue)
     total_expenses = sum(float(e.get('amount', 0)) for e in expenses)

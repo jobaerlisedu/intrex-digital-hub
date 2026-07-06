@@ -54,7 +54,7 @@ def training(request):
     courses = []
     
     try:
-        docs = db.collection('learn_courses').stream()
+        docs = db.collection('trn_courses').stream()
         for doc in docs:
             c = doc.to_dict()
             c['id'] = doc.id
@@ -80,7 +80,7 @@ def verify_certificate(request):
             full_cert_id = f"INTREX-CERT-{cert_id[12:].upper()}"
             
         try:
-            doc_ref = db.collection('learn_certificates').document(full_cert_id)
+            doc_ref = db.collection('trn_certificates').document(full_cert_id)
             doc_snap = doc_ref.get()
             if doc_snap.exists:
                 cert_data = doc_snap.to_dict()
@@ -151,14 +151,14 @@ def register_course(request):
         while attempts < 10:
             attempts += 1
             candidate = f"REG-{random.randint(100000, 999999)}"
-            doc_snap = db.collection('learn_online_registrations').document(candidate).get()
+            doc_snap = db.collection('trn_registrations').document(candidate).get()
             if not doc_snap.exists:
                 reg_key = candidate
                 break
         if not reg_key:
             reg_key = f"REG-{random.randint(100000, 999999)}"
             
-        db.collection('learn_online_registrations').document(reg_key).set({
+        db.collection('trn_registrations').document(reg_key).set({
             'registrationKey': reg_key,
             'fullName': full_name,
             'email': email,
@@ -201,14 +201,14 @@ def inquire_course(request):
             while attempts < 10:
                 attempts += 1
                 candidate = f"REG-{random.randint(100000, 999999)}"
-                doc_snap = db.collection('learn_online_registrations').document(candidate).get()
+                doc_snap = db.collection('trn_registrations').document(candidate).get()
                 if not doc_snap.exists:
                     reg_key = candidate
                     break
             if not reg_key:
                 reg_key = f"REG-{random.randint(100000, 999999)}"
                 
-            db.collection('learn_online_registrations').document(reg_key).set({
+            db.collection('trn_registrations').document(reg_key).set({
                 'registrationKey': reg_key,
                 'fullName': name,
                 'email': email,
@@ -230,14 +230,14 @@ def inquire_course(request):
             while attempts < 10:
                 attempts += 1
                 candidate = f"INQ-{random.randint(100000, 999999)}"
-                doc_snap = db.collection('learn_online_inquiries').document(candidate).get()
+                doc_snap = db.collection('trn_inquiries').document(candidate).get()
                 if not doc_snap.exists:
                     inq_key = candidate
                     break
             if not inq_key:
                 inq_key = f"INQ-{random.randint(100000, 999999)}"
                 
-            db.collection('learn_online_inquiries').document(inq_key).set({
+            db.collection('trn_inquiries').document(inq_key).set({
                 'inquiryKey': inq_key,
                 'name': name,
                 'email': email,

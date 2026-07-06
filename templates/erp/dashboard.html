@@ -26,6 +26,13 @@
         transform: translateY(-6px);
         box-shadow: 0 12px 24px rgba(33, 92, 92, 0.12) !important;
     }
+    .kpi-alert {
+        border-left: 4px solid;
+    }
+    .kpi-alert.alert-warning { border-left-color: #f59e0b; }
+    .kpi-alert.alert-danger { border-left-color: #ef4444; }
+    .kpi-alert.alert-success { border-left-color: #10b981; }
+    .kpi-alert.alert-info { border-left-color: #3b82f6; }
 </style>
 
 <div class="dashboard-header" style="margin-bottom: 32px;">
@@ -33,61 +40,92 @@
         Welcome back, {{ request.user.username|default:"User" }}
     </h1>
     <p style="margin: 0; color: var(--text-secondary); font-size: 1.05rem;">
-        Here's a high-level overview of the Intrex Digital Hub ERP system.
+        Cross-module ERP overview — {{ kpis.total_employees }} employees, {{ kpis.total_students }} students, {{ kpis.active_projects }} active projects
     </p>
 </div>
 
+<!-- KPI Alert Row -->
+{% if kpis.low_stock_items > 0 or kpis.pending_approvals > 0 or kpis.expiring_licenses > 0 %}
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+    {% if kpis.low_stock_items > 0 %}
+    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.2rem;"></i>
+        <div><strong style="font-size: 0.95rem;">{{ kpis.low_stock_items }}</strong> low stock items</div>
+    </div>
+    {% endif %}
+    {% if kpis.pending_approvals > 0 %}
+    <div class="kpi-alert alert-danger" style="flex: 1; min-width: 200px; background: #fef2f2; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-clock" style="color: #ef4444; font-size: 1.2rem;"></i>
+        <div><strong style="font-size: 0.95rem;">{{ kpis.pending_approvals }}</strong> pending approvals</div>
+    </div>
+    {% endif %}
+    {% if kpis.expiring_licenses > 0 %}
+    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-key" style="color: #f59e0b; font-size: 1.2rem;"></i>
+        <div><strong style="font-size: 0.95rem;">{{ kpis.expiring_licenses }}</strong> licenses expiring soon</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Top Metrics Row -->
 <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px;">
-    <!-- Metric 1: HRM -->
     <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
         <div class="icon-wrapper" style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
             <i class="fa-solid fa-users"></i>
         </div>
         <div>
             <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Total Employees</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ aggregate.total_employees }}</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_employees }}</div>
         </div>
     </div>
-    
-    <!-- Metric 2: Training -->
+
     <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
         <div class="icon-wrapper" style="background: rgba(117, 182, 110, 0.1); color: var(--accent-hover); width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
             <i class="fa-solid fa-user-graduate"></i>
         </div>
         <div>
             <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Active Students</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ aggregate.total_students }}</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_students }}</div>
         </div>
     </div>
 
-    <!-- Metric 3: Inventory -->
     <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
         <div class="icon-wrapper" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
         <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Total Stock Items</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ aggregate.total_stock_items }}</div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Products</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_products }}</div>
         </div>
     </div>
 
-    <!-- Metric 4: Billing -->
     <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
         <div class="icon-wrapper" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
             <i class="fa-solid fa-file-invoice-dollar"></i>
         </div>
         <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Invoiced Amount</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">BDT {{ aggregate.total_invoiced|floatformat:2 }}</div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Net Profit</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">BDT {{ kpis.net_profit|floatformat:2 }}</div>
         </div>
     </div>
 </div>
 
+<!-- Quick Actions Row -->
+{% if quick_actions %}
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px;">
+    {% for action in quick_actions %}
+    <a href="{{ action.url }}" class="btn-outline" style="text-decoration: none; padding: 8px 16px; border-radius: 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; background: #f8fafc; border: 1px solid var(--sidebar-border); color: var(--text-primary);">
+        <i class="fa-solid fa-{{ action.icon }}"></i> {{ action.label }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
 <!-- Section: Modules Grid -->
 <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; color: var(--text-primary);">ERP System Modules</h2>
 <div class="modules-grid">
-    
+
     <!-- Module Card: HRM -->
     <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'hrm' in user_modules %}
@@ -102,12 +140,12 @@
             <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Manage employee profiles, departments, recruitment candidate tracking, payroll cycles, and leave requests.</p>
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Active Employees</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ hrm.active_employees }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Employees</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.total_employees }}</span>
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Open Positions</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ hrm.open_positions }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.open_positions }}</span>
                 </div>
             </div>
         </div>
@@ -145,12 +183,12 @@
             <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Administer course creations, batch timetables, online/offline inquiries, registrations, installment plans, and placement records.</p>
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Enrolled Students</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ training.total_students }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Students</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.total_students }}</span>
                 </div>
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Active Batches</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ training.active_batches }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Products</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.total_products }}</span>
                 </div>
             </div>
         </div>
@@ -188,12 +226,12 @@
             <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Track stock products, quantities, prices, SKUs, category classifications, and incoming asset details.</p>
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Unique Products</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ inventory.total_products }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Products</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.total_products }}</span>
                 </div>
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Stock Valuation</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">BDT {{ inventory.total_value|floatformat:2 }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Low Stock</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: {% if kpis.low_stock_items > 0 %}#ef4444{% else %}#10b981{% endif %};">{{ kpis.low_stock_items }}</span>
                 </div>
             </div>
         </div>
@@ -232,11 +270,11 @@
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Total Invested</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">BDT {{ investment.total_invested|floatformat:2 }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">BDT {{ kpis.total_invested|floatformat:2 }}</span>
                 </div>
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Overall ROI</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">{{ investment.overall_roi }}%</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Revenue</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
@@ -274,12 +312,12 @@
             <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Oversee billing logs, outstanding due balances, completed invoice transactions, client records, and payment states.</p>
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Paid Collected</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">BDT {{ billing.paid_amount|floatformat:2 }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Revenue</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
                 </div>
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Outstanding</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #ef4444;">BDT {{ billing.pending_amount|floatformat:2 }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Pending Invoices</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: {% if kpis.pending_invoices > 0 %}#ef4444{% else %}#10b981{% endif %};">{{ kpis.pending_invoices }}</span>
                 </div>
             </div>
         </div>
@@ -317,12 +355,12 @@
             <p style="margin: 0 0 20px 0; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">Monitor IT service support tickets, client inquiries, development priority levels, and software solution states.</p>
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Open Tickets</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #ef4444;">{{ solutions.open_tickets }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Active Projects</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">{{ kpis.active_projects }}</span>
                 </div>
                 <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Resolved/Closed</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">{{ solutions.resolved_tickets }}</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Expiring Licenses</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: {% if kpis.expiring_licenses > 0 %}#f59e0b{% else %}#10b981{% endif %};">{{ kpis.expiring_licenses }}</span>
                 </div>
             </div>
         </div>
@@ -418,13 +456,35 @@
 
 </div>
 
+<!-- Module Summary Section -->
+{% if summaries %}
+<div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; padding: 28px; box-shadow: var(--glass-shadow); margin-bottom: 32px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--text-primary);">Pending Items & Alerts</h2>
+        <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Across all modules</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for item in summaries %}
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 12px;">
+            <span class="badge {{ item.module|lower }}" style="min-width: 80px; text-align: center; background: {% if item.module == 'HRM' %}rgba(33,92,92,0.1){% elif item.module == 'Inventory' %}rgba(59,130,246,0.1){% elif item.module == 'Billing' %}rgba(245,158,11,0.1){% else %}rgba(100,100,100,0.1){% endif %}; color: {% if item.module == 'HRM' %}var(--accent-color){% elif item.module == 'Inventory' %}#3b82f6{% elif item.module == 'Billing' %}#f59e0b{% else %}#666{% endif %}; font-weight: 600; font-size: 0.8rem;">
+                {{ item.module }}
+            </span>
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">{{ item.type }}</span>
+            <span style="flex: 1; font-size: 0.9rem; color: var(--text-primary);">{{ item.label }}</span>
+            <span class="badge warning" style="font-size: 0.75rem; background: {% if item.status == 'Overdue' %}#fef2f2; color: #ef4444{% else %}#fffbeb; color: #f59e0b{% endif %};">{{ item.status }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Recent Activities / Logs -->
 <div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; padding: 28px; box-shadow: var(--glass-shadow);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--text-primary);">Recent System Activities</h2>
         <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Latest actions logged</span>
     </div>
-    
+
     {% if audit_logs %}
     <div class="activity-timeline" style="display: flex; flex-direction: column; gap: 16px;">
         {% for log in audit_logs %}

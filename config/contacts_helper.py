@@ -13,7 +13,7 @@ def get_or_create_contact(name, email, phone, role):
     name = name.strip()
     phone = phone.strip()
 
-    contacts_ref = db.collection('contacts')
+    contacts_ref = db.collection('sys_contacts')
     docs = list(contacts_ref.where('email', '==', email).stream())
 
     if docs:

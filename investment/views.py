@@ -6,6 +6,7 @@ from google.cloud import firestore
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import module_access
 from datetime import datetime, timedelta
+from config.services.integration_service import IntegrationService
 
 # Helper to retrieve all data in a collection
 def get_collection_data(collection_name):
@@ -23,11 +24,11 @@ def get_collection_data(collection_name):
 
 @module_access('investment')
 def index(request):
-    investors = get_collection_data('investors')
-    loans = get_collection_data('investor_loans')
-    transactions = get_collection_data('investment_transactions')
-    outbound = get_collection_data('outbound_investments')
-    schedules = get_collection_data('loan_amortization_schedules')
+    investors = get_collection_data('invst_investors')
+    loans = get_collection_data('invst_loans')
+    transactions = get_collection_data('invst_transactions')
+    outbound = get_collection_data('invst_outbound_placements')
+    schedules = get_collection_data('invst_loan_schedules')
 
     # Calculate KPIs
     total_capital_managed = 0.0
@@ -124,7 +125,7 @@ def investor_list(request):
 
         if action == 'add_investor':
             # Generate unique code
-            existing = get_collection_data('investors')
+            existing = get_collection_data('invst_investors')
             code = f"INV-{len(existing) + 1:04d}"
 
             email = request.POST.get('email', '')
@@ -152,21 +153,21 @@ def investor_list(request):
             if doc_id:
                 if 'created_at' in data:
                     del data['created_at']
-                db.collection('investors').document(doc_id).update(data)
+                db.collection('invst_investors').document(doc_id).update(data)
                 messages.success(request, "Investor profile updated successfully!")
             else:
-                db.collection('investors').add(data)
+                db.collection('invst_investors').add(data)
                 messages.success(request, "Investor profile registered successfully!")
 
         elif action == 'delete_investor' and doc_id:
-            db.collection('investors').document(doc_id).delete()
+            db.collection('invst_investors').document(doc_id).delete()
             messages.success(request, "Investor profile deleted successfully!")
 
         return redirect('investment:investor_list')
 
-    investors = get_collection_data('investors')
-    transactions = get_collection_data('investment_transactions')
-    loans = get_collection_data('investor_loans')
+    investors = get_collection_data('invst_investors')
+    transactions = get_collection_data('invst_transactions')
+    loans = get_collection_data('invst_loans')
 
     from collections import defaultdict
     tx_by_investor = defaultdict(list)
@@ -215,7 +216,7 @@ def inbound_list(request):
         if action == 'add_inbound':
             investor_id = request.POST.get('investor_id')
             # Resolve investor name
-            investor_doc = db.collection('investors').document(investor_id).get()
+            investor_doc = db.collection('invst_investors').document(investor_id).get()
             investor_name = investor_doc.to_dict().get('name', 'Unknown') if investor_doc.exists else 'Unknown'
 
             data = {
@@ -233,20 +234,20 @@ def inbound_list(request):
             if doc_id:
                 if 'created_at' in data:
                     del data['created_at']
-                db.collection('investment_transactions').document(doc_id).update(data)
+                db.collection('invst_transactions').document(doc_id).update(data)
                 messages.success(request, "Inbound investment transaction updated successfully.")
             else:
-                db.collection('investment_transactions').add(data)
+                db.collection('invst_transactions').add(data)
                 messages.success(request, "Inbound investment transaction logged successfully.")
 
         elif action == 'delete_inbound' and doc_id:
-            db.collection('investment_transactions').document(doc_id).delete()
+            db.collection('invst_transactions').document(doc_id).delete()
             messages.success(request, "Inbound investment transaction deleted successfully.")
 
         return redirect('investment:inbound_list')
 
-    transactions = [t for t in get_collection_data('investment_transactions') if t.get('transaction_type') == 'Capital Influx']
-    investors = get_collection_data('investors')
+    transactions = [t for t in get_collection_data('invst_transactions') if t.get('transaction_type') == 'Capital Influx']
+    investors = get_collection_data('invst_investors')
     return render(request, 'investment/inbound.html', {'transactions': transactions, 'investors': investors})
 
 @module_access('investment')
@@ -262,7 +263,7 @@ def loans_list(request):
             tenure = int(request.POST.get('tenure_months', 1))
             disb_date_str = request.POST.get('disbursement_date')
 
-            investor_doc = db.collection('investors').document(investor_id).get()
+            investor_doc = db.collection('invst_investors').document(investor_id).get()
             investor_name = investor_doc.to_dict().get('name', 'Unknown') if investor_doc.exists else 'Unknown'
 
             # PMT Equal Installments Amortization Formula
@@ -286,7 +287,7 @@ def loans_list(request):
             }
 
             # Save loan to database and get ID
-            _, loan_ref = db.collection('investor_loans').add(loan_data)
+            _, loan_ref = db.collection('invst_loans').add(loan_data)
             loan_id = loan_ref.id
 
             # Generate and write amortization schedule entries to database
@@ -305,7 +306,7 @@ def loans_list(request):
                 remaining_balance -= principal_portion
                 due_date = (disb_date + timedelta(days=30 * i)).strftime('%Y-%m-%d')
 
-                sch_ref = db.collection('loan_amortization_schedules').document()
+                sch_ref = db.collection('invst_loan_schedules').document()
                 batch.set(sch_ref, {
                     'loan_id': loan_id,
                     'installment_number': i,
@@ -317,13 +318,22 @@ def loans_list(request):
                 })
 
             batch.commit()
+
+            # Auto-create journal entry for loan disbursement
+            loan_data['id'] = loan_id
+            loan_data['loan_id'] = loan_id
+            try:
+                IntegrationService.investment_loan_to_journal_entry(loan_data, request.user)
+            except Exception as e:
+                print(f"Error auto-creating journal entry for loan: {e}")
+
             messages.success(request, "Investor loan and amortization schedule registered successfully.")
 
         elif action == 'delete_loan' and doc_id:
             # Delete loan
-            db.collection('investor_loans').document(doc_id).delete()
+            db.collection('invst_loans').document(doc_id).delete()
             # Clean up related schedules
-            schedules = db.collection('loan_amortization_schedules').where('loan_id', '==', doc_id).stream()
+            schedules = db.collection('invst_loan_schedules').where('loan_id', '==', doc_id).stream()
             batch = db.batch()
             for s in schedules:
                 batch.delete(s.reference)
@@ -332,8 +342,8 @@ def loans_list(request):
 
         return redirect('investment:loans_list')
 
-    loans = get_collection_data('investor_loans')
-    investors = get_collection_data('investors')
+    loans = get_collection_data('invst_loans')
+    investors = get_collection_data('invst_investors')
     return render(request, 'investment/loans.html', {'loans': loans, 'investors': investors})
 
 @module_access('investment')
@@ -354,19 +364,19 @@ def outbound_list(request):
             }
 
             if doc_id:
-                db.collection('outbound_investments').document(doc_id).update(data)
+                db.collection('invst_outbound_placements').document(doc_id).update(data)
                 messages.success(request, "Outbound investment record updated successfully.")
             else:
-                db.collection('outbound_investments').add(data)
+                db.collection('invst_outbound_placements').add(data)
                 messages.success(request, "Outbound investment record logged successfully.")
 
         elif action == 'delete_outbound' and doc_id:
-            db.collection('outbound_investments').document(doc_id).delete()
+            db.collection('invst_outbound_placements').document(doc_id).delete()
             messages.success(request, "Outbound investment record deleted successfully.")
 
         return redirect('investment:outbound_list')
 
-    outbound = get_collection_data('outbound_investments')
+    outbound = get_collection_data('invst_outbound_placements')
     return render(request, 'investment/outbound.html', {'outbound': outbound})
 
 @module_access('investment')
@@ -387,19 +397,19 @@ def instruments_list(request):
             }
 
             if doc_id:
-                db.collection('financial_instruments').document(doc_id).update(data)
+                db.collection('invst_financial_instruments').document(doc_id).update(data)
                 messages.success(request, "Financial instrument updated successfully.")
             else:
-                db.collection('financial_instruments').add(data)
+                db.collection('invst_financial_instruments').add(data)
                 messages.success(request, "Financial instrument registered successfully.")
 
         elif action == 'delete_instrument' and doc_id:
-            db.collection('financial_instruments').document(doc_id).delete()
+            db.collection('invst_financial_instruments').document(doc_id).delete()
             messages.success(request, "Financial instrument deleted successfully.")
 
         return redirect('investment:instruments_list')
 
-    instruments = get_collection_data('financial_instruments')
+    instruments = get_collection_data('invst_financial_instruments')
     return render(request, 'investment/instruments.html', {'instruments': instruments})
 
 @module_access('investment')
@@ -414,7 +424,7 @@ def pl_list(request):
             opex = float(request.POST.get('opex', 0.0))
 
             # Fetch schedules to calculate interest paid this month
-            schedules = get_collection_data('loan_amortization_schedules')
+            schedules = get_collection_data('invst_loan_schedules')
             interest_expense = 0.0
             for s in schedules:
                 if s.get('due_date') and s.get('due_date')[:7] == month:
@@ -434,19 +444,19 @@ def pl_list(request):
             if doc_id:
                 if 'created_at' in data:
                     del data['created_at']
-                db.collection('pl_ledger_monthly').document(doc_id).update(data)
+                db.collection('invst_pl_ledger').document(doc_id).update(data)
                 messages.success(request, "Profit/Loss entry updated successfully.")
             else:
-                db.collection('pl_ledger_monthly').add(data)
+                db.collection('invst_pl_ledger').add(data)
                 messages.success(request, "Profit/Loss entry registered successfully.")
 
         elif action == 'delete_pl' and doc_id:
-            db.collection('pl_ledger_monthly').document(doc_id).delete()
+            db.collection('invst_pl_ledger').document(doc_id).delete()
             messages.success(request, "Profit/Loss entry deleted successfully.")
 
         return redirect('investment:pl_list')
 
-    pl_entries = sorted(get_collection_data('pl_ledger_monthly'), key=lambda x: x.get('month', ''), reverse=True)
+    pl_entries = sorted(get_collection_data('invst_pl_ledger'), key=lambda x: x.get('month', ''), reverse=True)
     return render(request, 'investment/pl_management.html', {'pl_entries': pl_entries})
 
 @module_access('investment')
@@ -456,7 +466,7 @@ def payables_list(request):
         sch_id = request.POST.get('schedule_id')
 
         if action == 'clear_payment' and sch_id:
-            sch_doc = db.collection('loan_amortization_schedules').document(sch_id).get()
+            sch_doc = db.collection('invst_loan_schedules').document(sch_id).get()
             if sch_doc.exists:
                 sch_data = sch_doc.to_dict()
                 principal = float(sch_data.get('scheduled_principal', 0.0))
@@ -464,7 +474,7 @@ def payables_list(request):
                 total = principal + interest
 
                 # 1. Update Schedule status
-                db.collection('loan_amortization_schedules').document(sch_id).update({
+                db.collection('invst_loan_schedules').document(sch_id).update({
                     'payment_status': 'Paid',
                     'paid_amount': total,
                     'actual_payment_date': datetime.today().strftime('%Y-%m-%d')
@@ -472,7 +482,7 @@ def payables_list(request):
 
                 # 2. Update Outstanding Balance on the related Loan
                 loan_id = sch_data.get('loan_id')
-                loan_ref = db.collection('investor_loans').document(loan_id)
+                loan_ref = db.collection('invst_loans').document(loan_id)
                 loan_doc = loan_ref.get()
                 if loan_doc.exists:
                     curr_bal = float(loan_doc.to_dict().get('outstanding_balance', 0.0))
@@ -485,11 +495,11 @@ def payables_list(request):
 
                     # Get investor profile to log payouts
                     inv_id = loan_doc.to_dict().get('investor_id')
-                    inv_doc = db.collection('investors').document(inv_id).get()
+                    inv_doc = db.collection('invst_investors').document(inv_id).get()
                     inv_name = inv_doc.to_dict().get('name', 'Unknown') if inv_doc.exists else 'Unknown'
 
                     # 3. Log Payout Transaction (Cash outflow)
-                    db.collection('investment_transactions').add({
+                    db.collection('invst_transactions').add({
                         'investor_id': inv_id,
                         'investor_name': inv_name,
                         'transaction_type': 'Interest Payout',
@@ -504,9 +514,9 @@ def payables_list(request):
 
         return redirect('investment:payables_list')
 
-    schedules = get_collection_data('loan_amortization_schedules')
-    loans = get_collection_data('investor_loans')
-    investors = get_collection_data('investors')
+    schedules = get_collection_data('invst_loan_schedules')
+    loans = get_collection_data('invst_loans')
+    investors = get_collection_data('invst_investors')
 
     loan_map = {l['id']: l for l in loans}
     investor_map = {i['id']: i for i in investors}

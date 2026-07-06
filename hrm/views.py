@@ -6,6 +6,8 @@ from google.cloud import firestore
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from accounts.decorators import module_access
+from config.services.integration_service import IntegrationService
+from config.workflow_integration import ensure_workflow, try_transition, LEAVE_TRIGGER_MAP
 import random
 
 # Helper to get Firestore collection data or fallback to sample lists (no cache)
@@ -45,8 +47,8 @@ def invalidate_cache(collection_name):
 def index(request):
     # HR Overview / Dashboard
     try:
-        employees = list(db.collection('employees').stream())
-        positions = list(db.collection('hrm_positions').stream())
+        employees = list(db.collection('hrm_employees').stream())
+        positions = list(db.collection('org_positions').stream())
 
         total_emp = len(employees)
         active_emp = len([e for e in employees if (e.to_dict() or {}).get('status') == 'Active'])
@@ -115,13 +117,13 @@ def recruitment(request):
                 }
                 
                 if doc_id:
-                    db.collection('hrm_candidates').document(doc_id).update(update_data)
+                    db.collection('hrm_recruitment_candidates').document(doc_id).update(update_data)
                     messages.success(request, "Candidate profile updated successfully.")
                 else:
                     cand_id = f"CAN-{random.randint(100, 999)}"
                     update_data['cand_id'] = cand_id
                     update_data['createdAt'] = firestore.SERVER_TIMESTAMP
-                    db.collection('hrm_candidates').add(update_data)
+                    db.collection('hrm_recruitment_candidates').add(update_data)
                     messages.success(request, "Candidate profile registered successfully.")
             except Exception as e:
                 print(f"Error adding candidate: {e}")
@@ -135,7 +137,7 @@ def recruitment(request):
             if cand_doc_id:
                 try:
                     cand_name, cand_position = None, None
-                    cand_ref = db.collection('hrm_candidates').document(cand_doc_id)
+                    cand_ref = db.collection('hrm_recruitment_candidates').document(cand_doc_id)
                     cand_doc = cand_ref.get()
                     if cand_doc.exists:
                         cand_name = cand_doc.to_dict().get('name')
@@ -155,10 +157,10 @@ def recruitment(request):
                         }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('hrm_shortlists').document(doc_id).update(update_data)
+                            db.collection('hrm_recruitment_shortlists').document(doc_id).update(update_data)
                             messages.success(request, "Shortlist details updated successfully.")
                         else:
-                            db.collection('hrm_shortlists').add({
+                            db.collection('hrm_recruitment_shortlists').add({
                             'candidate_id': cand_doc_id,
                             'name': cand_name,
                             'position': cand_position,
@@ -180,7 +182,7 @@ def recruitment(request):
             if cand_doc_id:
                 try:
                     cand_name, cand_position = None, None
-                    cand_ref = db.collection('hrm_candidates').document(cand_doc_id)
+                    cand_ref = db.collection('hrm_recruitment_candidates').document(cand_doc_id)
                     cand_doc = cand_ref.get()
                     if cand_doc.exists:
                         cand_name = cand_doc.to_dict().get('name')
@@ -201,10 +203,10 @@ def recruitment(request):
                         }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('hrm_interviews').document(doc_id).update(update_data)
+                            db.collection('hrm_recruitment_interviews').document(doc_id).update(update_data)
                             messages.success(request, "Interview schedule updated successfully.")
                         else:
-                            db.collection('hrm_interviews').add({
+                            db.collection('hrm_recruitment_interviews').add({
                             'candidate_id': cand_doc_id,
                             'name': cand_name,
                             'position': cand_position,
@@ -226,7 +228,7 @@ def recruitment(request):
             if cand_doc_id:
                 try:
                     cand_name, cand_position = None, None
-                    cand_ref = db.collection('hrm_candidates').document(cand_doc_id)
+                    cand_ref = db.collection('hrm_recruitment_candidates').document(cand_doc_id)
                     cand_doc = cand_ref.get()
                     if cand_doc.exists:
                         cand_name = cand_doc.to_dict().get('name')
@@ -247,10 +249,10 @@ def recruitment(request):
                         }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('hrm_selections').document(doc_id).update(update_data)
+                            db.collection('hrm_recruitment_selections').document(doc_id).update(update_data)
                             messages.success(request, "Selection details updated successfully.")
                         else:
-                            db.collection('hrm_selections').add({
+                            db.collection('hrm_recruitment_selections').add({
                             'candidate_id': cand_doc_id,
                             'name': cand_name,
                             'position': cand_position,
@@ -264,15 +266,15 @@ def recruitment(request):
                     
         # 5. Delete Actions
         elif action.startswith('delete_'):
-            col_name = action.replace('delete_', 'hrm_')
-            if col_name == 'hrm_candidate':
-                col_name = 'hrm_candidates'
-            elif col_name == 'hrm_shortlist':
-                col_name = 'hrm_shortlists'
-            elif col_name == 'hrm_interview':
-                col_name = 'hrm_interviews'
-            elif col_name == 'hrm_selection':
-                col_name = 'hrm_selections'
+            col_name = action.replace('delete_', 'hrm_recruitment_')
+            if col_name == 'hrm_recruitment_candidate':
+                col_name = 'hrm_recruitment_candidates'
+            elif col_name == 'hrm_recruitment_shortlist':
+                col_name = 'hrm_recruitment_shortlists'
+            elif col_name == 'hrm_recruitment_interview':
+                col_name = 'hrm_recruitment_interviews'
+            elif col_name == 'hrm_recruitment_selection':
+                col_name = 'hrm_recruitment_selections'
                 
             doc_id = request.POST.get('doc_id')
             if doc_id:
@@ -288,7 +290,7 @@ def recruitment(request):
             new_status = request.POST.get('status')
             if doc_id and new_status:
                 try:
-                    db.collection('hrm_candidates').document(doc_id).update({'status': new_status})
+                    db.collection('hrm_recruitment_candidates').document(doc_id).update({'status': new_status})
                     messages.success(request, f"Candidate status updated to {new_status}.")
                 except Exception as e:
                     print(f"Error updating status: {e}")
@@ -297,13 +299,13 @@ def recruitment(request):
 
     # Fetch data from collections
     # Transactional data fetched fresh; positions cached (rarely changes)
-    candidates = get_collection_data('hrm_candidates', [])
-    shortlists = get_collection_data('hrm_shortlists', [])
-    interviews = get_collection_data('hrm_interviews', [])
-    selections = get_collection_data('hrm_selections', [])
-    positions_data = get_cached_collection('hrm_positions')
-    departments = get_cached_collection('hrm_departments')
-    sub_departments = get_cached_collection('hrm_sub_departments')
+    candidates = get_collection_data('hrm_recruitment_candidates', [])
+    shortlists = get_collection_data('hrm_recruitment_shortlists', [])
+    interviews = get_collection_data('hrm_recruitment_interviews', [])
+    selections = get_collection_data('hrm_recruitment_selections', [])
+    positions_data = get_cached_collection('org_positions')
+    departments = get_cached_collection('org_departments')
+    sub_departments = get_cached_collection('org_departments_sub')
 
     positions = []
     for p in positions_data:
@@ -349,10 +351,10 @@ def department(request):
                 }
                     if 'createdAt' in update_data:
                         del update_data['createdAt']
-                    db.collection('hrm_departments').document(doc_id).update(update_data)
+                    db.collection('org_departments').document(doc_id).update(update_data)
                     messages.success(request, "Department updated successfully.")
                 else:
-                    db.collection('hrm_departments').add({
+                    db.collection('org_departments').add({
                     'name': request.POST.get('name'),
                     'status': request.POST.get('status', 'Active'),
                     'module_linking': request.POST.getlist('module_linking'),
@@ -379,7 +381,7 @@ def department(request):
                                 parent_name = d['name']
                                 break
                     else:
-                        dept_doc = db.collection('hrm_departments').document(parent_id).get()
+                        dept_doc = db.collection('org_departments').document(parent_id).get()
                         if dept_doc.exists:
                             parent_name = dept_doc.to_dict().get('name')
                             
@@ -396,10 +398,10 @@ def department(request):
                         }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('hrm_sub_departments').document(doc_id).update(update_data)
+                            db.collection('org_departments').document(doc_id).update(update_data)
                             messages.success(request, "Sub-department updated successfully.")
                         else:
-                            db.collection('hrm_sub_departments').add({
+                            db.collection('org_departments').add({
                             'name': name,
                             'parent_id': parent_id,
                             'parent_name': parent_name,
@@ -429,7 +431,7 @@ def department(request):
                                 dept_name = d['name']
                                 break
                     else:
-                        dept_doc = db.collection('hrm_departments').document(dept_id).get()
+                        dept_doc = db.collection('org_departments').document(dept_id).get()
                         if dept_doc.exists:
                             dept_name = dept_doc.to_dict().get('name')
                             
@@ -441,7 +443,7 @@ def department(request):
                                     sub_dept_name = sd['name']
                                     break
                         else:
-                            sub_dept_doc = db.collection('hrm_sub_departments').document(sub_dept_id).get()
+                            sub_dept_doc = db.collection('org_departments').document(sub_dept_id).get()
                             if sub_dept_doc.exists:
                                 sub_dept_name = sub_dept_doc.to_dict().get('name')
                     else:
@@ -462,10 +464,10 @@ def department(request):
                             }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('hrm_positions').document(doc_id).update(update_data)
+                            db.collection('org_positions').document(doc_id).update(update_data)
                             messages.success(request, "Job position updated successfully.")
                         else:
-                            db.collection('hrm_positions').add({
+                            db.collection('org_positions').add({
                                 'title': title,
                                 'dept_id': dept_id,
                                 'dept_name': dept_name,
@@ -480,13 +482,13 @@ def department(request):
                     
         # 4. Delete Action
         elif action.startswith('delete_'):
-            col_name = action.replace('delete_', 'hrm_')
-            if col_name == 'hrm_department':
-                col_name = 'hrm_departments'
-            elif col_name == 'hrm_sub_department':
-                col_name = 'hrm_sub_departments'
-            elif col_name == 'hrm_position':
-                col_name = 'hrm_positions'
+            col_name = action.replace('delete_', 'org_')
+            if col_name == 'org_department':
+                col_name = 'org_departments'
+            elif col_name == 'org_sub_department':
+                col_name = 'org_departments_sub'
+            elif col_name == 'org_position':
+                col_name = 'org_positions'
                 
             doc_id = request.POST.get('doc_id')
             if doc_id:
@@ -497,13 +499,13 @@ def department(request):
                     print(f"Error deleting doc from {col_name}: {e}")
                     
         # Invalidate caches so next load reflects the write
-        invalidate_cache('hrm_departments')
-        invalidate_cache('hrm_sub_departments')
-        invalidate_cache('hrm_positions')
+        invalidate_cache('org_departments')
+        invalidate_cache('org_departments_sub')
+        invalidate_cache('org_positions')
         return redirect('hrm:department')
 
     # Fetch lists — use cache for slow-changing reference data
-    departments = get_cached_collection('hrm_departments')
+    departments = get_cached_collection('org_departments')
     # Normalize module_linking to always be a list of strings
     for d in departments:
         linking = d.get('module_linking', [])
@@ -512,8 +514,8 @@ def department(request):
         elif not isinstance(linking, list):
             d['module_linking'] = []
 
-    sub_departments = get_cached_collection('hrm_sub_departments')
-    positions = get_cached_collection('hrm_positions')
+    sub_departments = get_cached_collection('org_departments_sub')
+    positions = get_cached_collection('org_positions')
 
     return render(request, 'hrm/departments.html', {
         'departments': departments,
@@ -532,7 +534,7 @@ def employee_database(request):
             doc_id = request.POST.get('doc_id')
             if doc_id:
                 try:
-                    db.collection('employees').document(doc_id).delete()
+                    db.collection('hrm_employees').document(doc_id).delete()
                     messages.success(request, "Employee record deleted successfully.")
                 except Exception as e:
                     print(f"Error deleting employee: {e}")
@@ -624,23 +626,31 @@ def employee_database(request):
 
             if doc_id:
                 # Update existing employee
-                db.collection('employees').document(doc_id).update(data)
+                db.collection('hrm_employees').document(doc_id).update(data)
+                data['id'] = doc_id
                 messages.success(request, "Employee profile updated successfully.")
             else:
                 # Generate new emp_id and add employee
-                existing = db.collection('employees').stream()
+                existing = db.collection('hrm_employees').stream()
                 count = sum(1 for _ in existing) + 1
                 data['emp_id'] = f"EMP-{count:04d}"
                 data['createdAt'] = firestore.SERVER_TIMESTAMP
-                db.collection('employees').add(data)
+                _, new_ref = db.collection('hrm_employees').add(data)
+                data['id'] = new_ref.id
                 messages.success(request, "Employee profile registered successfully.")
+
+            # Sync employee to unified registry and auto-provision auth user
+            try:
+                IntegrationService.employee_to_user_registry(data)
+            except Exception as e:
+                print(f"Error syncing employee to registry: {e}")
         except Exception as e:
             print(f"Error saving employee: {e}")
         return redirect('hrm:employee_database')
 
     # Fetch employees list
     try:
-        docs = db.collection('employees').stream()
+        docs = db.collection('hrm_employees').stream()
         employees = []
         for doc in docs:
             emp = doc.to_dict()
@@ -651,9 +661,9 @@ def employee_database(request):
         employees = []
 
     # Use cached reference data for dropdowns
-    departments = get_cached_collection('hrm_departments')
-    sub_departments = get_cached_collection('hrm_sub_departments')
-    positions = get_cached_collection('hrm_positions')
+    departments = get_cached_collection('org_departments')
+    sub_departments = get_cached_collection('org_departments_sub')
+    positions = get_cached_collection('org_positions')
 
     return render(request, 'hrm/employee_database.html', {
         'employees': employees,
@@ -714,7 +724,7 @@ def attendance(request):
 
     # Fetch employees for dropdown
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
     except Exception:
         employees = []
@@ -798,9 +808,11 @@ def leave(request):
                     if 'createdAt' in update_data:
                         del update_data['createdAt']
                     db.collection('hrm_leaves').document(doc_id).update(update_data)
+                    emp_name = request.POST.get('emp_name', '')
+                    ensure_workflow('hrm', 'leave', doc_id, entity_label=emp_name, request=request)
                     messages.success(request, "Leave request updated successfully.")
                 else:
-                    db.collection('hrm_leaves').add({
+                    _, new_ref = db.collection('hrm_leaves').add({
                     'name': request.POST.get('emp_name'),
                     'type': request.POST.get('leave_type'),
                     'from_date': from_date,
@@ -810,6 +822,9 @@ def leave(request):
                     'status': 'Pending',
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
+                    doc_id = new_ref.id
+                    emp_name = request.POST.get('emp_name', '')
+                    ensure_workflow('hrm', 'leave', doc_id, entity_label=emp_name, request=request)
                     messages.success(request, "Leave request submitted successfully.")
             except Exception as e:
                 print(f"Error applying leave: {e}")
@@ -819,6 +834,10 @@ def leave(request):
             if doc_id:
                 try:
                     db.collection('hrm_leaves').document(doc_id).update({'status': lv_action})
+                    ensure_workflow('hrm', 'leave', doc_id, request=request)
+                    trigger = LEAVE_TRIGGER_MAP.get(lv_action)
+                    if trigger:
+                        try_transition('hrm', 'leave', doc_id, trigger, request=request)
                     messages.success(request, f"Leave request status updated to {lv_action}.")
                 except Exception as e:
                     print(f"Error updating leave: {e}")
@@ -847,7 +866,7 @@ def leave(request):
     leaves = get_collection_data('hrm_leaves', [])
 
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
     except Exception:
         employees = []
@@ -925,7 +944,7 @@ def payroll(request):
             
             try:
                 # Calculate real totals from the employees collection
-                emp_docs = list(db.collection('employees').stream())
+                emp_docs = list(db.collection('hrm_employees').stream())
                 active_employees = [e.to_dict() for e in emp_docs if e.to_dict().get('status') == 'Active']
                 employee_count = len(active_employees)
                 
@@ -1002,8 +1021,8 @@ def payroll(request):
                         total_net_pay = float(pr_data.get('total_net_pay', 0.0))
                         period = pr_data.get('period', '')
                         
-                        coa_exp = list(db.collection('chart_of_accounts').where('account_code', '==', '51000').stream())
-                        coa_cash = list(db.collection('chart_of_accounts').where('account_code', '==', '11100').stream())
+                        coa_exp = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '51000').stream())
+                        coa_cash = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11100').stream())
                         
                         exp_id = coa_exp[0].id if coa_exp else '51000_fallback'
                         cash_id = coa_cash[0].id if coa_cash else '11100_fallback'
@@ -1024,7 +1043,7 @@ def payroll(request):
                             'lines': lines,
                             'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         }
-                        db.collection('journal_entries').add(je_data)
+                        db.collection('fin_journal_entries').add(je_data)
                         messages.success(request, "Payroll disbursed and journal entries posted successfully.")
                 except Exception as e:
                     print(f"Error disbursing payroll: {e}")
@@ -1036,7 +1055,7 @@ def payroll(request):
     payrolls = get_collection_data('hrm_payrolls', [])
 
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
     except Exception:
         employees = []
@@ -1079,7 +1098,7 @@ def get_payslip(request):
     
     try:
         # 1. Fetch employee
-        emp_query = list(db.collection('employees').where('name', '==', emp_name).stream())
+        emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
         if not emp_query:
             return JsonResponse({'error': 'Employee not found'}, status=404)
         emp_data = emp_query[0].to_dict()
@@ -1137,7 +1156,7 @@ def get_payslip(request):
 @module_access('hrm')
 def reports(request):
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
     except Exception:
         employees = []
@@ -1188,7 +1207,7 @@ def reports(request):
 
             elif report_type == 'Payroll Summary':
                 emp_data = {}
-                for e in db.collection('employees').stream():
+                for e in db.collection('hrm_employees').stream():
                     dt = e.to_dict()
                     name = dt.get('name')
                     if name:
@@ -1297,7 +1316,7 @@ def onboarding_offboarding(request):
                     'status': 'In Progress',
                     'createdAt': firestore.SERVER_TIMESTAMP
                 })
-                emp_query = list(db.collection('employees').where('name', '==', emp_name).stream())
+                emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
                 if emp_query:
                     emp_query[0].reference.update({'status': 'Resigned'})
                 messages.success(request, "Exit clearance workflow triggered successfully.")
@@ -1315,7 +1334,7 @@ def onboarding_offboarding(request):
                     if doc_snap and doc_snap.get('it_clearance') == 'Cleared' and doc_snap.get('finance_clearance') == 'Cleared' and doc_snap.get('hr_clearance') == 'Cleared':
                         db.collection('hrm_exit_clearance').document(doc_id).update({'status': 'Cleared'})
                         emp_name = doc_snap.get('employee')
-                        emp_query = list(db.collection('employees').where('name', '==', emp_name).stream())
+                        emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
                         if emp_query:
                             emp_query[0].reference.update({'status': 'Inactive'})
                     messages.success(request, "Exit clearance status updated successfully.")
@@ -1327,7 +1346,7 @@ def onboarding_offboarding(request):
     tasks = get_collection_data('hrm_onboarding_tasks', [])
     exits = get_collection_data('hrm_exit_clearance', [])
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
     except Exception:
         employees = []
@@ -1371,7 +1390,7 @@ def roster_management(request):
 
     shifts = get_collection_data('hrm_employee_shifts', [])
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
     except Exception:
         employees = []
@@ -1431,7 +1450,7 @@ def expense_claims(request):
 
     claims = get_collection_data('hrm_expense_claims', [])
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
     except Exception:
         employees = []
@@ -1505,7 +1524,7 @@ def document_asset_vault(request):
     documents = get_collection_data('hrm_documents', [])
     assets = get_collection_data('hrm_assets', [])
     try:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
     except Exception:
         employees = []

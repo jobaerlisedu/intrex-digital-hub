@@ -32,7 +32,7 @@ class AuditLog(models.Model):
             try:
                 from config.firebase import db
                 from google.cloud import firestore as google_firestore
-                logs_ref = db.collection('erp_audit_logs')
+                logs_ref = db.collection('sys_audit_logs')
                 query = logs_ref.order_by('timestamp', direction=google_firestore.Query.DESCENDING).limit(1)
                 docs = list(query.stream())
                 if docs:
@@ -55,7 +55,7 @@ class AuditLog(models.Model):
                 from config.firebase import db
                 from google.cloud import firestore as google_firestore
                 
-                db.collection('erp_audit_logs').add({
+                db.collection('sys_audit_logs').add({
                     'user_id': self.user_id,
                     'username': self.user.username if self.user else 'Anonymous',
                     'action': self.action,

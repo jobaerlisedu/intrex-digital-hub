@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from accounts.decorators import module_access
 from datetime import datetime
 import json
+from config.services.integration_service import IntegrationService
+from config.workflow_integration import ensure_workflow, try_transition, REQUISITION_TRIGGER_MAP, PO_TRIGGER_MAP
 
 # Utility to serialize Firestore documents
 def serialize_doc(doc):
@@ -17,16 +19,16 @@ def serialize_doc(doc):
 @module_access('inventory')
 def index(request):
     # Dashboard view
-    products_docs = db.collection('products').stream()
+    products_docs = db.collection('inv_products').stream()
     products = [serialize_doc(p) for p in products_docs]
 
-    po_docs = db.collection('purchase_orders').stream()
+    po_docs = db.collection('inv_purchase_orders').stream()
     pos = [serialize_doc(po) for po in po_docs]
 
-    req_docs = db.collection('requisitions').stream()
+    req_docs = db.collection('inv_requisitions').stream()
     reqs = [serialize_doc(req) for req in req_docs]
 
-    del_docs = db.collection('deliveries').stream()
+    del_docs = db.collection('inv_deliveries').stream()
     deliveries = [serialize_doc(d) for d in del_docs]
 
     # Calculations
@@ -85,32 +87,41 @@ def requisitions_list(request):
             }
 
             if doc_id:
-                db.collection('requisitions').document(doc_id).update(data)
+                db.collection('inv_requisitions').document(doc_id).update(data)
+                ensure_workflow('inventory', 'requisition', doc_id, request=request)
+                trigger = REQUISITION_TRIGGER_MAP.get(data.get('status'))
+                if trigger:
+                    try_transition('inventory', 'requisition', doc_id, trigger, request=request)
                 messages.success(request, "Requisition updated successfully.")
             else:
-                # Generate unique requisition code
-                count = len(list(db.collection('requisitions').stream()))
+                count = len(list(db.collection('inv_requisitions').stream()))
                 data['requisition_code'] = f"REQ-{datetime.now().year}-{count + 1001}"
                 data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                db.collection('requisitions').add(data)
+                _, new_ref = db.collection('inv_requisitions').add(data)
+                req_id = new_ref.id
+                ensure_workflow('inventory', 'requisition', req_id, request=request)
                 messages.success(request, "Requisition submitted successfully.")
 
         elif action == 'approve_requisition' and doc_id:
-            db.collection('requisitions').document(doc_id).update({'status': 'Approved'})
+            db.collection('inv_requisitions').document(doc_id).update({'status': 'Approved'})
+            ensure_workflow('inventory', 'requisition', doc_id, request=request)
+            try_transition('inventory', 'requisition', doc_id, 'approve', request=request)
             messages.success(request, "Requisition approved successfully.")
         
         elif action == 'reject_requisition' and doc_id:
-            db.collection('requisitions').document(doc_id).update({'status': 'Rejected'})
+            db.collection('inv_requisitions').document(doc_id).update({'status': 'Rejected'})
+            ensure_workflow('inventory', 'requisition', doc_id, request=request)
+            try_transition('inventory', 'requisition', doc_id, 'reject', request=request)
             messages.success(request, "Requisition rejected successfully.")
 
         elif action == 'delete_requisition' and doc_id:
-            db.collection('requisitions').document(doc_id).delete()
+            db.collection('inv_requisitions').document(doc_id).delete()
             messages.success(request, "Requisition deleted successfully.")
 
         return redirect('inventory:requisitions_list')
 
     # GET request
-    req_docs = db.collection('requisitions').stream()
+    req_docs = db.collection('inv_requisitions').stream()
     requisitions = []
     for doc in req_docs:
         r = serialize_doc(doc)
@@ -147,21 +158,21 @@ def vendors_list(request):
             }
 
             if doc_id:
-                db.collection('vendors').document(doc_id).update(data)
+                db.collection('inv_vendors').document(doc_id).update(data)
                 messages.success(request, "Vendor details updated successfully.")
             else:
-                count = len(list(db.collection('vendors').stream()))
+                count = len(list(db.collection('inv_vendors').stream()))
                 data['vendor_code'] = f"VND-{count + 1001}"
-                db.collection('vendors').add(data)
+                db.collection('inv_vendors').add(data)
                 messages.success(request, "Vendor details registered successfully.")
 
         elif action == 'delete_vendor' and doc_id:
-            db.collection('vendors').document(doc_id).delete()
+            db.collection('inv_vendors').document(doc_id).delete()
             messages.success(request, "Vendor details deleted successfully.")
 
         return redirect('inventory:vendors_list')
 
-    vendor_docs = db.collection('vendors').stream()
+    vendor_docs = db.collection('inv_vendors').stream()
     vendors = [serialize_doc(v) for v in vendor_docs]
     vendors_json = json.dumps(vendors)
 
@@ -180,7 +191,7 @@ def rfq_list(request):
 
         if action == 'add_rfq':
             req_id = request.POST.get('requisition_id')
-            req_doc = db.collection('requisitions').document(req_id).get()
+            req_doc = db.collection('inv_requisitions').document(req_id).get()
             req_data = req_doc.to_dict()
 
             data = {
@@ -192,19 +203,21 @@ def rfq_list(request):
                 'items': req_data.get('items', []),
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-            count = len(list(db.collection('rfqs').stream()))
+            count = len(list(db.collection('inv_rfqs').stream()))
             data['rfq_code'] = f"RFQ-{datetime.now().year}-{count + 1001}"
-            db.collection('rfqs').add(data)
+            db.collection('inv_rfqs').add(data)
 
             # Update Requisition status
-            db.collection('requisitions').document(req_id).update({'status': 'Procuring'})
+            db.collection('inv_requisitions').document(req_id).update({'status': 'Procuring'})
+            ensure_workflow('inventory', 'requisition', req_id, request=request)
+            try_transition('inventory', 'requisition', req_id, 'start_procurement', request=request)
             messages.success(request, "Request for Quotation (RFQ) created successfully.")
 
         elif action == 'add_quotation':
             rfq_id = request.POST.get('rfq_id')
             vendor_id = request.POST.get('vendor_id')
-            rfq_snap = db.collection('rfqs').document(rfq_id).get().to_dict()
-            vendor_snap = db.collection('vendors').document(vendor_id).get().to_dict()
+            rfq_snap = db.collection('inv_rfqs').document(rfq_id).get().to_dict()
+            vendor_snap = db.collection('inv_vendors').document(vendor_id).get().to_dict()
 
             # Read prices
             unit_prices = {}
@@ -232,26 +245,26 @@ def rfq_list(request):
                 'status': 'Under Review',
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-            db.collection('quotations').add(data)
+            db.collection('inv_quotations').add(data)
             messages.success(request, "Vendor quotation added successfully.")
 
         elif action == 'accept_quotation' and doc_id:
             # Get quotation
-            quote_ref = db.collection('quotations').document(doc_id)
+            quote_ref = db.collection('inv_quotations').document(doc_id)
             quote = quote_ref.get().to_dict()
             rfq_id = quote.get('rfq_id')
             
             # Reject other quotations for this RFQ
-            other_quotes = db.collection('quotations').where('rfq_id', '==', rfq_id).stream()
+            other_quotes = db.collection('inv_quotations').where('rfq_id', '==', rfq_id).stream()
             for oq in other_quotes:
                 if oq.id != doc_id:
-                    db.collection('quotations').document(oq.id).update({'status': 'Rejected'})
+                    db.collection('inv_quotations').document(oq.id).update({'status': 'Rejected'})
             
             quote_ref.update({'status': 'Accepted'})
-            db.collection('rfqs').document(rfq_id).update({'status': 'Selected'})
+            db.collection('inv_rfqs').document(rfq_id).update({'status': 'Selected'})
 
             # Automatically generate Purchase Order
-            rfq_data = db.collection('rfqs').document(rfq_id).get().to_dict()
+            rfq_data = db.collection('inv_rfqs').document(rfq_id).get().to_dict()
             po_items = []
             for item in rfq_data.get('items', []):
                 p_name = item.get('product_name')
@@ -264,7 +277,7 @@ def rfq_list(request):
                     'line_total': item.get('requested_quantity') * u_price
                 })
 
-            po_count = len(list(db.collection('purchase_orders').stream()))
+            po_count = len(list(db.collection('inv_purchase_orders').stream()))
             po_data = {
                 'po_code': f"PO-{datetime.now().year}-{po_count + 1001}",
                 'vendor_id': quote.get('vendor_id'),
@@ -279,30 +292,32 @@ def rfq_list(request):
                 'items': po_items,
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-            db.collection('purchase_orders').add(po_data)
+            _, po_ref = db.collection('inv_purchase_orders').add(po_data)
+            po_id = po_ref.id
+            ensure_workflow('inventory', 'purchase_order', po_id, request=request)
             messages.success(request, "Quotation accepted; purchase order created successfully.")
 
         elif action == 'delete_rfq' and doc_id:
-            db.collection('rfqs').document(doc_id).delete()
+            db.collection('inv_rfqs').document(doc_id).delete()
             # Also clean up related quotes
-            quotes = db.collection('quotations').where('rfq_id', '==', doc_id).stream()
+            quotes = db.collection('inv_quotations').where('rfq_id', '==', doc_id).stream()
             for q in quotes:
-                db.collection('quotations').document(q.id).delete()
+                db.collection('inv_quotations').document(q.id).delete()
             messages.success(request, "Request for Quotation deleted successfully.")
 
         return redirect('inventory:rfq_list')
 
     # GET context
-    rfq_docs = db.collection('rfqs').stream()
+    rfq_docs = db.collection('inv_rfqs').stream()
     rfqs = [serialize_doc(r) for r in rfq_docs]
 
-    req_docs = db.collection('requisitions').where('status', '==', 'Approved').stream()
+    req_docs = db.collection('inv_requisitions').where('status', '==', 'Approved').stream()
     requisitions = [serialize_doc(req) for req in req_docs]
 
-    vendor_docs = db.collection('vendors').where('is_active', '==', True).stream()
+    vendor_docs = db.collection('inv_vendors').where('is_active', '==', True).stream()
     vendors = [serialize_doc(v) for v in vendor_docs]
 
-    quote_docs = db.collection('quotations').stream()
+    quote_docs = db.collection('inv_quotations').stream()
     quotations = [serialize_doc(q) for q in quote_docs]
 
     # Map quotations to RFQ lists
@@ -329,20 +344,24 @@ def po_list(request):
         doc_id = request.POST.get('doc_id')
 
         if action == 'approve_po' and doc_id:
-            db.collection('purchase_orders').document(doc_id).update({'status': 'Approved'})
+            db.collection('inv_purchase_orders').document(doc_id).update({'status': 'Approved'})
+            ensure_workflow('inventory', 'purchase_order', doc_id, request=request)
+            try_transition('inventory', 'purchase_order', doc_id, 'approve', request=request)
             messages.success(request, "Purchase Order approved successfully.")
         
         elif action == 'cancel_po' and doc_id:
-            db.collection('purchase_orders').document(doc_id).update({'status': 'Cancelled'})
+            db.collection('inv_purchase_orders').document(doc_id).update({'status': 'Cancelled'})
+            ensure_workflow('inventory', 'purchase_order', doc_id, request=request)
+            try_transition('inventory', 'purchase_order', doc_id, 'cancel', request=request)
             messages.success(request, "Purchase Order cancelled successfully.")
             
         elif action == 'delete_po' and doc_id:
-            db.collection('purchase_orders').document(doc_id).delete()
+            db.collection('inv_purchase_orders').document(doc_id).delete()
             messages.success(request, "Purchase Order deleted successfully.")
 
         return redirect('inventory:po_list')
 
-    po_docs = db.collection('purchase_orders').stream()
+    po_docs = db.collection('inv_purchase_orders').stream()
     pos = [serialize_doc(po) for po in po_docs]
     pos.sort(key=lambda x: x.get('created_at', ''), reverse=True)
     pos_json = json.dumps(pos)
@@ -362,7 +381,7 @@ def grn_list(request):
 
         if action == 'add_grn':
             po_id = request.POST.get('po_id')
-            po_ref = db.collection('purchase_orders').document(po_id)
+            po_ref = db.collection('inv_purchase_orders').document(po_id)
             po_data = po_ref.get().to_dict()
 
             received_qtys = request.POST.getlist('received_qty[]')
@@ -398,7 +417,7 @@ def grn_list(request):
                     has_partial = True
 
                 # Adjust warehouse stocks
-                prod_query = db.collection('products').where('item_name', '==', item.get('product_name')).stream()
+                prod_query = db.collection('inv_products').where('item_name', '==', item.get('product_name')).stream()
                 prod_docs = list(prod_query)
                 
                 if prod_docs:
@@ -406,14 +425,14 @@ def grn_list(request):
                     p_doc = prod_docs[0]
                     p_data = p_doc.to_dict()
                     new_qty = p_data.get('quantity', 0) + rec_qty
-                    db.collection('products').document(p_doc.id).update({
+                    db.collection('inv_products').document(p_doc.id).update({
                         'quantity': new_qty,
                         'unit_price': item.get('unit_price'),
                         'storage_location': loc
                     })
                 else:
                     # Insert new product
-                    sku_count = len(list(db.collection('products').stream()))
+                    sku_count = len(list(db.collection('inv_products').stream()))
                     new_product = {
                         'item_name': item.get('product_name'),
                         'sku': f"SKU-{sku_count + 1001}",
@@ -422,10 +441,10 @@ def grn_list(request):
                         'unit_price': item.get('unit_price'),
                         'storage_location': loc
                     }
-                    db.collection('products').add(new_product)
+                    db.collection('inv_products').add(new_product)
 
                 # Record in Inventory Ledger
-                db.collection('inventory_ledger').add({
+                db.collection('inv_inventory_ledger').add({
                     'product_name': item.get('product_name'),
                     'quantity_change': rec_qty,
                     'unit_cost': item.get('unit_price'),
@@ -434,7 +453,7 @@ def grn_list(request):
                 })
 
             # Create GRN Document
-            grn_count = len(list(db.collection('goods_receipts').stream()))
+            grn_count = len(list(db.collection('inv_goods_receipts').stream()))
             grn_code = f"GRN-{datetime.now().year}-{grn_count + 1001}"
             grn_data = {
                 'grn_code': grn_code,
@@ -447,33 +466,44 @@ def grn_list(request):
                 'status': 'Inspected',
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-            db.collection('goods_receipts').add(grn_data)
+            db.collection('inv_goods_receipts').add(grn_data)
 
-            # Update PO state
             po_status = 'Fulfilled' if not has_partial else 'Partially Received'
             po_ref.update({
                 'items': updated_po_items,
                 'status': po_status
             })
+            ensure_workflow('inventory', 'purchase_order', po_id, request=request)
+            trigger = PO_TRIGGER_MAP.get(po_status)
+            if trigger:
+                try_transition('inventory', 'purchase_order', po_id, trigger, request=request)
 
-            # If PO fulfilled, update related requisition status
             req_id = po_data.get('requisition_id')
             if req_id and po_status == 'Fulfilled':
-                db.collection('requisitions').document(req_id).update({'status': 'Partially Received'})
+                db.collection('inv_requisitions').document(req_id).update({'status': 'Partially Received'})
+                ensure_workflow('inventory', 'requisition', req_id, request=request)
+                try_transition('inventory', 'requisition', req_id, 'partial_receipt', request=request)
+
+            # Auto-create AP Vendor Bill from GRN
+            try:
+                IntegrationService.grn_to_vendor_bill(grn_data, po_data, request.user)
+            except Exception as e:
+                print(f"Error auto-creating AP Bill from GRN: {e}")
+
             messages.success(request, "Goods Receipt Note (GRN) created and stock updated successfully.")
 
         elif action == 'delete_grn' and doc_id:
-            db.collection('goods_receipts').document(doc_id).delete()
+            db.collection('inv_goods_receipts').document(doc_id).delete()
             messages.success(request, "Goods Receipt Note deleted successfully.")
 
         return redirect('inventory:grn_list')
 
     # GET context
-    grn_docs = db.collection('goods_receipts').stream()
+    grn_docs = db.collection('inv_goods_receipts').stream()
     grns = [serialize_doc(g) for g in grn_docs]
     grns.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
-    po_docs = db.collection('purchase_orders').where('status', 'in', ['Approved', 'Partially Received']).stream()
+    po_docs = db.collection('inv_purchase_orders').where('status', 'in', ['Approved', 'Partially Received']).stream()
     purchase_orders = [serialize_doc(po) for po in po_docs]
     po_json = json.dumps(purchase_orders)
     grns_json = json.dumps(grns)
@@ -505,45 +535,45 @@ def stock_list(request):
 
             if doc_id:
                 # Log adjustment ledger record before updating
-                old_snap = db.collection('products').document(doc_id).get().to_dict()
+                old_snap = db.collection('inv_products').document(doc_id).get().to_dict()
                 old_qty = old_snap.get('quantity', 0.0)
                 diff = data['quantity'] - old_qty
                 if diff != 0:
-                    db.collection('inventory_ledger').add({
+                    db.collection('inv_inventory_ledger').add({
                         'product_name': data['item_name'],
                         'quantity_change': diff,
                         'unit_cost': data['unit_price'],
                         'transaction_type': 'Stock_Adjustment',
                         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     })
-                db.collection('products').document(doc_id).update(data)
+                db.collection('inv_products').document(doc_id).update(data)
                 messages.success(request, "Product details updated successfully.")
             else:
                 # Log initial ledger entry
-                db.collection('inventory_ledger').add({
+                db.collection('inv_inventory_ledger').add({
                     'product_name': data['item_name'],
                     'quantity_change': data['quantity'],
                     'unit_cost': data['unit_price'],
                     'transaction_type': 'Stock_Adjustment',
                     'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
-                db.collection('products').add(data)
+                db.collection('inv_products').add(data)
                 messages.success(request, "Product registered successfully.")
 
         elif action == 'delete_product' and doc_id:
-            db.collection('products').document(doc_id).delete()
+            db.collection('inv_products').document(doc_id).delete()
             messages.success(request, "Product deleted successfully.")
 
         return redirect('inventory:stock_list')
 
     # GET context
-    prod_docs = db.collection('products').stream()
+    prod_docs = db.collection('inv_products').stream()
     products = [serialize_doc(p) for p in prod_docs]
     for p in products:
         p['total_value'] = float(p.get('quantity', 0.0)) * float(p.get('unit_price', 0.0))
     products_json = json.dumps(products)
 
-    ledger_docs = db.collection('inventory_ledger').stream()
+    ledger_docs = db.collection('inv_inventory_ledger').stream()
     ledger = [serialize_doc(l) for l in ledger_docs]
     ledger.sort(key=lambda x: x.get('created_at', ''), reverse=True)
 
@@ -563,7 +593,7 @@ def delivery_list(request):
 
         if action == 'add_delivery':
             req_id = request.POST.get('requisition_id')
-            req_ref = db.collection('requisitions').document(req_id)
+            req_ref = db.collection('inv_requisitions').document(req_id)
             req_data = req_ref.get().to_dict()
 
             data = {
@@ -581,7 +611,7 @@ def delivery_list(request):
 
             if doc_id:
                 # Update status
-                db.collection('deliveries').document(doc_id).update({
+                db.collection('inv_deliveries').document(doc_id).update({
                     'delivery_status': data['delivery_status'],
                     'proof_of_delivery': data['proof_of_delivery']
                 })
@@ -589,22 +619,22 @@ def delivery_list(request):
                 # If delivered, decrement quantities from Products collection and log inventory ledger
                 if data['delivery_status'] == 'Delivered':
                     # Check if already processed to avoid double decrementing
-                    del_doc = db.collection('deliveries').document(doc_id).get().to_dict()
+                    del_doc = db.collection('inv_deliveries').document(doc_id).get().to_dict()
                     if del_doc.get('delivery_status') != 'Delivered':
                         for item in req_data.get('items', []):
                             p_name = item.get('product_name')
                             p_qty = float(item.get('requested_quantity', 0.0))
 
-                            prod_query = db.collection('products').where('item_name', '==', p_name).stream()
+                            prod_query = db.collection('inv_products').where('item_name', '==', p_name).stream()
                             prod_docs = list(prod_query)
                             if prod_docs:
                                 p_doc = prod_docs[0]
                                 old_qty = p_doc.to_dict().get('quantity', 0)
                                 new_qty = max(0.0, old_qty - p_qty)
-                                db.collection('products').document(p_doc.id).update({'quantity': new_qty})
+                                db.collection('inv_products').document(p_doc.id).update({'quantity': new_qty})
 
                             # Write to ledger
-                            db.collection('inventory_ledger').add({
+                            db.collection('inv_inventory_ledger').add({
                                 'product_name': p_name,
                                 'quantity_change': -p_qty,
                                 'unit_cost': 0.0, # Handover has no cost input here
@@ -614,29 +644,32 @@ def delivery_list(request):
 
                         # Mark Requisition as Completed
                         req_ref.update({'status': 'Completed'})
+                        ensure_workflow('inventory', 'requisition', req_id, request=request)
+                        try_transition('inventory', 'requisition', req_id, 'complete', request=request)
                 messages.success(request, "Delivery challan status updated successfully.")
             else:
-                challan_count = len(list(db.collection('deliveries').stream()))
+                challan_count = len(list(db.collection('inv_deliveries').stream()))
                 data['challan_code'] = f"CHL-{datetime.now().year}-{challan_count + 1001}"
-                db.collection('deliveries').add(data)
+                db.collection('inv_deliveries').add(data)
 
-                # Update Requisition status
                 req_ref.update({'status': 'Dispatched'})
+                ensure_workflow('inventory', 'requisition', req_id, request=request)
+                try_transition('inventory', 'requisition', req_id, 'dispatch', request=request)
                 messages.success(request, "Delivery challan created and status set to Dispatched successfully.")
 
         elif action == 'delete_delivery' and doc_id:
-            db.collection('deliveries').document(doc_id).delete()
+            db.collection('inv_deliveries').document(doc_id).delete()
             messages.success(request, "Delivery challan deleted successfully.")
 
         return redirect('inventory:delivery_list')
 
     # GET context
-    del_docs = db.collection('deliveries').stream()
+    del_docs = db.collection('inv_deliveries').stream()
     deliveries = [serialize_doc(d) for d in del_docs]
     deliveries.sort(key=lambda x: x.get('created_at', ''), reverse=True)
     deliveries_json = json.dumps(deliveries)
 
-    req_docs = db.collection('requisitions').where('status', 'in', ['Approved', 'Partially Received', 'Dispatched']).stream()
+    req_docs = db.collection('inv_requisitions').where('status', 'in', ['Approved', 'Partially Received', 'Dispatched']).stream()
     requisitions = [serialize_doc(req) for req in req_docs]
 
     return render(request, 'inventory/deliveries.html', {

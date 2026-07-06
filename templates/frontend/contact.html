@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function() {
           method: "POST",
           body: formData,
           headers: {
-            "X-CSRative": "true" // standard safety check
+            "X-Requested-With": "XMLHttpRequest"
           }
         });
 

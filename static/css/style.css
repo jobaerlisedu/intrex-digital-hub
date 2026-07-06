@@ -21,12 +21,29 @@ Buy Pro
   --bs-link-color: var(--bs-primary);
   --nav-bg: #ffffff;
   --nav-color: #fff;
-  --nav-hover-color: #1f6bff;
+  --nav-hover-color: var(--bs-primary);
   --dropdown-bg: #ffffff;
-  --dropdown-color: #1f6bff;
+  --dropdown-color: var(--bs-primary);
   --dropdown-hover-bg: #f7f7f7;
   --nav-inverse: #000000;
   --nav-inverse-alt: #ffffff;
+}
+
+[data-bs-theme=dark] {
+  --bs-body-bg: #1a1d23;
+  --bs-body-color: #c9cdd4;
+  --bs-primary: #2a7a7a;
+  --bs-primary-rgb: 42, 122, 122;
+  --bs-primary-hover: #3a9a9a;
+  --bs-primary-hover-rgb: 58, 154, 154;
+  --bs-secondary: #75b66e;
+  --bs-secondary-rgb: 117, 182, 110;
+  --bs-heading-color: #e8eaed;
+  --inverse-color: #c9cdd4;
+  --inverse-color-rgb: 201, 205, 212;
+  --nav-bg: #22252b;
+  --dropdown-bg: #22252b;
+  --dropdown-hover-bg: #2a2d35;
 }
 
 html,
@@ -1552,29 +1569,19 @@ h6 {
   color: #ffffff !important;
 }
 
-/* Unified Outline Button overrides — all outline variants look solid like primary */
-.btn-outline-primary,
-.btn-outline-secondary,
-.btn-outline-danger {
-  background-color: var(--bs-primary) !important;
+/* Primary outline buttons — proper outline style */
+.btn-outline-primary {
+  background-color: transparent !important;
   border-color: var(--bs-primary) !important;
-  color: #ffffff !important;
+  color: var(--bs-primary) !important;
 }
 
 .btn-outline-primary:hover,
 .btn-outline-primary:focus,
 .btn-outline-primary:active,
-.btn-outline-primary.active,
-.btn-outline-secondary:hover,
-.btn-outline-secondary:focus,
-.btn-outline-secondary:active,
-.btn-outline-secondary.active,
-.btn-outline-danger:hover,
-.btn-outline-danger:focus,
-.btn-outline-danger:active,
-.btn-outline-danger.active {
-  background-color: var(--bs-primary-hover) !important;
-  border-color: var(--bs-primary-hover) !important;
+.btn-outline-primary.active {
+  background-color: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
   color: #ffffff !important;
 }
 

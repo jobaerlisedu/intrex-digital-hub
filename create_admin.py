@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 
 try:
     # Check if 'admin' already exists in Firestore
-    admin_doc = db.collection('users').document('admin').get()
+    admin_doc = db.collection('sys_users').document('admin').get()
     if admin_doc.exists:
         print("INFO: 'admin' superuser already exists in Firestore. Relying on Firestore sync.")
     elif not User.objects.filter(username='admin').exists():

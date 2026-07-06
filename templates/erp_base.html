@@ -820,7 +820,39 @@
 }
 
 </style>
+        <style>
+        #spa-content {
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        @keyframes spa-load-bar {
+            0%   { width: 0; }
+            50%  { width: 60%; }
+            100% { width: 100%; opacity: 0; }
+        }
+        #spa-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 99999;
+            pointer-events: none;
+        }
+        #spa-loader > div {
+            height: 3px;
+            background: var(--accent-color, #215c5c);
+            width: 0;
+            animation: spa-load-bar 0.8s ease forwards;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
+
+    {% if use_vite_dev %}
+    <script type="module" src="{{ vite_dev_url }}/@vite/client"></script>
+    <script type="module" src="{{ vite_js_url }}"></script>
+    {% else %}
+    {% if vite_css_url %}<link rel="stylesheet" href="{{ vite_css_url }}">{% endif %}
+    <script type="module" src="{{ vite_js_url }}"></script>
+    {% endif %}
 </head>
 <body>
 
@@ -1282,7 +1314,7 @@
                     <div class="avatar">{{ request.user.username|first|upper|default:"A" }}</div>
                 </div>
                 {% if request.user.is_authenticated %}
-                <form action="{% url 'logout' %}" method="post" style="margin: 0;">
+                <form action="{% url 'logout' %}" method="post" style="margin: 0;" data-spa-ignore>
                     {% csrf_token %}
                     <button type="submit" style="background: none; border: 1px solid var(--accent-color); color: var(--text-primary); padding: 6px 16px; border-radius: 20px; cursor: pointer; transition: all 0.3s; font-family: inherit; font-size: 0.9rem;">
                         <i class="fa-solid fa-sign-out-alt"></i> Logout
@@ -1305,8 +1337,10 @@
             </div>
             {% endif %}
 
+            <div id="spa-content">
             {% block content %}
             {% endblock %}
+            </div><!-- END SPA CONTENT -->
         </main>
     </div>
 
@@ -1506,7 +1540,7 @@
             </div>
             <div class="global-modal-footer">
                 <button type="button" class="btn-modal-action btn-modal-close-footer" onclick="closeGlobalModal()">Close</button>
-                <button type="button" class="btn-modal-action" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Details</button>
+                <button type="button" class="btn-modal-action" onclick="printGlobalModal()"><i class="fa-solid fa-print"></i> Print Details</button>
             </div>
         </div>
     </div>
@@ -1529,6 +1563,147 @@
 
         function closeGlobalModal() {
             document.getElementById('globalViewModal').classList.remove('active');
+        }
+
+        function printGlobalModal() {
+            const title = document.getElementById('globalModalTitle').innerText;
+            const subtitle = document.getElementById('globalModalSubtitle').innerText;
+            const pill = document.getElementById('globalModalPill').innerText;
+            const bodyContent = document.getElementById('globalModalBody').innerHTML;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Print: ${title}</title>
+                    <style>
+                        :root {
+                            --accent-color: #215c5c;
+                            --accent-hover: #1a4646;
+                            --text-primary: #1a1a1a;
+                            --text-secondary: #666;
+                            --sidebar-border: #ddd;
+                            --glass-shadow: none;
+                        }
+                        body {
+                            font-family: 'Inter', 'Segoe UI', sans-serif;
+                            padding: 36px;
+                            color: var(--text-primary);
+                            background: #fff;
+                            font-size: 13px;
+                            line-height: 1.5;
+                        }
+                        .print-header {
+                            border-bottom: 2px solid #215c5c;
+                            padding-bottom: 18px;
+                            margin-bottom: 28px;
+                        }
+                        .print-header .pill {
+                            font-size: 0.7rem;
+                            font-weight: 700;
+                            color: #215c5c;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em;
+                        }
+                        .print-header h1 {
+                            margin: 6px 0 4px 0;
+                            font-size: 1.5rem;
+                            color: #1a1a1a;
+                        }
+                        .print-header .subtitle {
+                            color: #666;
+                            font-size: 0.9rem;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 16px 0;
+                        }
+                        th, td {
+                            border: 1px solid #ccc;
+                            padding: 8px 10px;
+                            text-align: left;
+                            font-size: 12px;
+                        }
+                        th {
+                            background: #f0f0f0;
+                            font-weight: 600;
+                        }
+                        .badge {
+                            border: 1px solid #1a1a1a;
+                            color: #000;
+                            padding: 2px 8px;
+                            font-size: 0.7rem;
+                            font-weight: 700;
+                            border-radius: 4px;
+                            text-transform: uppercase;
+                        }
+                        .badge.success { border-color: #10b981; color: #10b981; }
+                        .badge.danger { border-color: #ef4444; color: #ef4444; }
+                        .badge.warning { border-color: #f59e0b; color: #f59e0b; }
+                        .badge.secondary { border-color: #6b7280; color: #6b7280; }
+                        .badge.info { border-color: #3b82f6; color: #3b82f6; }
+                        .view-detail-grid {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 14px;
+                            margin-bottom: 20px;
+                        }
+                        .view-detail-item {
+                            border: 1px solid #ddd;
+                            padding: 10px 12px;
+                            border-radius: 6px;
+                            background: #fafafa;
+                        }
+                        .view-detail-label {
+                            font-size: 0.7rem;
+                            font-weight: 700;
+                            color: #666;
+                            text-transform: uppercase;
+                            letter-spacing: 0.03em;
+                            margin-bottom: 3px;
+                        }
+                        .view-detail-value {
+                            font-weight: 600;
+                            font-size: 0.95rem;
+                            color: #1a1a1a;
+                        }
+                        div[style*="grid-template-columns"] {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 14px;
+                            margin-bottom: 20px;
+                        }
+                        div[style*="border:"] {
+                            border: 1px solid #ddd;
+                            padding: 10px 12px;
+                            border-radius: 6px;
+                            background: #fafafa;
+                        }
+                        .print-actions-hide { display: none !important; }
+                        button, .btn-submit, .btn-modal-action, .btn-modal-close,
+                        [onclick], [onclick*="close"] { display: none !important; }
+                        a { color: #215c5c; text-decoration: underline; }
+                        hr { border: none; border-top: 1px solid #ccc; margin: 16px 0; }
+                        @page { margin: 20mm; }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <div class="pill">${pill}</div>
+                        <h1>${title}</h1>
+                        <div class="subtitle">${subtitle}</div>
+                    </div>
+                    ${bodyContent}
+                    <script>
+                        window.onload = function() {
+                            window.print();
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         document.getElementById('globalViewModal').addEventListener('click', function(e) {

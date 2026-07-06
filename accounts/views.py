@@ -13,8 +13,7 @@ from .models import log_action, get_client_ip, AuditLog, ActiveSession
 # ─────────────────────────────────────────────
 @staff_required
 def user_list(request):
-    from .auth_backend import sync_users_from_firestore
-    sync_users_from_firestore()
+    # User Management is Django SQLite-only — Firestore replica is write-only via signals
     users = User.objects.prefetch_related('groups').order_by('-date_joined')
 
     # Annotate each user with their accessible module names
@@ -239,7 +238,7 @@ def audit_logs(request):
             from google.cloud import firestore as google_firestore
             
             # Query recent 1000 logs from Firestore, ordered by timestamp descending
-            docs = db.collection('erp_audit_logs').order_by('timestamp', direction=google_firestore.Query.DESCENDING).limit(1000).stream()
+            docs = db.collection('sys_audit_logs').order_by('timestamp', direction=google_firestore.Query.DESCENDING).limit(1000).stream()
             for doc in docs:
                 data = doc.to_dict()
                 data['id'] = doc.id

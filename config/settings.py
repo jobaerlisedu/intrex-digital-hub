@@ -34,6 +34,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # 3rd Party
+    'rest_framework',
+    'django_filters',
+    'corsheaders',
+
+    # Core
+    'config',
+
     # Custom Apps
     'billing',
     'frontend',
@@ -43,9 +51,14 @@ INSTALLED_APPS = [
     'solutions',
     'training',
     'accounts',
+
+    # Cross-Module Linking
+    'registry',
+    'workflow',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -55,6 +68,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.ActiveSessionMiddleware',
+    'config.tenants.TenantMiddleware',
+    'config.spa_middleware.SPAFragmentMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -71,6 +86,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.user_modules',
+                'config.context_processors.vite_assets',
             ],
         },
     },
@@ -121,7 +137,10 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+    BASE_DIR / 'static/dist',  # Vite build output
+]
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
 
 
@@ -150,6 +169,56 @@ for host in ALLOWED_HOSTS:
         CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
         CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
 
+# CORS
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS.copy()
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Dhaka'
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-inactive-sessions': {
+        'task': 'config.tasks.cleanup_inactive_sessions',
+        'schedule': 3600,
+    },
+    'send-installment-reminders': {
+        'task': 'config.tasks.send_installment_reminders',
+        'schedule': 86400,
+    },
+    'auto-post-due-journals': {
+        'task': 'config.tasks.auto_post_due_journals',
+        'schedule': 43200,
+    },
+}
+
 # Detect Render Environment
 render_url = os.environ.get('RENDER_EXTERNAL_URL')
 if render_url:
@@ -162,5 +231,11 @@ if render_url:
 # Guarantee origin check passes for user's specific Render domain
 CSRF_TRUSTED_ORIGINS.extend([
     "https://erp-intrex-digital.onrender.com",
-    "http://erp-intrex-digital.onrender.com"
+    "http://erp-intrex-digital.onrender.com",
 ])
+
+# Vite dev server
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([
+        "http://localhost:5173",
+    ])

@@ -15,14 +15,13 @@ def sync_user_to_firestore(sender, instance, created, **kwargs):
             'email': instance.email,
             'first_name': instance.first_name,
             'last_name': instance.last_name,
-            'password': instance.password, # Contains standard django hashed format
             'is_staff': instance.is_staff,
             'is_superuser': instance.is_superuser,
             'is_active': instance.is_active,
             'groups': [g.name for g in instance.groups.all()]
         }
         # Save or update document in Firestore
-        db.collection('users').document(instance.username).set(user_data)
+        db.collection('sys_users').document(instance.username).set(user_data)
         print(f"Successfully synced user '{instance.username}' to Firestore.")
     except Exception as e:
         print(f"Error syncing user '{instance.username}' to Firestore: {e}")
@@ -30,7 +29,7 @@ def sync_user_to_firestore(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=User)
 def delete_user_from_firestore(sender, instance, **kwargs):
     try:
-        db.collection('users').document(instance.username).delete()
+        db.collection('sys_users').document(instance.username).delete()
         print(f"Successfully deleted user '{instance.username}' from Firestore.")
     except Exception as e:
         print(f"Error deleting user '{instance.username}' from Firestore: {e}")

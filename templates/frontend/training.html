@@ -265,29 +265,29 @@
 
             <!-- Modal Body -->
             <div class="modal-body px-4 py-4">
-              <form id="contactForm">
+              <form id="inquiryForm">
                 <div class="mb-3">
-                  <label class="form-label small fw-semibold mb-1" for="name">Name <span
+                  <label class="form-label small fw-semibold mb-1" for="inq-name">Name <span
                       class="text-danger">*</span></label>
-                  <input class="form-control" id="name" type="text" name="name" placeholder="e.g. Jobaer Hossain"
+                  <input class="form-control" id="inq-name" type="text" name="name" placeholder="e.g. Jobaer Hossain"
                     required>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-semibold mb-1" for="email">Email <span
+                  <label class="form-label small fw-semibold mb-1" for="inq-email">Email <span
                       class="text-danger">*</span></label>
-                  <input class="form-control" id="email" type="email" name="email" placeholder="you@example.com"
+                  <input class="form-control" id="inq-email" type="email" name="email" placeholder="you@example.com"
                     required>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-semibold mb-1" for="phone">Mobile Number <span
+                  <label class="form-label small fw-semibold mb-1" for="inq-phone">Mobile Number <span
                       class="text-danger">*</span></label>
-                  <input class="form-control" id="phone" type="tel" name="phone" placeholder="+880 1XXX-XXXXXX"
+                  <input class="form-control" id="inq-phone" type="tel" name="phone" placeholder="+880 1XXX-XXXXXX"
                     required>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small fw-semibold mb-1" for="subject">Course Domain <span
+                  <label class="form-label small fw-semibold mb-1" for="inq-subject">Course Domain <span
                       class="text-danger">*</span></label>
-                  <select class="form-select" id="subject" name="subject" required>
+                  <select class="form-select" id="inq-subject" name="subject" required>
                     <option value="" disabled selected>Select a Course</option>
                     {% for c in courses %}
                       <option value="{{ c.title }}">{{ c.title }}</option>
@@ -295,9 +295,9 @@
                   </select>
                 </div>
                 <div class="mb-4">
-                  <label class="form-label small fw-semibold mb-1" for="message">Message <span
+                  <label class="form-label small fw-semibold mb-1" for="inq-message">Message <span
                       class="text-danger">*</span></label>
-                  <textarea class="form-control" id="message" name="message" rows="4"
+                  <textarea class="form-control" id="inq-message" name="message" rows="4"
                     placeholder="Enter your query or goals..." required></textarea>
                 </div>
                 <button class="btn btn-primary w-100 fw-semibold py-2" type="submit">
@@ -478,8 +478,8 @@
       }
 
       const inquiryModal = document.getElementById("inquiryModal");
-      const inqCourseSelect = document.getElementById("subject");
-      const contactForm = document.getElementById("contactForm");
+      const inqCourseSelect = document.getElementById("inq-subject");
+      const inquiryForm = document.getElementById("inquiryForm");
       const successMessage = document.getElementById("successMessage");
       const errorMessage = document.getElementById("errorMessage");
 
@@ -490,15 +490,15 @@
           if (course) inqCourseSelect.value = course;
           if (successMessage) successMessage.classList.add("d-none");
           if (errorMessage) errorMessage.classList.add("d-none");
-          if (contactForm) contactForm.classList.remove("d-none");
+          if (inquiryForm) inquiryForm.classList.remove("d-none");
         });
       }
 
-      if (contactForm) {
-        contactForm.addEventListener("submit", async function (event) {
+      if (inquiryForm) {
+        inquiryForm.addEventListener("submit", async function (event) {
           event.preventDefault();
 
-          const submitBtn = contactForm.querySelector('button[type="submit"]');
+          const submitBtn = inquiryForm.querySelector('button[type="submit"]');
           const originalBtnText = submitBtn.innerHTML || submitBtn.textContent;
           submitBtn.disabled = true;
           submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Saving Inquiry...';
@@ -506,11 +506,11 @@
           if (successMessage) successMessage.classList.add("d-none");
           if (errorMessage) errorMessage.classList.add("d-none");
 
-          const name = (document.getElementById("name")?.value || "").trim();
-          const email = (document.getElementById("email")?.value || "").trim();
-          const phone = (document.getElementById("phone")?.value || "").trim();
-          const subject = (document.getElementById("subject")?.value || "").trim();
-          const message = (document.getElementById("message")?.value || "").trim();
+          const name = (document.getElementById("inq-name")?.value || "").trim();
+          const email = (document.getElementById("inq-email")?.value || "").trim();
+          const phone = (document.getElementById("inq-phone")?.value || "").trim();
+          const subject = (document.getElementById("inq-subject")?.value || "").trim();
+          const message = (document.getElementById("inq-message")?.value || "").trim();
 
           if (!name || !email || !phone || !message) {
             if (errorMessage) {
@@ -546,8 +546,8 @@
 
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
-            contactForm.reset();
-            contactForm.classList.add("d-none");
+            inquiryForm.reset();
+            inquiryForm.classList.add("d-none");
 
             if (successMessage) {
               successMessage.innerHTML = `

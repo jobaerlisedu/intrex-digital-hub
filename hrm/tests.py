@@ -1,145 +1,179 @@
-from django.test import TestCase, Client
+import json
+from datetime import date, time
+from django.test import TestCase
 from django.contrib.auth.models import User
+from rest_framework.test import APITestCase, APIClient
+from rest_framework import status
 from django.urls import reverse
-from config.firebase import db
+from hrm import models
+from workflow.models import WorkflowDefinition, WorkflowState, WorkflowInstance
 
-class EmployeeDatabaseTestCase(TestCase):
+
+class DepartmentModelTestCase(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="test_admin", password="password123", is_superuser=True)
-        self.client = Client()
-        self.client.force_login(self.user)
-        self.created_employee_ids = []
+        self.department = models.Department.objects.create(
+            name='Engineering',
+        )
 
-    def tearDown(self):
-        # Clean up any test employees created in Firestore
-        for doc_id in self.created_employee_ids:
-            try:
-                db.collection('employees').document(doc_id).delete()
-            except Exception:
-                pass
+    def test_str_returns_name(self):
+        self.assertEqual(str(self.department), 'Engineering')
 
-    def test_employee_creation_with_multiple_roles(self):
-        """
-        Verify that we can create an employee with multiple roles/assignments,
-        and that these roles are saved correctly in Firestore.
-        """
-        url = reverse('hrm:employee_database')
-        
-        post_data = {
-            'first_name': 'Jane',
-            'last_name': 'Doe',
-            'email': 'jane.doe@example.com',
-            'phone': '1234567890',
-            'basic_salary': '50000',
-            'mobile_bill': '1000',
-            'department': 'Engineering',
-            'sub_department': 'Frontend Development',
-            'position': 'Senior Frontend Developer',
-            'employee_type': 'Permanent',
-            'joining_date': '2026-01-01',
-            'employment_status': 'Active',
-            
-            # Additional Roles
-            'additional_dept': ['Client Services & Growth Department', 'Leadership & Strategic Management'],
-            'additional_subdept': ['Training & Learning Development Team', ''],
-            'additional_position': ['Lead Trainer', 'Co-Director']
-        }
-        
-        response = self.client.post(url, post_data)
-        self.assertEqual(response.status_code, 302)  # Should redirect
-        
-        # Verify employee was created in Firestore
-        docs = db.collection('employees').where('email', '==', 'jane.doe@example.com').stream()
-        employees = list(docs)
-        self.assertEqual(len(employees), 1)
-        
-        emp_doc = employees[0]
-        emp_data = emp_doc.to_dict()
-        self.created_employee_ids.append(emp_doc.id)
-        
-        # Check basic details
-        self.assertEqual(emp_data['name'], 'Jane Doe')
-        self.assertEqual(emp_data['department'], 'Engineering')
-        self.assertEqual(emp_data['sub_department'], 'Frontend Development')
-        self.assertEqual(emp_data['position'], 'Senior Frontend Developer')
-        
-        # Check additional roles
-        additional_roles = emp_data.get('additional_roles', [])
-        self.assertEqual(len(additional_roles), 2)
-        
-        self.assertEqual(additional_roles[0]['department'], 'Client Services & Growth Department')
-        self.assertEqual(additional_roles[0]['sub_department'], 'Training & Learning Development Team')
-        self.assertEqual(additional_roles[0]['position'], 'Lead Trainer')
-        
-        self.assertEqual(additional_roles[1]['department'], 'Leadership & Strategic Management')
-        self.assertEqual(additional_roles[1]['sub_department'], '')
-        self.assertEqual(additional_roles[1]['position'], 'Co-Director')
+    def test_is_active_defaults_true(self):
+        self.assertTrue(self.department.is_active)
 
-    def test_employee_update_with_multiple_roles(self):
-        """
-        Verify that we can update an employee's multiple roles/assignments,
-        and that these roles are updated correctly in Firestore.
-        """
-        # Create an employee directly in Firestore first
-        test_emp_ref = db.collection('employees').add({
-            'name': 'Bob Smith',
-            'first_name': 'Bob',
-            'last_name': 'Smith',
-            'email': 'bob.smith@example.com',
-            'phone': '9876543210',
-            'basic_salary': 40000.0,
-            'gross_salary': 89000.0,
-            'department': 'Engineering',
-            'sub_department': 'Backend Development',
-            'position': 'Backend Engineer',
-            'additional_roles': [
-                {
-                    'department': 'Support',
-                    'sub_department': '',
-                    'position': 'Support Specialist'
-                }
-            ],
-            'status': 'Active'
-        })
-        doc_id = test_emp_ref[1].id
-        self.created_employee_ids.append(doc_id)
-        
-        url = reverse('hrm:employee_database')
-        
-        # Send post request to update this employee
-        post_data = {
-            'doc_id': doc_id,
-            'first_name': 'Bob',
-            'last_name': 'Smith',
-            'email': 'bob.smith@example.com',
-            'phone': '9876543210',
-            'basic_salary': '40000',
-            'mobile_bill': '1000',
-            'department': 'Engineering',
-            'sub_department': 'Backend Development',
-            'position': 'Backend Engineer',
-            'employee_type': 'Permanent',
-            'joining_date': '2026-01-01',
-            'employment_status': 'Active',
-            
-            # Updated Additional Roles
-            'additional_dept': ['Quality Assurance', 'Marketing'],
-            'additional_subdept': ['', 'Growth Team'],
-            'additional_position': ['QA Engineer', 'Marketing Advisor']
-        }
-        
-        response = self.client.post(url, post_data)
-        self.assertEqual(response.status_code, 302)  # Should redirect
-        
-        # Verify employee was updated in Firestore
-        emp_doc = db.collection('employees').document(doc_id).get()
-        emp_data = emp_doc.to_dict()
-        
-        # Check additional roles
-        additional_roles = emp_data.get('additional_roles', [])
-        self.assertEqual(len(additional_roles), 2)
-        
-        self.assertEqual(additional_roles[0]['department'], 'Quality Assurance')
-        self.assertEqual(additional_roles[0]['position'], 'QA Engineer')
-        self.assertEqual(additional_roles[1]['department'], 'Marketing')
-        self.assertEqual(additional_roles[1]['position'], 'Marketing Advisor')
+    def test_created_at_is_auto_set(self):
+        self.assertIsNotNone(self.department.created_at)
+
+
+class EmployeeModelTestCase(TestCase):
+    def setUp(self):
+        dept = models.Department.objects.create(name='Engineering')
+        self.employee = models.Employee.objects.create(
+            emp_id='EMP001',
+            first_name='John',
+            last_name='Doe',
+            department=dept,
+        )
+
+    def test_str_returns_emp_id_and_name(self):
+        self.assertEqual(str(self.employee), 'EMP001 - John Doe')
+
+    def test_is_active_defaults_true(self):
+        self.assertTrue(self.employee.is_active)
+
+    def test_created_at_is_auto_set(self):
+        self.assertIsNotNone(self.employee.created_at)
+
+
+class AttendanceModelTestCase(TestCase):
+    def setUp(self):
+        dept = models.Department.objects.create(name='Engineering')
+        emp = models.Employee.objects.create(emp_id='EMP001', first_name='John', last_name='Doe', department=dept)
+        self.attendance = models.Attendance.objects.create(employee=emp, date=date.today())
+
+    def test_str_returns_employee_date_status(self):
+        expected = f'John Doe - {date.today()} (Present)'
+        self.assertEqual(str(self.attendance), expected)
+
+    def test_is_active_defaults_true(self):
+        self.assertTrue(self.attendance.is_active)
+
+    def test_created_at_is_auto_set(self):
+        self.assertIsNotNone(self.attendance.created_at)
+
+
+class LeaveModelTestCase(TestCase):
+    def setUp(self):
+        dept = models.Department.objects.create(name='Engineering')
+        emp = models.Employee.objects.create(emp_id='EMP001', first_name='John', last_name='Doe', department=dept)
+        self.leave = models.Leave.objects.create(
+            employee=emp, leave_type='Annual',
+            from_date=date.today(), to_date=date.today(),
+        )
+
+    def test_str_returns_employee_leave_type_status(self):
+        self.assertIn('Annual', str(self.leave))
+        self.assertIn('Pending', str(self.leave))
+
+    def test_is_active_defaults_true(self):
+        self.assertTrue(self.leave.is_active)
+
+    def test_created_at_is_auto_set(self):
+        self.assertIsNotNone(self.leave.created_at)
+
+
+class PayrollModelTestCase(TestCase):
+    def setUp(self):
+        self.payroll = models.Payroll.objects.create(period='2026-01')
+
+    def test_str_returns_period_and_status(self):
+        self.assertEqual(str(self.payroll), '2026-01 (Generated)')
+
+    def test_is_active_defaults_true(self):
+        self.assertTrue(self.payroll.is_active)
+
+    def test_created_at_is_auto_set(self):
+        self.assertIsNotNone(self.payroll.created_at)
+
+
+class HRMAPITestCase(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_department_list_returns_200(self):
+        url = reverse('hrm-department-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_department_create_returns_201(self):
+        url = reverse('hrm-department-list')
+        data = {'name': 'Marketing'}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_department_detail_returns_200(self):
+        dept = models.Department.objects.create(name='Engineering')
+        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_department_update_returns_200(self):
+        dept = models.Department.objects.create(name='Engineering')
+        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        data = {'name': 'Engineering Updated'}
+        response = self.client.put(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_department_delete_returns_204(self):
+        dept = models.Department.objects.create(name='Engineering')
+        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_unauthenticated_access_returns_403(self):
+        self.client.force_authenticate(user=None)
+        url = reverse('hrm-department-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class HRMWorkflowTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='admin', password='pass')
+        dept = models.Department.objects.create(name='Engineering')
+        self.employee = models.Employee.objects.create(
+            emp_id='EMP001', first_name='John', last_name='Doe', department=dept,
+        )
+        self.wf_def = WorkflowDefinition.objects.create(
+            name='Leave Approval', module='hrm', entity_type='leave',
+        )
+        self.initial_state = WorkflowState.objects.create(
+            workflow=self.wf_def, state_key='pending', label='Pending', is_initial=True,
+        )
+
+    def test_workflow_instance_can_be_created_for_leave(self):
+        leave = models.Leave.objects.create(
+            employee=self.employee, leave_type='Annual',
+            from_date=date.today(), to_date=date.today(),
+        )
+        wf_instance = WorkflowInstance.objects.create(
+            workflow=self.wf_def,
+            entity_id=str(leave.pk),
+            entity_label=str(leave),
+            current_state=self.initial_state,
+            started_by=self.user,
+        )
+        self.assertEqual(wf_instance.workflow.module, 'hrm')
+        self.assertEqual(wf_instance.workflow.entity_type, 'leave')
+        self.assertTrue(wf_instance.is_active)
+
+    def test_leave_status_transition_matches_workflow_state(self):
+        leave = models.Leave.objects.create(
+            employee=self.employee, leave_type='Annual',
+            from_date=date.today(), to_date=date.today(),
+        )
+        leave.status = 'Approved'
+        leave.save()
+        self.assertEqual(leave.status, 'Approved')

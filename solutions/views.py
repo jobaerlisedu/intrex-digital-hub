@@ -5,6 +5,8 @@ from config.firebase import db
 from accounts.decorators import module_access
 from datetime import datetime, timedelta
 import json
+from config.services.integration_service import IntegrationService
+from config.workflow_integration import ensure_workflow, try_transition, PROJECT_TRIGGER_MAP
 
 def serialize_doc(doc):
     d = doc.to_dict()
@@ -14,19 +16,19 @@ def serialize_doc(doc):
 @login_required
 @module_access('solutions')
 def index(request):
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    task_docs = db.collection('project_tasks').stream()
+    task_docs = db.collection('sol_tasks').stream()
     tasks = [serialize_doc(t) for t in task_docs]
 
-    req_docs = db.collection('project_requisitions').stream()
+    req_docs = db.collection('sol_project_requisitions').stream()
     requisitions = [serialize_doc(r) for r in req_docs]
 
-    license_docs = db.collection('software_licenses').stream()
+    license_docs = db.collection('sol_software_licenses').stream()
     licenses = [serialize_doc(l) for l in license_docs]
 
-    meeting_docs = db.collection('meetings').stream()
+    meeting_docs = db.collection('sol_meetings').stream()
     meetings = [serialize_doc(m) for m in meeting_docs]
 
     # Metrics Calculations
@@ -108,11 +110,15 @@ def projects_list(request):
             }
 
             if doc_id:
-                db.collection('projects').document(doc_id).update(data)
+                db.collection('sol_projects').document(doc_id).update(data)
+                ensure_workflow('solutions', 'project', doc_id, entity_label=data.get('name'), request=request)
+                trigger = PROJECT_TRIGGER_MAP.get(data.get('status'))
+                if trigger:
+                    try_transition('solutions', 'project', doc_id, trigger, request=request)
                 messages.success(request, f"Project {data['project_code']} updated successfully.")
             else:
                 data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                p_ref = db.collection('projects').add(data)
+                p_ref = db.collection('sol_projects').add(data)
                 new_proj_id = p_ref[1].id
 
                 # Auto-scoping of default project phases to populate the scoping view!
@@ -122,7 +128,7 @@ def projects_list(request):
                     {'name': 'Phase 3: Integration Quality Checks & Delivery', 'weight': 0.20}
                 ]
                 for p_def in phases_defaults:
-                    db.collection('project_phases').add({
+                    db.collection('sol_project_phases').add({
                         'project_id': new_proj_id,
                         'phase_name': p_def['name'],
                         'budget_allocation': total_budget * p_def['weight'],
@@ -131,21 +137,22 @@ def projects_list(request):
                         'status': 'Pending'
                     })
 
+                ensure_workflow('solutions', 'project', new_proj_id, entity_label=data.get('name'), request=request)
                 messages.success(request, f"New Project {data['project_code']} created with default scopes.")
 
         elif action == 'delete_project' and doc_id:
-            db.collection('projects').document(doc_id).delete()
+            db.collection('sol_projects').document(doc_id).delete()
             messages.success(request, "Project record deleted successfully.")
 
         return redirect('solutions:projects_list')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
     projects.sort(key=lambda x: x.get('project_code', ''))
 
     # Fetch phases to map inside views
-    phase_docs = db.collection('project_phases').stream()
+    phase_docs = db.collection('sol_project_phases').stream()
     phases = [serialize_doc(ph) for ph in phase_docs]
 
     for p in projects:
@@ -178,33 +185,33 @@ def kanban_board(request):
             }
 
             if doc_id:
-                db.collection('project_tasks').document(doc_id).update(data)
+                db.collection('sol_tasks').document(doc_id).update(data)
                 messages.success(request, "Kanban Task updated.")
             else:
-                db.collection('project_tasks').add(data)
+                db.collection('sol_tasks').add(data)
                 messages.success(request, "New Kanban Task registered.")
 
         elif action == 'change_status' and doc_id:
             new_status = request.POST.get('status')
-            db.collection('project_tasks').document(doc_id).update({'status': new_status})
+            db.collection('sol_tasks').document(doc_id).update({'status': new_status})
             messages.success(request, "Task status updated.")
             return redirect('solutions:kanban_board')
 
         elif action == 'delete_task' and doc_id:
-            db.collection('project_tasks').document(doc_id).delete()
+            db.collection('sol_tasks').document(doc_id).delete()
             messages.success(request, "Task deleted.")
 
         return redirect('solutions:kanban_board')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    phase_docs = db.collection('project_phases').stream()
+    phase_docs = db.collection('sol_project_phases').stream()
     phases = [serialize_doc(ph) for ph in phase_docs]
     phase_map = {ph['id']: ph for ph in phases}
 
-    task_docs = db.collection('project_tasks').stream()
+    task_docs = db.collection('sol_tasks').stream()
     tasks = [serialize_doc(t) for t in task_docs]
 
     # Attach project details to tasks via phase
@@ -218,10 +225,10 @@ def kanban_board(request):
             t['project_code'] = p_info.get('project_code', '')
 
     # Fetch active employees to populate Task Owner dropdown
-    emp_docs = db.collection('employees').where('status', '==', 'Active').stream()
+    emp_docs = db.collection('hrm_employees').where('status', '==', 'Active').stream()
     employees = [serialize_doc(emp) for emp in emp_docs]
     if not employees:
-        emp_docs = db.collection('employees').stream()
+        emp_docs = db.collection('hrm_employees').stream()
         employees = [serialize_doc(emp) for emp in emp_docs]
     employees.sort(key=lambda x: x.get('name', ''))
 
@@ -250,7 +257,7 @@ def project_sourcing(request):
             est_cost = float(request.POST.get('estimated_cost', 0.0))
 
             # Budget Validation Rule
-            phase_snap = db.collection('project_phases').document(phase_id).get()
+            phase_snap = db.collection('sol_project_phases').document(phase_id).get()
             if not phase_snap.exists:
                 messages.error(request, "Project phase validation failed.")
                 return redirect('solutions:project_sourcing')
@@ -259,7 +266,7 @@ def project_sourcing(request):
             budget_limit = float(phase_data.get('budget_allocation', 0.0))
 
             # Calculate accumulated cost of all requisitions for this phase
-            req_docs = db.collection('project_requisitions').where('phase_id', '==', phase_id).stream()
+            req_docs = db.collection('sol_project_requisitions').where('phase_id', '==', phase_id).stream()
             existing_cost = sum(float(r.to_dict().get('estimated_cost', 0.0)) for r in req_docs if r.id != doc_id)
 
             if existing_cost + est_cost > budget_limit:
@@ -277,20 +284,20 @@ def project_sourcing(request):
             }
 
             if doc_id:
-                db.collection('project_requisitions').document(doc_id).update(data)
+                db.collection('sol_project_requisitions').document(doc_id).update(data)
                 messages.success(request, "Project Requisition updated.")
             else:
-                db.collection('project_requisitions').add(data)
+                db.collection('sol_project_requisitions').add(data)
                 messages.success(request, "Project Requisition logged.")
 
         elif action == 'dispatch_to_inventory' and doc_id:
-            req_ref = db.collection('project_requisitions').document(doc_id)
+            req_ref = db.collection('sol_project_requisitions').document(doc_id)
             req_data = req_ref.get().to_dict()
 
-            project_info = db.collection('projects').document(req_data['project_id']).get().to_dict()
+            project_info = db.collection('sol_projects').document(req_data['project_id']).get().to_dict()
 
             # Create document in downstream inventory_requisitions collection
-            inv_req_ref = db.collection('requisitions').add({
+            inv_req_ref = db.collection('inv_requisitions').add({
                 'item_name': req_data['item_name'],
                 'category': 'Project Sourcing',
                 'quantity': req_data['quantity'],
@@ -305,22 +312,31 @@ def project_sourcing(request):
                 'status': 'Approved',
                 'requisition_ref': inv_req_ref[1].id
             })
+
+            # Auto-create draft Purchase Order from project requisition
+            try:
+                req_data['id'] = doc_id
+                req_data['project_name'] = project_info.get('name', '')
+                IntegrationService.project_requisition_to_po(req_data, request.user)
+            except Exception as e:
+                print(f"Error auto-creating PO from project requisition: {e}")
+
             messages.success(request, f"Requisition dispatched to central procurement system. Downstream ID: {inv_req_ref[1].id}")
 
         elif action == 'delete_requisition' and doc_id:
-            db.collection('project_requisitions').document(doc_id).delete()
+            db.collection('sol_project_requisitions').document(doc_id).delete()
             messages.success(request, "Requisition removed.")
 
         return redirect('solutions:project_sourcing')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    phase_docs = db.collection('project_phases').stream()
+    phase_docs = db.collection('sol_project_phases').stream()
     phases = [serialize_doc(ph) for ph in phase_docs]
 
-    req_docs = db.collection('project_requisitions').stream()
+    req_docs = db.collection('sol_project_requisitions').stream()
     requisitions = [serialize_doc(r) for r in req_docs]
 
     p_map = {p['id']: p for p in projects}
@@ -365,23 +381,23 @@ def licensing_assets(request):
             }
 
             if doc_id:
-                db.collection('software_licenses').document(doc_id).update(data)
+                db.collection('sol_software_licenses').document(doc_id).update(data)
                 messages.success(request, "Software license details updated.")
             else:
-                db.collection('software_licenses').add(data)
+                db.collection('sol_software_licenses').add(data)
                 messages.success(request, "Software license registered.")
 
         elif action == 'delete_license' and doc_id:
-            db.collection('software_licenses').document(doc_id).delete()
+            db.collection('sol_software_licenses').document(doc_id).delete()
             messages.success(request, "License record removed.")
 
         return redirect('solutions:licensing_assets')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    license_docs = db.collection('software_licenses').stream()
+    license_docs = db.collection('sol_software_licenses').stream()
     licenses = [serialize_doc(l) for l in license_docs]
 
     p_map = {p['id']: p for p in projects}
@@ -424,23 +440,23 @@ def client_stakeholders(request):
             }
 
             if doc_id:
-                db.collection('project_stakeholders').document(doc_id).update(data)
+                db.collection('sol_project_stakeholders').document(doc_id).update(data)
                 messages.success(request, "Stakeholder contact updated.")
             else:
-                db.collection('project_stakeholders').add(data)
+                db.collection('sol_project_stakeholders').add(data)
                 messages.success(request, "New Stakeholder contact registered.")
 
         elif action == 'delete_stakeholder' and doc_id:
-            db.collection('project_stakeholders').document(doc_id).delete()
+            db.collection('sol_project_stakeholders').document(doc_id).delete()
             messages.success(request, "Stakeholder contact removed.")
 
         return redirect('solutions:client_stakeholders')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    stakeholder_docs = db.collection('project_stakeholders').stream()
+    stakeholder_docs = db.collection('sol_project_stakeholders').stream()
     stakeholders = [serialize_doc(s) for s in stakeholder_docs]
 
     p_map = {p['id']: p for p in projects}
@@ -466,12 +482,12 @@ def global_contacts(request):
         doc_id = request.POST.get('doc_id')
 
         if action == 'delete_contact' and doc_id:
-            db.collection('contacts').document(doc_id).delete()
+            db.collection('sys_contacts').document(doc_id).delete()
             messages.success(request, "Global Contact record deleted successfully.")
         return redirect('solutions:global_contacts')
 
     # GET
-    contact_docs = db.collection('contacts').stream()
+    contact_docs = db.collection('sys_contacts').stream()
     contacts = [serialize_doc(c) for c in contact_docs]
     contacts.sort(key=lambda x: x.get('legal_name', '').lower())
 
@@ -501,23 +517,23 @@ def meeting_scheduler(request):
             }
 
             if doc_id:
-                db.collection('meetings').document(doc_id).update(data)
+                db.collection('sol_meetings').document(doc_id).update(data)
                 messages.success(request, "Meeting details updated.")
             else:
-                db.collection('meetings').add(data)
+                db.collection('sol_meetings').add(data)
                 messages.success(request, "New meeting scheduled.")
 
         elif action == 'delete_meeting' and doc_id:
-            db.collection('meetings').document(doc_id).delete()
+            db.collection('sol_meetings').document(doc_id).delete()
             messages.success(request, "Meeting scheduled cancelled.")
 
         return redirect('solutions:meeting_scheduler')
 
     # GET
-    proj_docs = db.collection('projects').stream()
+    proj_docs = db.collection('sol_projects').stream()
     projects = [serialize_doc(p) for p in proj_docs]
 
-    meeting_docs = db.collection('meetings').stream()
+    meeting_docs = db.collection('sol_meetings').stream()
     meetings = [serialize_doc(m) for m in meeting_docs]
 
     p_map = {p['id']: p for p in projects}
