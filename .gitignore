@@ -4,3 +4,5 @@ db.sqlite3
 __pycache__/
 *.pyc
 firebase-credentials.json
+firebase_credentials.json
+node_modules/
