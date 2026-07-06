@@ -8,23 +8,40 @@ from config.firebase import db
 from django.contrib.auth.models import User
 
 try:
-    # Check if 'admin' already exists in Firestore
-    admin_doc = db.collection('sys_users').document('admin').get()
-    if admin_doc.exists:
-        print("INFO: 'admin' superuser already exists in Firestore. Relying on Firestore sync.")
-    elif not User.objects.filter(username='admin').exists():
-        User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-        print("SUCCESS: Default superuser 'admin' created.")
-    else:
-        print("INFO: Local 'admin' superuser already exists.")
+    from django.contrib.auth.hashers import make_password
+
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@intrex.com')
+    admin_hash = make_password(admin_password)
+
+    user, created = User.objects.get_or_create(username='admin', defaults={
+        'email': admin_email,
+        'is_staff': True,
+        'is_superuser': True,
+        'is_active': True,
+    })
+    if not created:
+        user.email = admin_email
+        user.is_staff = True
+        user.is_superuser = True
+        user.is_active = True
+    user._syncing = True
+    user.password = admin_hash
+    user.save()
+
+    print(f"{'Created' if created else 'Updated'} superuser 'admin' in Django.")
+
+    # Push the correct hash to Firestore (non-sensitive profile only)
+    db.collection('sys_users').document('admin').set({
+        'username': 'admin',
+        'email': admin_email,
+        'first_name': 'Super',
+        'last_name': 'Admin',
+        'is_staff': True,
+        'is_superuser': True,
+        'is_active': True,
+        'groups': [],
+    }, merge=True)
+    print("Synced admin profile to Firestore (no password stored).")
 except Exception as e:
     print(f"ERROR: {str(e)}")
-
-# Sync users from Firestore
-try:
-    from accounts.auth_backend import sync_users_from_firestore
-    print("Syncing users from Firestore...")
-    sync_users_from_firestore()
-    print("SUCCESS: Users synced successfully.")
-except Exception as e:
-    print(f"ERROR syncing users: {str(e)}")
