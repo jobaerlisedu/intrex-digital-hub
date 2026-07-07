@@ -2,6 +2,11 @@
 # exit on error
 set -o errexit
 
+# Activate project virtual environment if it exists
+if [ -d .venv ]; then
+    source .venv/bin/activate
+fi
+
 # Install Python dependencies
 pip install -r requirements.txt
 
