@@ -15,6 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 import sys
+import logging
+
+urls_logger = logging.getLogger('config.urls')
 
 # Run database migrations and bootstrap admin on server startup
 if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstatic', 'check', 'shell', 'test']):
@@ -22,10 +25,7 @@ if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstat
         from config.bootstrap import run_startup
         run_startup()
     except Exception as e:
-        urls_logger.error(f"Django Startup Error: {e}")
-
-from config.logger import get_logger
-urls_logger = get_logger('config.urls')
+        urls_logger.exception("Django Startup Error")
 
 from django.contrib import admin
 from django.urls import path, include

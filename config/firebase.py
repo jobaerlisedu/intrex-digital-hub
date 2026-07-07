@@ -35,7 +35,7 @@ if not firebase_admin._apps:
             if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') or os.environ.get('GAE_ENV'):
                 firebase_admin.initialize_app()
                 logger.info("Firebase connected using Google default credentials")
-            elif _debug:
+            else:
                 default_path = os.path.join(BASE_DIR, 'firebase-credentials.json')
                 if os.path.exists(default_path):
                     logger.warning("FIREBASE_CREDENTIALS_PATH not set, loading default firebase-credentials.json. Set FIREBASE_CREDENTIALS_JSON env var for production.")
@@ -44,14 +44,9 @@ if not firebase_admin._apps:
                 else:
                     raise FileNotFoundError(
                         f"Firebase credentials file not found at default path: {default_path}. "
-                        "Set FIREBASE_CREDENTIALS_JSON env var or FIREBASE_CREDENTIALS_PATH."
+                        "Set FIREBASE_CREDENTIALS_JSON env var (recommended) or upload the "
+                        "credentials file to your deployment."
                     )
-            else:
-                raise ValueError(
-                    "Firebase credentials not configured. Set FIREBASE_CREDENTIALS_JSON env var "
-                    "with the full service account JSON, or set FIREBASE_CREDENTIALS_PATH to the "
-                    "credentials file path (relative to project root or absolute)."
-                )
     except Exception as e:
         logger.error(f"Firebase connection failed: {e}")
         raise
