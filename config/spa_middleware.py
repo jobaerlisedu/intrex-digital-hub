@@ -40,22 +40,13 @@ class SPAFragmentMiddleware(MiddlewareMixin):
         title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
         title = title_match.group(1) if title_match else 'Intrex ERP'
 
-        # Extract content block
+        # Extract content block (no comment marker needed)
         content_match = re.search(
-            r'<div[^>]*id="spa-content"[^>]*>(.*?)</div>\s*<!--\s*END SPA CONTENT\s*-->',
+            r'<div[^>]*id="spa-content"[^>]*>(.*?)</div>',
             html,
             re.DOTALL | re.IGNORECASE
         )
-        content_html = content_match.group(1) if content_match else ''
-
-        if not content_html:
-            # Fallback: try to find it without the comment marker
-            content_match = re.search(
-                r'<div[^>]*id="spa-content"[^>]*>(.*?)</div>',
-                html,
-                re.DOTALL | re.IGNORECASE
-            )
-            content_html = content_match.group(1) if content_match else html
+        content_html = content_match.group(1) if content_match else html
 
         # Extract page-specific styles (data-spa-style)
         extra_css = ''

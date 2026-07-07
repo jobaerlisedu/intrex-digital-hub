@@ -239,16 +239,17 @@ def inquiries(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
+        from django.http import HttpResponseRedirect
         if action == 'delete' and doc_id:
             db.collection('trn_inquiries').document(doc_id).delete()
             log_training_action(request.user, "DELETE", "trn_inquiries", doc_id, f"Deleted course inquiry ID {doc_id}")
             messages.success(request, "Inquiry deleted successfully!")
-            return redirect('/training/inquiries/?tab=directory')
+            return HttpResponseRedirect(reverse('training:inquiries') + '?tab=directory')
         elif action == 'delete_online_reg' and doc_id:
             db.collection('trn_registrations').document(doc_id).delete()
             log_training_action(request.user, "DELETE", "trn_registrations", doc_id, f"Deleted online registration ID {doc_id}")
             messages.success(request, "Online registration deleted successfully!")
-            return redirect('/training/inquiries/?tab=pending')
+            return HttpResponseRedirect(reverse('training:inquiries') + '?tab=pending')
         else:
             inquiry_key = get_next_seq_id('trn_inquiries', 'INQ-', 'inquiryKey', 6)
             data = {
@@ -265,7 +266,7 @@ def inquiries(request):
             db.collection('trn_inquiries').document(inquiry_key).set(data)
             log_training_action(request.user, "CREATE", "trn_inquiries", inquiry_key, f"Logged manual inquiry: {data['name']} - {data['subject']}")
             messages.success(request, "Inquiry saved successfully!")
-            return redirect('/training/inquiries/?tab=directory')
+            return HttpResponseRedirect(reverse('training:inquiries') + '?tab=directory')
 
     inquiries_list = get_collection_data('trn_inquiries')
     online_regs = get_collection_data('trn_registrations')

@@ -1,12 +1,13 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from config.firebase import db
-from config.services import KPIService
 from config.logger import firebase_logger
 
 @login_required
 def erp_dashboard(request):
+    from config.firebase import db
+    from config.services import KPIService
+
     kpis = KPIService.get_cross_module_kpis()
     summaries = KPIService.get_module_summaries()
     quick_actions = KPIService.get_quick_actions(request.user)
@@ -14,7 +15,8 @@ def erp_dashboard(request):
     # Fetch audit logs (recent 5 system audit logs)
     audit_logs = []
     try:
-        logs_stream = db.collection('sys_audit_logs').order_by('createdAt', direction='DESCENDING').limit(5).stream()
+        from google.cloud import firestore
+        logs_stream = db.collection('sys_audit_logs').order_by('createdAt', direction=firestore.Query.DESCENDING).limit(5).stream()
         for doc in logs_stream:
             log_data = doc.to_dict()
             log_data['id'] = doc.id
