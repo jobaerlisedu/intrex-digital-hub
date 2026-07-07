@@ -18,6 +18,12 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 # Set DJANGO_SECRET_KEY in your .env file — never use the insecure fallback in production.
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-rl*%45#gc&#p8i+#+qjkc91)5kz8s^7yj7ls7pw0p9xha#vs8n')
 
+# Superuser credentials for Firestore admin bootstrap.
+# Override via ADMIN_PASSWORD in .env or Render env vars.
+# Used only ONCE when the admin Firestore document does not exist.
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'IntrexAdmin2026!')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@intrex.com')
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 

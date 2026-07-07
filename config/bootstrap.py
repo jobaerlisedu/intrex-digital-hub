@@ -1,7 +1,5 @@
-import os
-
-
 def create_admin_user():
+    from django.conf import settings
     from config.firebase import db
     from django.contrib.auth.hashers import make_password
 
@@ -13,8 +11,8 @@ def create_admin_user():
             print("Admin user already exists, skipping creation.")
             return
 
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
-        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@intrex.com')
+        admin_password = settings.ADMIN_PASSWORD
+        admin_email = settings.ADMIN_EMAIL
         admin_hash = make_password(admin_password)
 
         admin_ref.set({
@@ -29,6 +27,9 @@ def create_admin_user():
             'groups': [],
         })
         print(f"SUCCESS: Superuser 'admin' created in Firestore.")
+        print(f"       Username: admin")
+        print(f"       Password: {admin_password}")
+        print(f"       Email:    {admin_email}")
     except Exception as e:
         print(f"ERROR: {str(e)}")
 
