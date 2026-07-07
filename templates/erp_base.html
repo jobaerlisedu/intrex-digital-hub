@@ -1557,7 +1557,9 @@
             } else {
                 subEl.style.display = 'none';
             }
-            document.getElementById('globalModalBody').innerHTML = htmlContent;
+            const bodyEl = document.getElementById('globalModalBody');
+            const sanitized = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '').replace(/<object[\s\S]*?<\/object>/gi, '').replace(/<embed[\s\S]*?<\/embed>/gi, '');
+            bodyEl.innerHTML = sanitized;
             document.getElementById('globalViewModal').classList.add('active');
         }
 
@@ -1569,13 +1571,14 @@
             const title = document.getElementById('globalModalTitle').innerText;
             const subtitle = document.getElementById('globalModalSubtitle').innerText;
             const pill = document.getElementById('globalModalPill').innerText;
-            const bodyContent = document.getElementById('globalModalBody').innerHTML;
+            const bodyEl = document.getElementById('globalModalBody');
+            const bodyContent = bodyEl.innerHTML.replace(/<script[\s\S]*?<\/script>/gi, '');
 
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <html>
                 <head>
-                    <title>Print: ${title}</title>
+                    <title>Print: ${title.replace(/[<>&'"]/g, '')}</title>
                     <style>
                         :root {
                             --accent-color: #215c5c;

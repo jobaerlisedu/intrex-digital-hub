@@ -6,6 +6,7 @@ from config.firebase import db
 from google.cloud import firestore
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import module_access
+from config.logger import training_logger
 import random
 import re
 import json
@@ -38,7 +39,7 @@ def get_collection_data(collection_name, default_data=None):
                 return default_data
             return results
         except Exception as e2:
-            print(f"Error fetching {collection_name}: {e2}")
+            training_logger.error(f"Error fetching {collection_name}: {e2}")
             return default_data
 
 # Internal helper to generate student ID matching 495XXX sequence
@@ -75,7 +76,7 @@ def get_next_seq_id(collection_name, prefix, id_field, padding_size=4):
         next_num = max_num + 1
         return f"{prefix}{next_num:0{padding_size}d}"
     except Exception as e:
-        print(f"Error generating next sequence ID for {collection_name}: {e}")
+        training_logger.error(f"Error generating next sequence ID for {collection_name}: {e}")
         return f"{prefix}{'1'.zfill(padding_size)}"
 
 # Audit logging helper
@@ -95,7 +96,7 @@ def log_training_action(user, action_type, collection_name, record_id, details):
             'createdAt': firestore.SERVER_TIMESTAMP
         })
     except Exception as e:
-        print(f"Error logging action: {e}")
+        training_logger.error(f"Error logging action: {e}")
 
 @module_access('training')
 def index(request):
@@ -201,7 +202,7 @@ def overview(request):
         }
         
     except Exception as e:
-        print(f"Error in overview: {e}")
+        training_logger.error(f"Error in overview: {e}")
         total_students = total_collected = total_due = total_discount = 0
         fully_paid_count = partially_paid_count = unpaid_count = 0
         total_expenses = net_income = placed_students = active_batches = 0
@@ -851,7 +852,7 @@ def installment_plan(request):
                         db.collection('fin_journal_entries').document(entry_id).set(journal_data)
                         log_training_action(request.user, "CREATE", "fin_journal_entries", entry_id, f"Posted automated journal entry {entry_id} for collected payment {collected_diff}")
                     except Exception as ge_err:
-                        print(f"Error posting automatic journal entry for payment: {ge_err}")
+                        training_logger.error(f"Error posting automatic journal entry for payment: {ge_err}")
                 
                 pay_ref.update({
                     'discount': discount,
@@ -892,7 +893,7 @@ def installment_plan(request):
                                     db.collection('trn_certificates').document(cert_id).set(cert_data, merge=True)
                                     log_training_action(request.user, "CREATE", "trn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon balance clearance")
                     except Exception as cert_err:
-                        print(f"Error auto-issuing certificate on payment update: {cert_err}")
+                        training_logger.error(f"Error auto-issuing certificate on payment update: {cert_err}")
                         
         return redirect('training:installment_plan')
         
@@ -1045,7 +1046,7 @@ def course_assessments(request):
                                 db.collection('trn_certificates').document(cert_id).set(cert_data, merge=True)
                                 log_training_action(request.user, "CREATE", "trn_certificates", cert_id, f"Auto-issued certificate {cert_id} upon assessment pass")
                 except Exception as cert_err:
-                    print(f"Error auto-issuing certificate on assessment update: {cert_err}")
+                    training_logger.error(f"Error auto-issuing certificate on assessment update: {cert_err}")
                     
         return redirect('training:course_assessments')
 

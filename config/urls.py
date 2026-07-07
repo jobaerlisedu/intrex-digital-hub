@@ -22,7 +22,10 @@ if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstat
         from config.bootstrap import run_startup
         run_startup()
     except Exception as e:
-        print(f"Django Startup Error: {e}")
+        urls_logger.error(f"Django Startup Error: {e}")
+
+from config.logger import get_logger
+urls_logger = get_logger('config.urls')
 
 from django.contrib import admin
 from django.urls import path, include

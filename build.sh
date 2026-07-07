@@ -2,8 +2,12 @@
 # exit on error
 set -o errexit
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Build frontend assets
+npm install
+npm run build
 
 # Run database migrations
 python manage.py migrate

@@ -8,6 +8,7 @@ from django.core.cache import cache
 from accounts.decorators import module_access
 from config.services.integration_service import IntegrationService
 from config.workflow_integration import ensure_workflow, try_transition, LEAVE_TRIGGER_MAP
+from config.logger import hrm_logger
 import random
 
 # Helper to get Firestore collection data or fallback to sample lists (no cache)
@@ -23,7 +24,7 @@ def get_collection_data(collection_name, default_data):
             return default_data
         return results
     except Exception as e:
-        print(f"Error fetching {collection_name}: {e}")
+        hrm_logger.error(f"Error fetching {collection_name}: {e}")
         return default_data
 
 # Cached helper for slow-changing reference data (departments, positions, etc.)
@@ -76,7 +77,7 @@ def index(request):
         if pending_approvals > 0:
             recent_activities.append(f"There are {pending_approvals} requests pending manager approval.")
     except Exception as e:
-        print(f"Error loading dashboard: {e}")
+        hrm_logger.error(f"Error loading dashboard: {e}")
         total_emp, active_emp, leave_emp, open_positions = 0, 0, 0, 0
         pending_approvals = 0
         absenteeism_rate = 0.0
@@ -126,7 +127,7 @@ def recruitment(request):
                     db.collection('hrm_recruitment_candidates').add(update_data)
                     messages.success(request, "Candidate profile registered successfully.")
             except Exception as e:
-                print(f"Error adding candidate: {e}")
+                hrm_logger.error(f"Error adding candidate: {e}")
                 
         # 2. Add to Shortlist
         elif action == 'add_shortlist':
@@ -170,7 +171,7 @@ def recruitment(request):
                         })
                             messages.success(request, "Candidate added to shortlist successfully.")
                 except Exception as e:
-                    print(f"Error adding shortlist candidate: {e}")
+                    hrm_logger.error(f"Error adding shortlist candidate: {e}")
                     
         # 3. Schedule Interview
         elif action == 'add_interview':
@@ -217,7 +218,7 @@ def recruitment(request):
                         })
                             messages.success(request, "Interview scheduled successfully.")
                 except Exception as e:
-                    print(f"Error scheduling interview: {e}")
+                    hrm_logger.error(f"Error scheduling interview: {e}")
                     
         # 4. Make Selection
         elif action == 'add_selection':
@@ -262,7 +263,7 @@ def recruitment(request):
                         })
                             messages.success(request, "Selection decision logged successfully.")
                 except Exception as e:
-                    print(f"Error saving selection: {e}")
+                    hrm_logger.error(f"Error saving selection: {e}")
                     
         # 5. Delete Actions
         elif action.startswith('delete_'):
@@ -282,7 +283,7 @@ def recruitment(request):
                     db.collection(col_name).document(doc_id).delete()
                     messages.success(request, "Record deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting doc from {col_name}: {e}")
+                    hrm_logger.error(f"Error deleting doc from {col_name}: {e}")
                     
         # 6. Inline Update Status
         elif action == 'update_status':
@@ -293,7 +294,7 @@ def recruitment(request):
                     db.collection('hrm_recruitment_candidates').document(doc_id).update({'status': new_status})
                     messages.success(request, f"Candidate status updated to {new_status}.")
                 except Exception as e:
-                    print(f"Error updating status: {e}")
+                    hrm_logger.error(f"Error updating status: {e}")
                     
         return redirect('hrm:recruitment')
 
@@ -363,7 +364,7 @@ def department(request):
                 })
                     messages.success(request, "Department added successfully.")
             except Exception as e:
-                print(f"Error adding department: {e}")
+                hrm_logger.error(f"Error adding department: {e}")
                 
         # 2. Add Sub Department
         elif action == 'add_sub_department':
@@ -411,7 +412,7 @@ def department(request):
                         })
                             messages.success(request, "Sub-department added successfully.")
                 except Exception as e:
-                    print(f"Error adding sub department: {e}")
+                    hrm_logger.error(f"Error adding sub department: {e}")
                     
         elif action == 'add_position':
             dept_id = request.POST.get('dept_id')
@@ -478,7 +479,7 @@ def department(request):
                             })
                             messages.success(request, "Job position added successfully.")
                 except Exception as e:
-                    print(f"Error adding position: {e}")
+                    hrm_logger.error(f"Error adding position: {e}")
                     
         # 4. Delete Action
         elif action.startswith('delete_'):
@@ -496,7 +497,7 @@ def department(request):
                     db.collection(col_name).document(doc_id).delete()
                     messages.success(request, "Record deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting doc from {col_name}: {e}")
+                    hrm_logger.error(f"Error deleting doc from {col_name}: {e}")
                     
         # Invalidate caches so next load reflects the write
         invalidate_cache('org_departments')
@@ -537,7 +538,7 @@ def employee_database(request):
                     db.collection('hrm_employees').document(doc_id).delete()
                     messages.success(request, "Employee record deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting employee: {e}")
+                    hrm_logger.error(f"Error deleting employee: {e}")
             return redirect('hrm:employee_database')
 
         # Full 4-step form submission
@@ -643,9 +644,9 @@ def employee_database(request):
             try:
                 IntegrationService.employee_to_user_registry(data)
             except Exception as e:
-                print(f"Error syncing employee to registry: {e}")
+                hrm_logger.error(f"Error syncing employee to registry: {e}")
         except Exception as e:
-            print(f"Error saving employee: {e}")
+            hrm_logger.error(f"Error saving employee: {e}")
         return redirect('hrm:employee_database')
 
     # Fetch employees list
@@ -657,7 +658,7 @@ def employee_database(request):
             emp['id'] = doc.id
             employees.append(emp)
     except Exception as e:
-        print(f"Error fetching employees: {e}")
+        hrm_logger.error(f"Error fetching employees: {e}")
         employees = []
 
     # Use cached reference data for dropdowns
@@ -685,7 +686,7 @@ def attendance(request):
                     db.collection('hrm_attendance').document(doc_id).delete()
                     messages.success(request, "Attendance record deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting attendance: {e}")
+                    hrm_logger.error(f"Error deleting attendance: {e}")
 
         elif att_action == 'resolve_missing':
             try:
@@ -701,7 +702,7 @@ def attendance(request):
                 db.collection('hrm_attendance').add(data)
                 messages.success(request, "Missing attendance resolved successfully.")
             except Exception as e:
-                print(f"Error resolving missing attendance: {e}")
+                hrm_logger.error(f"Error resolving missing attendance: {e}")
 
         else:  # record
             try:
@@ -716,7 +717,7 @@ def attendance(request):
                 db.collection('hrm_attendance').add(att_data)
                 messages.success(request, "Attendance record logged successfully.")
             except Exception as e:
-                print(f"Error adding attendance log: {e}")
+                hrm_logger.error(f"Error adding attendance log: {e}")
 
         return redirect('hrm:attendance')
 
@@ -769,7 +770,7 @@ def leave(request):
                 })
                     messages.success(request, "Holiday added successfully.")
             except Exception as e:
-                print(f"Error adding holiday: {e}")
+                hrm_logger.error(f"Error adding holiday: {e}")
 
         elif lv_action == 'delete_holiday':
             doc_id = request.POST.get('doc_id')
@@ -778,7 +779,7 @@ def leave(request):
                     db.collection('hrm_holidays').document(doc_id).delete()
                     messages.success(request, "Holiday deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting holiday: {e}")
+                    hrm_logger.error(f"Error deleting holiday: {e}")
 
         elif lv_action == 'apply_leave':
             try:
@@ -827,7 +828,7 @@ def leave(request):
                     ensure_workflow('hrm', 'leave', doc_id, entity_label=emp_name, request=request)
                     messages.success(request, "Leave request submitted successfully.")
             except Exception as e:
-                print(f"Error applying leave: {e}")
+                hrm_logger.error(f"Error applying leave: {e}")
 
         elif lv_action in ('Approved', 'Rejected'):
             doc_id = request.POST.get('doc_id')
@@ -840,7 +841,7 @@ def leave(request):
                         try_transition('hrm', 'leave', doc_id, trigger, request=request)
                     messages.success(request, f"Leave request status updated to {lv_action}.")
                 except Exception as e:
-                    print(f"Error updating leave: {e}")
+                    hrm_logger.error(f"Error updating leave: {e}")
 
         elif lv_action == 'delete_leave':
             doc_id = request.POST.get('doc_id')
@@ -849,7 +850,7 @@ def leave(request):
                     db.collection('hrm_leaves').document(doc_id).delete()
                     messages.success(request, "Leave request deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting leave: {e}")
+                    hrm_logger.error(f"Error deleting leave: {e}")
 
         elif lv_action == 'save_weekend':
             weekend_days = request.POST.getlist('weekend_days')
@@ -857,7 +858,7 @@ def leave(request):
                 db.collection('hrm_settings').document('weekend').set({'days': weekend_days})
                 messages.success(request, "Weekend settings saved successfully.")
             except Exception as e:
-                print(f"Error saving weekend: {e}")
+                hrm_logger.error(f"Error saving weekend: {e}")
 
         return redirect('hrm:leave')
 
@@ -918,7 +919,7 @@ def payroll(request):
                 })
                     messages.success(request, "Advance salary request filed successfully.")
             except Exception as e:
-                print(f"Error adding advance salary: {e}")
+                hrm_logger.error(f"Error adding advance salary: {e}")
 
         elif pr_action == 'delete_advance':
             doc_id = request.POST.get('doc_id')
@@ -927,7 +928,7 @@ def payroll(request):
                     db.collection('hrm_advances').document(doc_id).delete()
                     messages.success(request, "Advance salary request deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting advance: {e}")
+                    hrm_logger.error(f"Error deleting advance: {e}")
 
         elif pr_action == 'generate_salary':
             month = request.POST.get('month')
@@ -997,7 +998,7 @@ def payroll(request):
                     db.collection('hrm_payrolls').add(payload)
                     messages.success(request, "Payroll sheet generated successfully.")
             except Exception as e:
-                print(f"Error generating payroll: {e}")
+                hrm_logger.error(f"Error generating payroll: {e}")
 
         elif pr_action == 'delete_payroll':
             doc_id = request.POST.get('doc_id')
@@ -1006,7 +1007,7 @@ def payroll(request):
                     db.collection('hrm_payrolls').document(doc_id).delete()
                     messages.success(request, "Payroll sheet deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting payroll: {e}")
+                    hrm_logger.error(f"Error deleting payroll: {e}")
 
         elif pr_action == 'disburse_payroll':
             doc_id = request.POST.get('doc_id')
@@ -1046,7 +1047,7 @@ def payroll(request):
                         db.collection('fin_journal_entries').add(je_data)
                         messages.success(request, "Payroll disbursed and journal entries posted successfully.")
                 except Exception as e:
-                    print(f"Error disbursing payroll: {e}")
+                    hrm_logger.error(f"Error disbursing payroll: {e}")
 
         return redirect('hrm:payroll')
 
@@ -1262,7 +1263,7 @@ def reports(request):
                 }
 
         except Exception as e:
-            print(f"Error generating report: {e}")
+            hrm_logger.error(f"Error generating report: {e}")
 
     return render(request, 'hrm/reports.html', context)
 
@@ -1285,7 +1286,7 @@ def onboarding_offboarding(request):
                 })
                 messages.success(request, "Onboarding task added successfully.")
             except Exception as e:
-                print(f"Error adding onboarding task: {e}")
+                hrm_logger.error(f"Error adding onboarding task: {e}")
 
         elif action == 'complete_task':
             if doc_id:
@@ -1293,7 +1294,7 @@ def onboarding_offboarding(request):
                     db.collection('hrm_onboarding_tasks').document(doc_id).update({'status': 'Completed'})
                     messages.success(request, "Onboarding task marked as completed.")
                 except Exception as e:
-                    print(f"Error completing onboarding task: {e}")
+                    hrm_logger.error(f"Error completing onboarding task: {e}")
 
         elif action == 'delete_task':
             if doc_id:
@@ -1301,7 +1302,7 @@ def onboarding_offboarding(request):
                     db.collection('hrm_onboarding_tasks').document(doc_id).delete()
                     messages.success(request, "Onboarding task deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting onboarding task: {e}")
+                    hrm_logger.error(f"Error deleting onboarding task: {e}")
 
         elif action == 'trigger_exit':
             try:
@@ -1321,7 +1322,7 @@ def onboarding_offboarding(request):
                     emp_query[0].reference.update({'status': 'Resigned'})
                 messages.success(request, "Exit clearance workflow triggered successfully.")
             except Exception as e:
-                print(f"Error triggering exit: {e}")
+                hrm_logger.error(f"Error triggering exit: {e}")
 
         elif action == 'update_clearance':
             if doc_id:
@@ -1339,7 +1340,7 @@ def onboarding_offboarding(request):
                             emp_query[0].reference.update({'status': 'Inactive'})
                     messages.success(request, "Exit clearance status updated successfully.")
                 except Exception as e:
-                    print(f"Error updating clearance: {e}")
+                    hrm_logger.error(f"Error updating clearance: {e}")
 
         return redirect('hrm:onboarding_offboarding')
 
@@ -1376,7 +1377,7 @@ def roster_management(request):
                 })
                 messages.success(request, "Employee shift roster assigned successfully.")
             except Exception as e:
-                print(f"Error assigning shift: {e}")
+                hrm_logger.error(f"Error assigning shift: {e}")
 
         elif action == 'delete_shift':
             if doc_id:
@@ -1384,7 +1385,7 @@ def roster_management(request):
                     db.collection('hrm_employee_shifts').document(doc_id).delete()
                     messages.success(request, "Shift assignment deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting shift: {e}")
+                    hrm_logger.error(f"Error deleting shift: {e}")
 
         return redirect('hrm:roster_management')
 
@@ -1420,7 +1421,7 @@ def expense_claims(request):
                 })
                 messages.success(request, "Expense claim filed successfully.")
             except Exception as e:
-                print(f"Error filing expense claim: {e}")
+                hrm_logger.error(f"Error filing expense claim: {e}")
 
         elif action == 'approve_claim':
             if doc_id:
@@ -1428,7 +1429,7 @@ def expense_claims(request):
                     db.collection('hrm_expense_claims').document(doc_id).update({'status': 'Approved'})
                     messages.success(request, "Expense claim approved successfully.")
                 except Exception as e:
-                    print(f"Error approving claim: {e}")
+                    hrm_logger.error(f"Error approving claim: {e}")
 
         elif action == 'reject_claim':
             if doc_id:
@@ -1436,7 +1437,7 @@ def expense_claims(request):
                     db.collection('hrm_expense_claims').document(doc_id).update({'status': 'Rejected'})
                     messages.success(request, "Expense claim rejected.")
                 except Exception as e:
-                    print(f"Error rejecting claim: {e}")
+                    hrm_logger.error(f"Error rejecting claim: {e}")
 
         elif action == 'delete_claim':
             if doc_id:
@@ -1444,7 +1445,7 @@ def expense_claims(request):
                     db.collection('hrm_expense_claims').document(doc_id).delete()
                     messages.success(request, "Expense claim deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting claim: {e}")
+                    hrm_logger.error(f"Error deleting claim: {e}")
 
         return redirect('hrm:expense_claims')
 
@@ -1479,7 +1480,7 @@ def document_asset_vault(request):
                 })
                 messages.success(request, "Employee document added to vault successfully.")
             except Exception as e:
-                print(f"Error adding document: {e}")
+                hrm_logger.error(f"Error adding document: {e}")
 
         elif action == 'delete_document':
             if doc_id:
@@ -1487,7 +1488,7 @@ def document_asset_vault(request):
                     db.collection('hrm_documents').document(doc_id).delete()
                     messages.success(request, "Employee document deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting document: {e}")
+                    hrm_logger.error(f"Error deleting document: {e}")
 
         elif action == 'assign_asset':
             try:
@@ -1501,7 +1502,7 @@ def document_asset_vault(request):
                 })
                 messages.success(request, "Asset assigned to employee successfully.")
             except Exception as e:
-                print(f"Error assigning asset: {e}")
+                hrm_logger.error(f"Error assigning asset: {e}")
 
         elif action == 'return_asset':
             if doc_id:
@@ -1509,7 +1510,7 @@ def document_asset_vault(request):
                     db.collection('hrm_assets').document(doc_id).update({'status': 'Returned'})
                     messages.success(request, "Asset marked as returned successfully.")
                 except Exception as e:
-                    print(f"Error returning asset: {e}")
+                    hrm_logger.error(f"Error returning asset: {e}")
 
         elif action == 'delete_asset':
             if doc_id:
@@ -1517,7 +1518,7 @@ def document_asset_vault(request):
                     db.collection('hrm_assets').document(doc_id).delete()
                     messages.success(request, "Asset record deleted successfully.")
                 except Exception as e:
-                    print(f"Error deleting asset: {e}")
+                    hrm_logger.error(f"Error deleting asset: {e}")
 
         return redirect('hrm:document_asset_vault')
 

@@ -648,7 +648,7 @@
 {% endblock content %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="{% static 'vendors/html2canvas/html2canvas.min.js' %}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const downloadBtn = document.getElementById("btnDownloadCert");

@@ -4,6 +4,8 @@ from django.contrib.auth.signals import user_logged_in, user_logged_out, user_lo
 from django.dispatch import receiver
 from django.core.exceptions import PermissionDenied
 from django.db.models.signals import pre_delete
+from config.logger import accounts_logger
+
 import hashlib
 
 class AuditLog(models.Model):
@@ -39,7 +41,7 @@ class AuditLog(models.Model):
                     prev_hash = docs[0].to_dict().get('sha256_hash') or "0" * 64
                 use_firestore = True
             except Exception as e:
-                print(f"Warning: Could not fetch last hash chain from Firestore, falling back to SQLite: {e}")
+                accounts_logger.warning(f"Could not fetch last hash chain from Firestore, falling back to SQLite: {e}")
         
         if not use_firestore:
             last_log = AuditLog.objects.order_by('-id').first()
@@ -68,7 +70,7 @@ class AuditLog(models.Model):
                     'timestamp': google_firestore.SERVER_TIMESTAMP
                 })
             except Exception as e:
-                print(f"Failed to write audit log to Firestore: {e}")
+                accounts_logger.error(f"Failed to write audit log to Firestore: {e}")
 
     def __str__(self):
         user_str = self.user.username if self.user else "Anonymous"
@@ -118,7 +120,7 @@ def log_action(user, action, module, description, ip_address=None, before_state=
             after_state=after_state
         )
     except Exception as e:
-        print(f"Failed to write audit log: {e}")
+        accounts_logger.error(f"Failed to write audit log: {e}")
 
 
 def log_action_async(user, action, module, description, ip_address=None, before_state=None, after_state=None):

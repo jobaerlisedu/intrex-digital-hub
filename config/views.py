@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from config.firebase import db
 from config.services import KPIService
+from config.logger import firebase_logger
 
 @login_required
 def erp_dashboard(request):
@@ -26,7 +27,7 @@ def erp_dashboard(request):
                 log_data['id'] = doc.id
                 audit_logs.append(log_data)
         except Exception as e:
-            print(f"Error fetching audit logs: {e}")
+            firebase_logger.error(f"Error fetching audit logs: {e}")
 
     # User Stats
     user_stats = {'total_users': 0, 'active_users': 0}
@@ -35,7 +36,7 @@ def erp_dashboard(request):
         user_stats['total_users'] = User.objects.count()
         user_stats['active_users'] = User.objects.filter(is_active=True).count()
     except Exception as e:
-        print(f"Error fetching User stats: {e}")
+        firebase_logger.error(f"Error fetching User stats: {e}")
 
     # Documentation Stats
     docs_stats = {'total_pages': 0}
@@ -51,7 +52,7 @@ def erp_dashboard(request):
                         total_md_files += 1
         docs_stats['total_pages'] = total_md_files
     except Exception as e:
-        print(f"Error fetching Docs stats: {e}")
+        firebase_logger.error(f"Error fetching Docs stats: {e}")
 
     context = {
         'kpis': kpis,
@@ -68,6 +69,7 @@ def erp_dashboard(request):
 def documentation_viewer(request, path=''):
     import os
     import markdown
+    import re
     from django.conf import settings
     from django.http import Http404
 
@@ -92,11 +94,23 @@ def documentation_viewer(request, path=''):
     with open(safe_path, 'r', encoding='utf-8') as f:
         md_content = f.read()
 
-    # Convert markdown to HTML with common extensions
+    # Convert markdown to HTML with common extensions (disable_raw_html for security)
     html_content = markdown.markdown(
         md_content,
-        extensions=['extra', 'codehilite', 'toc', 'tables']
+        extensions=['extra', 'codehilite', 'toc', 'tables'],
+        extension_configs={
+            'extra': {
+                'markdown.extensions.extra': {
+                    'enable_raw_html': False
+                }
+            }
+        }
     )
+    # Strip any remaining dangerous tags as defense-in-depth
+    html_content = re.sub(r'<script[\s\S]*?<\/script>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<iframe[\s\S]*?<\/iframe>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<object[\s\S]*?<\/object>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<embed[\s\S]*?<\/embed>', '', html_content, flags=re.IGNORECASE)
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({

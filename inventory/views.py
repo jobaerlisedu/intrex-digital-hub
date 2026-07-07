@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 from config.services.integration_service import IntegrationService
 from config.workflow_integration import ensure_workflow, try_transition, REQUISITION_TRIGGER_MAP, PO_TRIGGER_MAP
+from config.logger import inventory_logger
 
 # Utility to serialize Firestore documents
 def serialize_doc(doc):
@@ -488,7 +489,7 @@ def grn_list(request):
             try:
                 IntegrationService.grn_to_vendor_bill(grn_data, po_data, request.user)
             except Exception as e:
-                print(f"Error auto-creating AP Bill from GRN: {e}")
+                inventory_logger.error(f"Error auto-creating AP Bill from GRN: {e}")
 
             messages.success(request, "Goods Receipt Note (GRN) created and stock updated successfully.")
 

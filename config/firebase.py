@@ -1,44 +1,59 @@
 import os
+import json
+import logging
 import firebase_admin
 from firebase_admin import credentials, firestore
-from dotenv import load_dotenv  # pyrefly: ignore [missing-import]
+from dotenv import load_dotenv
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from .env
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# Initialize Firebase
-FIREBASE_CREDS_PATH = os.path.join(BASE_DIR, os.environ.get('FIREBASE_CREDENTIALS_PATH', 'firebase-credentials.json'))
+logger = logging.getLogger('config.firebase')
+
+FIREBASE_CREDS_PATH_ENV = os.environ.get('FIREBASE_CREDENTIALS_PATH')
+_debug = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
 if not firebase_admin._apps:
     try:
         firebase_creds_json = os.environ.get('FIREBASE_CREDENTIALS_JSON')
         if firebase_creds_json:
-            import json
             creds_dict = json.loads(firebase_creds_json)
             cred = credentials.Certificate(creds_dict)
             firebase_admin.initialize_app(cred)
-            print("Firebase successfully connected using JSON env var!")
-        elif os.path.exists(FIREBASE_CREDS_PATH):
-            cred = credentials.Certificate(FIREBASE_CREDS_PATH)
-            firebase_admin.initialize_app(cred)
-            print("Firebase successfully connected using credentials file!")
+            logger.info("Firebase connected using FIREBASE_CREDENTIALS_JSON env var")
+        elif FIREBASE_CREDS_PATH_ENV:
+            creds_path = os.path.join(BASE_DIR, FIREBASE_CREDS_PATH_ENV) if not os.path.isabs(FIREBASE_CREDS_PATH_ENV) else FIREBASE_CREDS_PATH_ENV
+            if os.path.exists(creds_path):
+                logger.warning("Firebase connected using file-based credentials. Prefer FIREBASE_CREDENTIALS_JSON env var for production.")
+                cred = credentials.Certificate(creds_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                raise FileNotFoundError(f"Firebase credentials file not found at: {creds_path}")
         else:
-            # Check if running in a Google Cloud environment or GOOGLE_APPLICATION_CREDENTIALS is set
             if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') or os.environ.get('GAE_ENV'):
                 firebase_admin.initialize_app()
-                print("Firebase connected using Google default credentials!")
+                logger.info("Firebase connected using Google default credentials")
+            elif _debug:
+                default_path = os.path.join(BASE_DIR, 'firebase-credentials.json')
+                if os.path.exists(default_path):
+                    logger.warning("FIREBASE_CREDENTIALS_PATH not set, loading default firebase-credentials.json. Set FIREBASE_CREDENTIALS_JSON env var for production.")
+                    cred = credentials.Certificate(default_path)
+                    firebase_admin.initialize_app(cred)
+                else:
+                    raise FileNotFoundError(
+                        f"Firebase credentials file not found at default path: {default_path}. "
+                        "Set FIREBASE_CREDENTIALS_JSON env var or FIREBASE_CREDENTIALS_PATH."
+                    )
             else:
                 raise ValueError(
-                    "Firebase credentials not found. Please set the 'FIREBASE_CREDENTIALS_JSON' "
-                    "environment variable in your Render dashboard, or ensure that "
-                    f"'{os.path.basename(FIREBASE_CREDS_PATH)}' exists."
+                    "Firebase credentials not configured. Set FIREBASE_CREDENTIALS_JSON env var "
+                    "with the full service account JSON, or set FIREBASE_CREDENTIALS_PATH to the "
+                    "credentials file path (relative to project root or absolute)."
                 )
     except Exception as e:
-        print(f"Error connecting to Firebase: {e}")
-        raise e
+        logger.error(f"Firebase connection failed: {e}")
+        raise
 
-# Create a Firestore database client that you can import and use anywhere
 db = firestore.client()

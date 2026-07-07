@@ -2,9 +2,12 @@ import datetime
 import random
 from django.shortcuts import render
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from firebase_admin import firestore
 from config.firebase import db
+from config.logger import get_logger
+
+frontend_logger = get_logger('frontend')
 
 # Default fallback courses list matching training.js mock data
 FALLBACK_COURSES = [
@@ -50,6 +53,7 @@ def service_managed_it(request):
 def service_business_suite(request):
     return render(request, 'frontend/services/service-business-suite.html')
 
+@ensure_csrf_cookie
 def training(request):
     courses = []
     
@@ -61,7 +65,7 @@ def training(request):
             if c.get('status') == 'Active':
                 courses.append(c)
     except Exception as e:
-        print(f"Error fetching courses from Firestore: {e}")
+        frontend_logger.error(f"Error fetching courses from Firestore: {e}")
         
     courses.sort(key=lambda x: x.get('title', ''))
         
@@ -115,7 +119,7 @@ def verify_certificate(request):
                     'cert_id_input': cert_id,
                 }
         except Exception as e:
-            print(f"Error checking certificate in Firestore: {e}")
+            frontend_logger.error(f"Error checking certificate in Firestore: {e}")
             context = {
                 'success': False,
                 'searched': True,
@@ -125,7 +129,6 @@ def verify_certificate(request):
     return render(request, 'frontend/verify-certificate.html', context)
 
 # API endpoint for online registrations
-@csrf_exempt
 def register_course(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
@@ -174,11 +177,10 @@ def register_course(request):
         })
         return JsonResponse({'status': 'success', 'key': reg_key})
     except Exception as e:
-        print(f"Firestore registration write error: {e}")
+        frontend_logger.error(f"Firestore registration write error: {e}")
         return JsonResponse({'status': 'error', 'message': 'Database insertion failed.'}, status=500)
 
 # API endpoint for online inquiries
-@csrf_exempt
 def inquire_course(request):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
@@ -250,8 +252,9 @@ def inquire_course(request):
             })
             return JsonResponse({'status': 'success', 'key': inq_key})
     except Exception as e:
-        print(f"Firestore inquiry write error: {e}")
+        frontend_logger.error(f"Firestore inquiry write error: {e}")
         return JsonResponse({'status': 'error', 'message': 'Database insertion failed.'}, status=500)
 
+@ensure_csrf_cookie
 def contact(request):
     return render(request, 'frontend/contact.html')

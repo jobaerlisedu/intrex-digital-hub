@@ -123,8 +123,8 @@ SPA.renderContent = async function (url, pushState = true) {
 
     await new Promise((r) => setTimeout(r, 120));
 
-    // Swap content
-    contentEl.innerHTML = page.content.innerHTML;
+    // Swap content using DOM node replacement (safe, preserves event listeners on ancestors)
+    contentEl.replaceChildren(...page.content.childNodes);
 
     // Update title
     if (page.title) {
@@ -156,11 +156,7 @@ SPA.renderContent = async function (url, pushState = true) {
 
     // Re-run page-specific scripts
     if (page.extraJS) {
-      try {
-        (new Function(page.extraJS))();
-      } catch (e) {
-        console.warn('Page script error:', e);
-      }
+      console.warn('[SPA] extraJS is deprecated and will not execute.');
     }
 
     // Update sidebar active states

@@ -8,5 +8,5 @@ python manage.py migrate
 # Boot/reset default admin user
 python create_admin.py
 
-# Start the Django server binding to the Render-allocated port
-python manage.py runserver 0.0.0.0:${PORT:-8000}
+# Start gunicorn production server
+gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 4 --timeout 120 --access-logfile - --error-logfile -

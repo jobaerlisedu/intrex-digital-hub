@@ -7,6 +7,7 @@ from datetime import timedelta
 import hashlib
 from .decorators import staff_required, superuser_required, module_access, ERP_MODULES
 from .models import log_action, get_client_ip, AuditLog, ActiveSession
+from config.logger import accounts_logger
 
 
 # ─────────────────────────────────────────────
@@ -122,7 +123,7 @@ def user_edit(request, user_id):
                     'password': make_password(new_password),
                 })
             except Exception as e:
-                print(f"Warning: Could not sync password to Firestore for '{edit_user.username}': {e}")
+                accounts_logger.warning(f"Could not sync password to Firestore for '{edit_user.username}': {e}")
 
         edit_user.save()
 
@@ -254,7 +255,7 @@ def audit_logs(request):
             
             use_firestore = True
         except Exception as e:
-            print(f"Error fetching audit logs from Firestore: {e}")
+            accounts_logger.error(f"Error fetching audit logs from Firestore: {e}")
             
     if not use_firestore:
         logs = list(AuditLog.objects.select_related('user').all().order_by('-timestamp'))

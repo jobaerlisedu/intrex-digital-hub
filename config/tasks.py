@@ -1,11 +1,14 @@
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
+from config.logger import get_logger
+
+task_logger = get_logger('config.tasks')
 
 
 @shared_task
 def send_workflow_notification(module, entity_type, entity_id, event, user_email):
-    print(f"[NOTIFICATION] {module}.{entity_type}({entity_id}) → {event} for {user_email}")
+    task_logger.info(f"[NOTIFICATION] {module}.{entity_type}({entity_id}) → {event} for {user_email}")
 
 
 @shared_task
@@ -18,7 +21,7 @@ def cleanup_inactive_sessions():
 
 @shared_task
 def generate_report(module, report_type, params):
-    print(f"[REPORT] Generating {module}.{report_type} with params={params}")
+    task_logger.info(f"[REPORT] Generating {module}.{report_type} with params={params}")
     return f"{module}.{report_type} generated"
 
 
@@ -41,7 +44,7 @@ def send_installment_reminders():
                 installments = pay_data.get('installments', [])
                 for inst in installments:
                     if inst.get('due_date') == target_str and not inst.get('paid', False):
-                        print(f"[REMINDER] Installment due for {data.get('fullName')} - {inst.get('amount')}")
+                        task_logger.info(f"[REMINDER] Installment due for {data.get('fullName')} - {inst.get('amount')}")
                         count += 1
         return f"Sent {count} installment reminders"
     except Exception as e:

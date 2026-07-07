@@ -319,6 +319,7 @@
 
 {% block extra_js %}
   <script>
+    const getCSRFToken = () => { const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/); return m ? decodeURIComponent(m[1]) : ''; };
     document.addEventListener("DOMContentLoaded", function () {
 
       const registrationModal = document.getElementById("registrationModal");
@@ -413,7 +414,7 @@
               method: "POST",
               body: formData,
               headers: {
-                "X-CSRFToken": "{{ csrf_token }}"
+                "X-CSRFToken": getCSRFToken()
               }
             });
             const result = await response.json();
@@ -535,7 +536,7 @@
               method: "POST",
               body: formData,
               headers: {
-                "X-CSRFToken": "{{ csrf_token }}"
+                "X-CSRFToken": getCSRFToken()
               }
             });
             const result = await response.json();

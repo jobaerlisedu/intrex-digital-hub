@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from accounts.decorators import module_access
 from datetime import datetime, timedelta
 from config.services.integration_service import IntegrationService
+from config.logger import investment_logger
 
 # Helper to retrieve all data in a collection
 def get_collection_data(collection_name):
@@ -19,7 +20,7 @@ def get_collection_data(collection_name):
             results.append(item)
         return results
     except Exception as e:
-        print(f"Error fetching collection {collection_name}: {e}")
+        investment_logger.error(f"Error fetching collection {collection_name}: {e}")
         return []
 
 @module_access('investment')
@@ -325,7 +326,7 @@ def loans_list(request):
             try:
                 IntegrationService.investment_loan_to_journal_entry(loan_data, request.user)
             except Exception as e:
-                print(f"Error auto-creating journal entry for loan: {e}")
+                investment_logger.error(f"Error auto-creating journal entry for loan: {e}")
 
             messages.success(request, "Investor loan and amortization schedule registered successfully.")
 

@@ -2,6 +2,7 @@ from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.hashers import check_password
 from config.firebase import db
+from config.logger import accounts_logger
 
 class FirestoreBackend(BaseBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
@@ -45,7 +46,7 @@ class FirestoreBackend(BaseBackend):
             return user
 
         except Exception as e:
-            print(f"Error in FirestoreBackend authentication: {e}")
+            accounts_logger.error(f"Error in FirestoreBackend authentication: {e}")
             return None
 
     def get_user(self, user_id):

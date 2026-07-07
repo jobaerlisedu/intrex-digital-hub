@@ -1,0 +1,13 @@
+{% extends 'erp_base.html' %}
+{% block title %}Server Error - Intrex ERP{% endblock %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px;">
+  <i class="fa-solid fa-triangle-exclamation" style="font-size:4rem;color:#ef4444;opacity:0.6;margin-bottom:24px;"></i>
+  <h1 style="font-size:2.5rem;font-weight:800;color:var(--text-primary);margin:0 0 8px 0;">500</h1>
+  <p style="font-size:1.1rem;color:var(--text-secondary);margin:0 0 8px 0;">An unexpected error occurred.</p>
+  <p style="font-size:0.9rem;color:var(--text-secondary);margin:0 0 32px 0;">Our team has been notified. Please try again later.</p>
+  <a href="/erp/" class="btn-submit" style="padding:12px 32px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+  </a>
+</div>
+{% endblock %}

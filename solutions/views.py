@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import json
 from config.services.integration_service import IntegrationService
 from config.workflow_integration import ensure_workflow, try_transition, PROJECT_TRIGGER_MAP
+from config.logger import solutions_logger
 
 def serialize_doc(doc):
     d = doc.to_dict()
@@ -319,7 +320,7 @@ def project_sourcing(request):
                 req_data['project_name'] = project_info.get('name', '')
                 IntegrationService.project_requisition_to_po(req_data, request.user)
             except Exception as e:
-                print(f"Error auto-creating PO from project requisition: {e}")
+                solutions_logger.error(f"Error auto-creating PO from project requisition: {e}")
 
             messages.success(request, f"Requisition dispatched to central procurement system. Downstream ID: {inv_req_ref[1].id}")
 
