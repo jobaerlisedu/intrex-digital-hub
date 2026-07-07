@@ -6,3 +6,5 @@ __pycache__/
 firebase-credentials.json
 firebase_credentials.json
 node_modules/
+staticfiles/
+static/dist/

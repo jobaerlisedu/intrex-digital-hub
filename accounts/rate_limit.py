@@ -1,6 +1,5 @@
 import time
-from django.http import HttpResponseTooManyRequests
-from django.conf import settings
+from django.http import HttpResponse
 
 class RateLimitMiddleware:
     def __init__(self, get_response):
@@ -12,10 +11,10 @@ class RateLimitMiddleware:
 
         if path.startswith('/login/'):
             if not self._check_limit(f"rl:login:{ip}", 10, 60):
-                return HttpResponseTooManyRequests("Too many login attempts. Try again in 60 seconds.")
+                return HttpResponse("Too many login attempts. Try again in 60 seconds.", status=429)
         elif path.startswith('/api/'):
             if not self._check_limit(f"rl:api:{ip}", 120, 60):
-                return HttpResponseTooManyRequests("API rate limit exceeded. Try again later.")
+                return HttpResponse("API rate limit exceeded. Try again later.", status=429)
 
         return self.get_response(request)
 

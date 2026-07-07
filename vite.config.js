@@ -1,15 +1,17 @@
 import { defineConfig } from 'vite';
 import path from 'path';
 
+const BASE = path.resolve('.');
+
 export default defineConfig({
-  root: 'static_src',
+  root: path.join(BASE, 'static_src'),
   base: '/static/dist/',
   build: {
-    outDir: path.resolve(__dirname, 'static/dist'),
+    outDir: path.join(BASE, 'static/dist'),
     manifest: 'manifest.json',
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'static_src/js/main.js'),
+      input: path.join(BASE, 'static_src/js/main.js'),
       output: {
         entryFileNames: 'js/[name].js',
         chunkFileNames: 'js/[name].js',
