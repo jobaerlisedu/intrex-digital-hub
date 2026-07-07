@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User, Group
+from django.contrib.auth.hashers import make_password
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
@@ -115,6 +116,13 @@ def user_edit(request, user_id):
         new_password = request.POST.get('password', '').strip()
         if new_password:
             edit_user.set_password(new_password)
+            try:
+                from config.firebase import db
+                db.collection('sys_users').document(edit_user.username).update({
+                    'password': make_password(new_password),
+                })
+            except Exception as e:
+                print(f"Warning: Could not sync password to Firestore for '{edit_user.username}': {e}")
 
         edit_user.save()
 

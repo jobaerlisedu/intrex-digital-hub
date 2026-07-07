@@ -15,22 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 import sys
-import os
-from pathlib import Path
 
-# Run database migrations and bootstrap admin on server startup (runserver or WSGI)
+# Run database migrations and bootstrap admin on server startup
 if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstatic', 'check', 'shell', 'test']):
     try:
-        from django.core.management import call_command
-        print("Django Startup: Running database migrations...")
-        call_command('migrate', interactive=False)
-        
-        BASE_DIR = Path(__file__).resolve().parent.parent
-        create_admin_path = os.path.join(BASE_DIR, 'create_admin.py')
-        if os.path.exists(create_admin_path):
-            import subprocess
-            print("Django Startup: Bootstrapping default admin user...")
-            subprocess.run([sys.executable, create_admin_path], check=True)
+        from config.bootstrap import run_startup
+        run_startup()
     except Exception as e:
         print(f"Django Startup Error: {e}")
 
