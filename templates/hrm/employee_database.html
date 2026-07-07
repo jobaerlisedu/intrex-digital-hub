@@ -201,8 +201,8 @@
             <label>Employee Type</label>
             <select name="employee_type" class="form-control">
               <option value="Permanent" selected>Permanent</option>
+              <option value="Probation">Probation</option>
               <option value="Contractual">Contractual</option>
-              <option value="Part-time">Part-time</option>
               <option value="Intern">Intern</option>
             </select>
           </div>
@@ -216,7 +216,7 @@
               <option value="Active" selected>Active</option>
               <option value="On Leave">On Leave</option>
               <option value="Resigned">Resigned</option>
-              <option value="Terminated">Terminated</option>
+              <option value="Inactive">Inactive</option>
             </select>
           </div>
         </div>
@@ -289,11 +289,7 @@
             <label>Religion</label>
             <input type="text" name="religion" class="form-control">
           </div>
-          <div class="form-group" style="grid-column:1/-1;">
-            <label>Profile Image</label>
-            <input type="file" name="profile_image" class="form-control" accept="image/*">
-            <small style="color:var(--text-secondary);font-size:.8rem;">Attached passport size photo</small>
-          </div>
+
         </div>
 
         <hr style="border:0;border-top:1px solid var(--sidebar-border);margin:28px 0 20px;">
@@ -354,7 +350,7 @@
           <option value="Active">Active</option>
           <option value="On Leave">On Leave</option>
           <option value="Resigned">Resigned</option>
-          <option value="Terminated">Terminated</option>
+          <option value="Inactive">Inactive</option>
         </select>
         <button onclick="window.location.reload();" class="btn-submit" style="padding:8px 12px;">
           <i class="fa-solid fa-arrow-rotate-right"></i>
@@ -399,7 +395,7 @@
             {% endfor %}
           </td>
           <td>
-            <span class="badge {% if emp.status == 'Active' %}success{% elif emp.status == 'On Leave' %}warning{% else %}danger{% endif %}">
+            <span class="badge {% if emp.status == 'Active' %}success{% elif emp.status == 'On Leave' %}warning{% elif emp.status == 'Inactive' %}secondary{% else %}danger{% endif %}">
               {{ emp.status|default:"Active" }}
             </span>
           </td>
@@ -893,9 +889,11 @@ function viewRecord(id) {
     let typeBadgeClass = "secondary";
     if (record.employee_type === "Permanent") {
         typeBadgeClass = "success";
+    } else if (record.employee_type === "Probation") {
+        typeBadgeClass = "warning";
     } else if (record.employee_type === "Contractual") {
         typeBadgeClass = "warning";
-    } else if (record.employee_type === "Part-time" || record.employee_type === "Intern") {
+    } else if (record.employee_type === "Intern") {
         typeBadgeClass = "info";
     }
 

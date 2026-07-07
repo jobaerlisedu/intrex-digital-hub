@@ -89,7 +89,7 @@
             
             <div class="form-group" style="margin-top: 20px;">
                 <label>Department</label>
-                <select id="cand-dept" class="form-control" onchange="filterPositionsByDeptSubDept()">
+                <select name="department" id="cand-dept" class="form-control" onchange="filterPositionsByDeptSubDept()">
                     <option value="">Select Department...</option>
                     {% for dept in departments %}
                     <option value="{{ dept.name }}">{{ dept.name }}</option>
@@ -99,7 +99,7 @@
 
             <div class="form-group" style="margin-top: 20px;">
                 <label>Sub Department</label>
-                <select id="cand-subdept" class="form-control" onchange="filterPositionsByDeptSubDept()">
+                <select name="sub_department" id="cand-subdept" class="form-control" onchange="filterPositionsByDeptSubDept()">
                     <option value="">Select Sub Department...</option>
                     {% for sub in sub_departments %}
                     <option value="{{ sub.name }}" data-parent="{{ sub.parent_name }}">{{ sub.name }}</option>
@@ -509,7 +509,7 @@
                 <select name="offer_status" class="form-control" required>
                     <option value="Offered" selected>Offered</option>
                     <option value="Accepted">Accepted</option>
-                    <option value="Declined">Declined</option>
+                    <option value="Rejected">Declined</option>
                     <option value="Joined">Joined</option>
                 </select>
             </div>
@@ -537,7 +537,7 @@
                     <option value="all">Filter Status</option>
                     <option value="Offered">Offered</option>
                     <option value="Accepted">Accepted</option>
-                    <option value="Declined">Declined</option>
+                    <option value="Rejected">Declined</option>
                     <option value="Joined">Joined</option>
                 </select>
                 <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
