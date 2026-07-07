@@ -71,6 +71,8 @@ if SECRET_KEY == _insecure_fallback:
         print('WARNING: DJANGO_SECRET_KEY not set. Generated temporary key (sessions will reset on restart).')
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['.onrender.com', 'localhost', '127.0.0.1']
 
 
 # Application definition
