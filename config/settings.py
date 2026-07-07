@@ -72,7 +72,7 @@ if SECRET_KEY == _insecure_fallback:
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['.onrender.com', 'localhost', '127.0.0.1']
+    ALLOWED_HOSTS = ['.onrender.com', '.tech-enablement.info', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -196,10 +196,10 @@ CSRF_COOKIE_AGE = 86400  # 24 hours
 
 # Static files
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-    BASE_DIR / 'static/dist',  # Vite build output
-]
+STATICFILES_DIRS = [BASE_DIR / 'static']
+_static_dist = BASE_DIR / 'static/dist'
+if _static_dist.exists():
+    STATICFILES_DIRS.append(_static_dist)
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
 
 
