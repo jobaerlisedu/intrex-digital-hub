@@ -111,6 +111,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'accounts.rate_limit.RateLimitMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -201,6 +202,7 @@ _static_dist = BASE_DIR / 'static/dist'
 if _static_dist.exists():
     STATICFILES_DIRS.append(_static_dist)
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # Default primary key field type
