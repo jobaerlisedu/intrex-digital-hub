@@ -66,8 +66,9 @@ if SECRET_KEY == _insecure_fallback:
         import warnings
         warnings.warn('Using insecure fallback DJANGO_SECRET_KEY. Set DJANGO_SECRET_KEY env var for production.')
     else:
-        print('SECURITY WARNING: Using insecure fallback SECRET_KEY in production! Set DJANGO_SECRET_KEY env var.')
-        sys.exit(1)
+        from django.core.management.utils import get_random_secret_key
+        SECRET_KEY = get_random_secret_key()
+        print('WARNING: DJANGO_SECRET_KEY not set. Generated temporary key (sessions will reset on restart).')
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 
