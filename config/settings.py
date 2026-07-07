@@ -202,7 +202,7 @@ _static_dist = BASE_DIR / 'static/dist'
 if _static_dist.exists():
     STATICFILES_DIRS.append(_static_dist)
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 
 # Default primary key field type
