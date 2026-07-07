@@ -2,6 +2,11 @@
 # exit on error
 set -o errexit
 
+# Activate project virtual environment (Render creates this during build)
+if [ -d .venv ]; then
+    source .venv/bin/activate
+fi
+
 # Run database migrations at startup
 python manage.py migrate
 
