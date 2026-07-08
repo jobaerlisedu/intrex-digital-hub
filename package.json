@@ -7,13 +7,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:js": "echo 'No JS linter configured yet'",
-    "lint:css": "echo 'No CSS linter configured yet'",
+    "lint:js": "eslint static/js/ static_src/js/",
+    "lint:css": "stylelint \"static/css/**/*.css\" \"static_src/css/**/*.css\"",
     "lint": "npm run lint:js && npm run lint:css"
   },
   "devDependencies": {
-    "vite": "^4.5.14",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.24.0",
+    "globals": "^17.7.0",
     "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20"
+    "stylelint": "^16.18.0",
+    "stylelint-config-standard": "^36.0.1",
+    "vite": "^4.5.14"
   }
 }

@@ -143,9 +143,9 @@ SPA.renderContent = async function (url, pushState = true) {
     }
 
     // Update URL
+    const newPath = url.split('?')[0];
+    const search = url.includes('?') ? '?' + url.split('?')[1] : '';
     if (pushState) {
-      const newPath = url.split('?')[0];
-      const search = url.includes('?') ? '?' + url.split('?')[1] : '';
       window.history.pushState({ path: newPath + search }, '', newPath + search);
       this.currentPath = newPath + search;
     }

@@ -70,7 +70,7 @@
             row.querySelectorAll('.edit-mode').forEach(function(el) { el.style.display = 'none'; });
             row.classList.remove('editing');
         } else {
-            crudCancelEdit('billForm', {});
+            window.crudCancelEdit('billForm', {});
         }
     };
 

@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.24.0
+    hooks:
+      - id: eslint
+        args: [--fix]
+        files: \.(js|mjs)$
+        types: [file]
+        additional_dependencies:
+          - eslint@9.24.0
+
+  - repo: https://github.com/stylelint/stylelint
+    rev: 16.18.0
+    hooks:
+      - id: stylelint
+        args: [--fix]
+        files: \.(css)$
+        additional_dependencies:
+          - stylelint@16.18.0
+          - stylelint-config-standard@36.0.1
