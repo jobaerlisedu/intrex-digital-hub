@@ -334,32 +334,67 @@ def user_delete(request, user_id):
 
 @superuser_required
 def sync_users_view(request):
-    from accounts.management.commands.sync_users_to_firestore import sync_user_to_firestore
-    from django.contrib.auth.models import User
+    from django.contrib.auth.models import User, Group
+    from config.firebase import db
 
-    users = User.objects.all().order_by('date_joined')
-    total = users.count()
-    synced = 0
-    failed = 0
-    errors = []
+    # ── Sync 1: Firestore → SQLite (pull — restores users after fresh deploy) ──
+    pulled = 0
+    pull_errors = []
+    docs = db.collection('sys_users').stream()
+    for doc in docs:
+        try:
+            data = doc.to_dict()
+            username = data.get('username') or doc.id
+            user, created = User.objects.update_or_create(
+                username=username,
+                defaults={
+                    'email': data.get('email', ''),
+                    'password': data.get('password', ''),
+                    'first_name': data.get('first_name', ''),
+                    'last_name': data.get('last_name', ''),
+                    'is_staff': data.get('is_staff', False),
+                    'is_superuser': data.get('is_superuser', False),
+                    'is_active': data.get('is_active', True),
+                }
+            )
+            for group_name in data.get('groups', []) or []:
+                group, _ = Group.objects.get_or_create(name=group_name)
+                user.groups.add(group)
+            pulled += 1
+        except Exception as e:
+            pull_errors.append(f"{doc.id}: {e}")
 
-    for user in users:
-        if sync_user_to_firestore(user):
-            synced += 1
-        else:
-            failed += 1
-            errors.append(user.username)
+    # ── Sync 2: SQLite → Firestore (push — ensures Firestore has latest) ──
+    pushed = 0
+    push_errors = []
+    for user in User.objects.all():
+        try:
+            data = {
+                'username': user.username,
+                'email': user.email,
+                'password': user.password,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'is_staff': user.is_staff,
+                'is_superuser': user.is_superuser,
+                'is_active': user.is_active,
+                'groups': list(user.groups.values_list('name', flat=True)),
+            }
+            db.collection('sys_users').document(user.username).set(data)
+            pushed += 1
+        except Exception as e:
+            push_errors.append(f"{user.username}: {e}")
 
     log_action(
         user=request.user, action='USER_SYNC', module='accounts',
-        description=f"Synced {synced} users to Firestore ({failed} failed)",
+        description=f"Pulled {pulled} users, pushed {pushed} users",
         ip_address=get_client_ip(request),
     )
 
     return JsonResponse({
-        'status': 'ok' if failed == 0 else 'partial',
-        'total': total, 'synced': synced, 'failed': failed,
-        'failed_users': errors,
+        'status': 'ok' if not pull_errors and not push_errors else 'partial',
+        'pulled': pulled, 'pull_errors': pull_errors,
+        'pushed': pushed, 'push_errors': push_errors,
     })
 
 
