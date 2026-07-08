@@ -292,12 +292,6 @@ if render_url:
         CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
         CSRF_TRUSTED_ORIGINS.append(f"http://{hostname}")
 
-# Guarantee origin check passes for user's specific Render domain
-CSRF_TRUSTED_ORIGINS.extend([
-    "https://erp-intrex-digital.onrender.com",
-    "http://erp-intrex-digital.onrender.com",
-])
-
 # Vite dev server
 if DEBUG:
     CSRF_TRUSTED_ORIGINS.extend([
