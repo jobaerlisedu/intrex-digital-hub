@@ -1,0 +1,31 @@
+{% extends 'erp_base.html' %}
+{% block title %}Delete User — Intrex ERP{% endblock %}
+
+{% block content %}
+<div style="max-width:500px;margin:60px auto;text-align:center;">
+    <div style="background:#fff;border:1px solid var(--sidebar-border);border-radius:12px;padding:40px 32px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 20px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h2 style="margin:0 0 8px;font-size:1.2rem;font-weight:700;color:var(--text-primary);">Delete User</h2>
+        <p style="color:var(--text-secondary);margin:0 0 24px;font-size:0.95rem;">
+            Are you sure you want to delete <strong>{{ target_user.username }}</strong>?
+            <br>This action cannot be undone.
+        </p>
+
+        <div style="display:flex;gap:12px;justify-content:center;">
+            <a href="{% url 'accounts:user_list' %}"
+               style="padding:9px 24px;border:1px solid var(--sidebar-border);border-radius:8px;text-decoration:none;color:var(--text-primary);font-weight:600;font-size:0.9rem;">
+                Cancel
+            </a>
+            <form method="POST" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit"
+                        style="padding:9px 24px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.9rem;cursor:pointer;">
+                    <i class="fa-solid fa-trash-can"></i> Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

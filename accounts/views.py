@@ -305,6 +305,34 @@ def audit_logs(request):
 
 
 @superuser_required
+def user_delete(request, user_id):
+    target_user = get_object_or_404(User, id=user_id)
+
+    if target_user == request.user:
+        messages.error(request, 'You cannot delete your own account.')
+        return redirect('accounts:user_list')
+
+    if target_user.is_superuser and not request.user.is_superuser:
+        messages.error(request, 'Only a superuser can delete another superuser.')
+        return redirect('accounts:user_list')
+
+    if request.method == 'POST':
+        username = target_user.username
+        target_user.delete()
+        log_action(
+            user=request.user, action='USER_DELETE', module='accounts',
+            description=f"Deleted user '{username}'",
+            ip_address=get_client_ip(request)
+        )
+        messages.success(request, f'User "{username}" has been deleted.')
+        return redirect('accounts:user_list')
+
+    return render(request, 'accounts/user_confirm_delete.html', {
+        'target_user': target_user,
+    })
+
+
+@superuser_required
 def sync_users_view(request):
     from accounts.management.commands.sync_users_to_firestore import sync_user_to_firestore
     from django.contrib.auth.models import User
