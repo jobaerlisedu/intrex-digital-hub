@@ -399,10 +399,10 @@ def department(request):
                         }
                             if 'createdAt' in update_data:
                                 del update_data['createdAt']
-                            db.collection('org_departments').document(doc_id).update(update_data)
+                            db.collection('org_departments_sub').document(doc_id).update(update_data)
                             messages.success(request, "Sub-department updated successfully.")
                         else:
-                            db.collection('org_departments').add({
+                            db.collection('org_departments_sub').add({
                             'name': name,
                             'parent_id': parent_id,
                             'parent_name': parent_name,
@@ -444,7 +444,7 @@ def department(request):
                                     sub_dept_name = sd['name']
                                     break
                         else:
-                            sub_dept_doc = db.collection('org_departments').document(sub_dept_id).get()
+                            sub_dept_doc = db.collection('org_departments_sub').document(sub_dept_id).get()
                             if sub_dept_doc.exists:
                                 sub_dept_name = sub_dept_doc.to_dict().get('name')
                     else:
