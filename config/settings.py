@@ -156,16 +156,27 @@ DATABASES = {
 }
 
 
-# Cache — LocMemCache for single-process deployments.
-# For multi-worker production, switch to Redis:
-#   pip install django-redis
-#   CACHES = {'default': {'BACKEND': 'django_redis.cache.RedisCache', 'LOCATION': 'redis://127.0.0.1:6379/1'}}
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'intrex-erp-cache',
+# Cache — Redis for multi-worker production, LocMem fallback
+_redis_url = os.environ.get('REDIS_URL', os.environ.get('CELERY_BROKER_URL', ''))
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': f'{_redis_url}/1',
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'IGNORE_EXCEPTIONS': True,
+            },
+            'KEY_PREFIX': 'erp',
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'intrex-erp-cache',
+        }
+    }
 
 
 # Password validation
@@ -298,6 +309,23 @@ if DEBUG:
         "http://localhost:5173",
     ])
 
+# ─── Sentry Error Tracking ───────────────────────────────────────────────
+_sentry_dsn = os.environ.get('SENTRY_DSN')
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+        from sentry_sdk.integrations.celery import CeleryIntegration
+        sentry_sdk.init(
+            dsn=_sentrY_DSN,
+            integrations=[DjangoIntegration(), CeleryIntegration()],
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+            send_default_pii=False,
+            environment='production' if not DEBUG else 'development',
+        )
+    except ImportError:
+        pass
+
 # ─── Production Security Settings ────────────────────────────────────────
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
@@ -307,3 +335,5 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True

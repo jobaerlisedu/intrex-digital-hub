@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S"]
+ignore = ["S101", "S108"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*" = ["E", "F", "W", "I"]
+"tests.py" = ["S101"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+testpaths = ["accounts", "billing", "config", "frontend", "hrm", "inventory", "investment", "solutions", "training"]
+
+[tool.coverage.run]
+source = ["accounts", "billing", "config", "frontend", "hrm", "inventory", "investment", "solutions", "training", "registry", "workflow"]
+omit = ["*/migrations/*", "*/tests.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

@@ -147,29 +147,6 @@
     
     const phasesDb = JSON.parse('{{ phases_json|escapejs }}');
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function updatePhaseOptions() {
         const projSelect = document.getElementById('project_id');
         const phaseSelect = document.getElementById('phase_id');
@@ -211,13 +188,11 @@
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('requisitionForm').reset();
+        crudCancelEdit('requisitionForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Project Phase Material Requisition',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Requisition'
+        });
         document.getElementById('phase_id').innerHTML = '<option value="" disabled selected>Select Project First...</option>';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Project Phase Material Requisition';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Requisition';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

@@ -1,5 +1,7 @@
+import os
+import time
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from config.logger import firebase_logger
 
@@ -16,7 +18,7 @@ def erp_dashboard(request):
     audit_logs = []
     try:
         from google.cloud import firestore
-        logs_stream = db.collection('sys_audit_logs').order_by('createdAt', direction=firestore.Query.DESCENDING).limit(5).stream()
+        logs_stream = db.collection('sys_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
         for doc in logs_stream:
             log_data = doc.to_dict()
             log_data['id'] = doc.id
@@ -65,6 +67,28 @@ def erp_dashboard(request):
         'audit_logs': audit_logs,
     }
     return render(request, 'erp/dashboard.html', context)
+
+
+def health_check(request):
+    status = {"status": "healthy", "timestamp": time.time()}
+    code = 200
+    try:
+        from config.firebase import db
+        db.collection('sys_health_check').limit(1).stream()
+        status["firestore"] = "connected"
+    except Exception:
+        status["firestore"] = "disconnected"
+        status["status"] = "degraded"
+        code = 503
+    try:
+        from django.db import connection
+        connection.ensure_connection()
+        status["database"] = "connected"
+    except Exception:
+        status["database"] = "disconnected"
+        status["status"] = "degraded"
+        code = 503
+    return JsonResponse(status, status=code)
 
 
 @login_required

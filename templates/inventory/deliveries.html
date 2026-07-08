@@ -163,56 +163,26 @@
         }
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = deliveriesDb.find(d => d.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('requisition_id').value = data.requisition_id || '';
-        document.getElementById('handover_person_name').value = data.handover_person_name || '';
-        document.getElementById('handover_contact').value = data.handover_contact || '';
-        document.getElementById('dispatch_date').value = data.dispatch_date || '';
-        document.getElementById('delivery_status').value = data.delivery_status || 'Dispatched';
-        document.getElementById('proof_of_delivery').value = data.proof_of_delivery || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Update Dispatch Challan';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Challan';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, deliveriesDb, {
+            requisition_id: 'requisition_id',
+            handover_person_name: 'handover_person_name',
+            handover_contact: 'handover_contact',
+            dispatch_date: 'dispatch_date',
+            delivery_status: 'delivery_status',
+            proof_of_delivery: 'proof_of_delivery'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Update Dispatch Challan',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Challan'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('deliveryForm').reset();
+        crudCancelEdit('deliveryForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Prepare Delivery Challan',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Prepare Challan'
+        });
         document.getElementById('dispatch_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Prepare Delivery Challan';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Prepare Challan';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

@@ -126,53 +126,23 @@
 <script>
     const taxesDb = JSON.parse('{{ taxes_json|escapejs }}');
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = taxesDb.find(t => t.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('tax_code').value = data.tax_code || '';
-        document.getElementById('name').value = data.name || '';
-        document.getElementById('rate_percentage').value = data.rate_percentage || '';
-        document.getElementById('tax_authority').value = data.tax_authority || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Tax Code';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Tax Code';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, taxesDb, {
+            tax_code: 'tax_code',
+            name: 'name',
+            rate_percentage: 'rate_percentage',
+            tax_authority: 'tax_authority'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Tax Code',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Tax Code'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('taxForm').reset();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Configure Dynamic Tax Code';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Tax Code';
-        document.getElementById('btn-cancel').style.display = 'none';
+        crudCancelEdit('taxForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Configure Dynamic Tax Code',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Tax Code'
+        });
     }
 </script>
 {% endblock %}

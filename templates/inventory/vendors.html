@@ -168,29 +168,6 @@
 <script>
     const vendorsDb = JSON.parse('{{ vendors_json|escapejs }}');
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
         const data = vendorsDb.find(v => v.id === id);
         if (!data) return;
@@ -214,12 +191,10 @@
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('vendorForm').reset();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Vendor Profile';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Vendor';
-        document.getElementById('btn-cancel').style.display = 'none';
+        crudCancelEdit('vendorForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Vendor Profile',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Vendor'
+        });
     }
 </script>
 {% endblock %}

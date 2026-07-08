@@ -171,29 +171,6 @@
 
 {% block extra_js %}
 <script>
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function filterInvestors() {
         const q = document.getElementById('search-investor').value.toLowerCase();
         document.querySelectorAll('.investor-row').forEach(row => {
@@ -229,12 +206,10 @@
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('investorForm').reset();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-user-plus" style="color: var(--accent-color);"></i> Add Investor Profile';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Profile';
-        document.getElementById('btn-cancel').style.display = 'none';
+        crudCancelEdit('investorForm', {
+            formTitle: '<i class="fa-solid fa-user-plus" style="color: var(--accent-color);"></i> Add Investor Profile',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Profile'
+        });
     }
 
     function viewDetails(id) {

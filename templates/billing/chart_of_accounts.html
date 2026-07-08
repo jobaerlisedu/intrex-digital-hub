@@ -134,54 +134,26 @@
 <script>
     const coaDb = JSON.parse('{{ accounts_json|escapejs }}');
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
         const data = coaDb.find(a => a.id === id);
         if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('account_code').value = data.account_code || '';
-        document.getElementById('name').value = data.name || '';
-        document.getElementById('account_type').value = data.account_type || 'Asset';
-        document.getElementById('currency').value = data.currency || 'BDT';
+        crudEditRecord(id, coaDb, {
+            account_code: 'account_code',
+            name: 'name',
+            account_type: 'account_type',
+            currency: 'currency'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit GL Account',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Account'
+        });
         document.getElementById('is_active').value = data.is_active ? 'True' : 'False';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit GL Account';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Account';
-        document.getElementById('btn-cancel').style.display = 'flex';
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('coaForm').reset();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register General Ledger Account';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Account';
-        document.getElementById('btn-cancel').style.display = 'none';
+        crudCancelEdit('coaForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register General Ledger Account',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Account'
+        });
     }
 </script>
 {% endblock %}

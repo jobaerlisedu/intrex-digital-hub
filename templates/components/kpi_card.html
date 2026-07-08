@@ -1,0 +1,7 @@
+<div class="kpi-card{% if accent %} {{ accent }}{% endif %}{% if extra_classes %} {{ extra_classes }}{% endif %}"{% if id %} id="{{ id }}"{% endif %}>
+    <div class="kpi-label">{{ label }}</div>
+    <div class="kpi-value">{{ value }}</div>
+    {% if subtitle %}
+    <div class="kpi-subtitle">{{ subtitle|safe }}</div>
+    {% endif %}
+</div>

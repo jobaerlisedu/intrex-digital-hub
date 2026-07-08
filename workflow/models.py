@@ -1,14 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 
 class WorkflowDefinition(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     name = models.CharField(max_length=255)
     module = models.CharField(max_length=50, help_text='e.g. hrm, inventory, billing')
     entity_type = models.CharField(max_length=100, help_text='e.g. leave, requisition, invoice')
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='wf_def_created')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='wf_def_updated')
 
     class Meta:
         unique_together = [('module', 'entity_type')]
@@ -18,6 +23,7 @@ class WorkflowDefinition(models.Model):
 
 
 class WorkflowState(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     workflow = models.ForeignKey(
         WorkflowDefinition, on_delete=models.CASCADE,
         related_name='states'
@@ -29,6 +35,9 @@ class WorkflowState(models.Model):
     color = models.CharField(max_length=20, default='secondary',
                              help_text='Bootstrap color class')
     order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = [('workflow', 'state_key')]
@@ -39,6 +48,7 @@ class WorkflowState(models.Model):
 
 
 class WorkflowTransition(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     workflow = models.ForeignKey(
         WorkflowDefinition, on_delete=models.CASCADE,
         related_name='transitions'
@@ -56,6 +66,9 @@ class WorkflowTransition(models.Model):
     requires_approval = models.BooleanField(default=False)
     allowed_roles = models.JSONField(default=list, blank=True,
                                      help_text='List of group names allowed to trigger')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     class Meta:
         unique_together = [('workflow', 'from_state', 'trigger')]
@@ -65,6 +78,7 @@ class WorkflowTransition(models.Model):
 
 
 class WorkflowInstance(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     workflow = models.ForeignKey(
         WorkflowDefinition, on_delete=models.CASCADE,
         related_name='instances'
@@ -98,6 +112,7 @@ class WorkflowInstance(models.Model):
 
 
 class WorkflowLog(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     instance = models.ForeignKey(
         WorkflowInstance, on_delete=models.CASCADE,
         related_name='logs'

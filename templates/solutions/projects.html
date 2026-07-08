@@ -174,59 +174,30 @@
         document.getElementById('end_date').value = new Date().toISOString().substring(0, 10);
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = projectsDb.find(p => p.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('project_code').value = data.project_code || '';
-        document.getElementById('name').value = data.name || '';
-        document.getElementById('category').value = data.category || 'Network Solutions';
-        document.getElementById('client_name').value = data.client_name || '';
-        document.getElementById('total_budget').value = data.total_budget || '0.00';
-        document.getElementById('start_date').value = data.start_date || '';
-        document.getElementById('end_date').value = data.end_date || '';
-        document.getElementById('status').value = data.status || 'Not Started';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Project Scoping';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Project';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, projectsDb, {
+            doc_id: 'id',
+            project_code: 'project_code',
+            name: 'name',
+            category: 'category',
+            client_name: 'client_name',
+            total_budget: 'total_budget',
+            start_date: 'start_date',
+            end_date: 'end_date',
+            status: 'status'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Project Scoping',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Project'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('projectForm').reset();
+        crudCancelEdit('projectForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Scoping Blueprint Registration',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Project'
+        });
         document.getElementById('start_date').value = new Date().toISOString().substring(0, 10);
         document.getElementById('end_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Scoping Blueprint Registration';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Register Project';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

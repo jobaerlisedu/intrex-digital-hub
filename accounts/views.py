@@ -84,7 +84,7 @@ def user_create(request):
             ip_address=get_client_ip(request)
         )
 
-        messages.success(request, f'✅ User "{username}" created successfully.')
+        messages.success(request, f'User "{username}" created successfully.')
         return redirect('accounts:user_list')
 
     return render(request, 'accounts/user_form.html', {
@@ -144,7 +144,7 @@ def user_edit(request, user_id):
             ip_address=get_client_ip(request)
         )
 
-        messages.success(request, f'✅ User "{edit_user.username}" updated successfully.')
+        messages.success(request, f'User "{edit_user.username}" updated successfully.')
         return redirect('accounts:user_list')
 
     return render(request, 'accounts/user_form.html', {

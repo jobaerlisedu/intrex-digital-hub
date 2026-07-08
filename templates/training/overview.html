@@ -1,17 +1,13 @@
 {% extends 'erp_base.html' %}
 {% block title %}Training Academy Overview - Intrex ERP{% endblock %}
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <div class="flex-between" style="margin-bottom: 24px;">
     <h2>Training Academy Overview</h2>
 </div>
 
-<!-- 16 KPI Stats Cards Grid -->
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-bottom: 32px;">
-    <!-- Students -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(59, 130, 246, 0.1); color: var(--color-info); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-user-graduate"></i>
         </div>
         <div>
@@ -19,9 +15,8 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ total_students }}</div>
         </div>
     </div>
-    <!-- Net Income -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(16, 185, 129, 0.1); color: var(--color-success); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-wallet"></i>
         </div>
         <div>
@@ -29,9 +24,8 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">BDT {{ net_income|floatformat:0 }}</div>
         </div>
     </div>
-    <!-- Collections -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(16, 185, 129, 0.1); color: var(--color-success); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-money-bill-wave"></i>
         </div>
         <div>
@@ -39,9 +33,8 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">BDT {{ total_collected|floatformat:0 }}</div>
         </div>
     </div>
-    <!-- Due Amount -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(239, 68, 68, 0.1); color: var(--color-danger); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-receipt"></i>
         </div>
         <div>
@@ -49,9 +42,8 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">BDT {{ total_due|floatformat:0 }}</div>
         </div>
     </div>
-    <!-- Collection Rate -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(245, 158, 11, 0.1); color: var(--color-warning); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-percent"></i>
         </div>
         <div>
@@ -59,9 +51,8 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ collection_rate|floatformat:1 }}%</div>
         </div>
     </div>
-    <!-- Total Expenses -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
-        <div style="background: rgba(239, 68, 68, 0.1); color: #ef4444; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+        <div style="background: rgba(239, 68, 68, 0.1); color: var(--color-danger); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-file-invoice-dollar"></i>
         </div>
         <div>
@@ -69,7 +60,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">BDT {{ total_expenses|floatformat:0 }}</div>
         </div>
     </div>
-    <!-- Placed Graduates -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-briefcase"></i>
@@ -79,7 +69,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ placed_students }}</div>
         </div>
     </div>
-    <!-- Active Batches -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-users-rectangle"></i>
@@ -89,7 +78,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ active_batches }}</div>
         </div>
     </div>
-    <!-- Total Courses -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(6, 182, 212, 0.1); color: #06b6d4; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-book-open"></i>
@@ -99,7 +87,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ total_courses }}</div>
         </div>
     </div>
-    <!-- Total Discounts -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(236, 72, 153, 0.1); color: #ec4899; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-tags"></i>
@@ -109,7 +96,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">BDT {{ total_discount|floatformat:0 }}</div>
         </div>
     </div>
-    <!-- Pending Inquiries -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(249, 115, 22, 0.1); color: #f97316; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-circle-question"></i>
@@ -119,7 +105,6 @@
             <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;">{{ pending_inquiries }}</div>
         </div>
     </div>
-    <!-- Pending Online Registrations -->
     <div class="glass-card" style="display: flex; align-items: center; gap: 16px; padding: 18px; margin-bottom: 0;">
         <div style="background: rgba(234, 179, 8, 0.1); color: #eab308; width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
             <i class="fa-solid fa-globe"></i>
@@ -131,9 +116,7 @@
     </div>
 </div>
 
-<!-- Charts Grid Section -->
 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px;">
-    <!-- Chart 1: Cash Flow -->
     <div class="glass-card">
         <h3 style="margin-top: 0; font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-chart-line" style="color: var(--accent-color);"></i> Monthly Cash Flow (Collections vs Expenses)
@@ -143,7 +126,6 @@
         </div>
     </div>
 
-    <!-- Chart 2: Revenue vs Due by Course -->
     <div class="glass-card">
         <h3 style="margin-top: 0; font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-chart-column" style="color: var(--accent-color);"></i> Revenue vs Due by Course
@@ -153,7 +135,6 @@
         </div>
     </div>
 
-    <!-- Chart 3: Course Enrollment -->
     <div class="glass-card">
         <h3 style="margin-top: 0; font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-chart-bar" style="color: var(--accent-color);"></i> Course Enrollment Count
@@ -163,7 +144,6 @@
         </div>
     </div>
 
-    <!-- Chart 4: Payment Status -->
     <div class="glass-card">
         <h3 style="margin-top: 0; font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-chart-pie" style="color: var(--accent-color);"></i> Student Payment Status Breakdown
@@ -175,7 +155,6 @@
 </div>
 
 <div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 24px;">
-    <!-- Recent Activities / Logs -->
     <div class="glass-card" style="margin-bottom: 0;">
         <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
             <i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-color);"></i> Recent Training Activities
@@ -206,7 +185,6 @@
         </table>
     </div>
 
-    <!-- Quick Navigation Shortcuts -->
     <div class="glass-card" style="margin-bottom: 0;">
         <h3 style="margin-top: 0; font-size: 1.15rem; color: var(--text-primary);">Quick Actions</h3>
         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
@@ -230,7 +208,6 @@
     document.addEventListener("DOMContentLoaded", function() {
         const rawData = JSON.parse('{{ chart_data_json|escapejs }}');
         
-        // Options common configuration
         const commonOptions = {
             responsive: true,
             maintainAspectRatio: false,
@@ -254,7 +231,6 @@
             }
         };
 
-        // 1. Payment Status (Pie / Doughnut)
         const ctxPayment = document.getElementById("chartPaymentStatus").getContext("2d");
         new Chart(ctxPayment, {
             type: 'doughnut',
@@ -280,7 +256,6 @@
             }
         });
 
-        // 2. Course Enrollment Count
         const ctxEnroll = document.getElementById("chartCourseEnrollment").getContext("2d");
         new Chart(ctxEnroll, {
             type: 'bar',
@@ -296,7 +271,6 @@
             options: commonOptions
         });
 
-        // 3. Monthly Cash Flow
         const ctxCash = document.getElementById("chartCashFlow").getContext("2d");
         new Chart(ctxCash, {
             type: 'bar',
@@ -320,7 +294,6 @@
             options: commonOptions
         });
 
-        // 4. Revenue vs Due by Course
         const ctxRevenue = document.getElementById("chartRevenueByCourse").getContext("2d");
         new Chart(ctxRevenue, {
             type: 'bar',

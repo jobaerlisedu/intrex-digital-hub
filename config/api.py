@@ -1,6 +1,7 @@
 from django.urls import path, include
 
 app_routers = [
+    ('accounts/', 'accounts.api.urls'),
     ('hrm/', 'hrm.api.urls'),
     ('inventory/', 'inventory.api.urls'),
     ('billing/', 'billing.api.urls'),

@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint:js": "echo 'No JS linter configured yet'",
+    "lint:css": "echo 'No CSS linter configured yet'",
+    "lint": "npm run lint:js && npm run lint:css"
   },
   "devDependencies": {
-    "vite": "^4.5.14"
+    "vite": "^4.5.14",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20"
   }
 }

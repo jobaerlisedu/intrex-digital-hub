@@ -1,8 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 
 class Person(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     PERSON_TYPES = [
         ('employee', 'Employee'),
         ('student', 'Student'),
@@ -38,6 +40,8 @@ class Person(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_person_created')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_person_updated')
 
     class Meta:
         verbose_name_plural = 'People'
@@ -51,6 +55,7 @@ class Person(models.Model):
 
 
 class Organization(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     ORG_TYPES = [
         ('vendor', 'Vendor'),
         ('institute', 'Training Institute'),
@@ -75,6 +80,8 @@ class Organization(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_org_created')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_org_updated')
 
     class Meta:
         indexes = [
@@ -87,12 +94,16 @@ class Organization(models.Model):
 
 
 class PersonOrganization(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='organizations')
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='people')
     role = models.CharField(max_length=100, blank=True)
     is_primary = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_po_created')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='registry_po_updated')
 
     class Meta:
         unique_together = [('person', 'organization', 'role')]

@@ -217,31 +217,25 @@
     }
 
     function editRecord(id) {
-        const data = productsDb.find(p => p.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('item_name').value = data.item_name || '';
-        document.getElementById('sku').value = data.sku || '';
-        document.getElementById('category').value = data.category || '';
-        document.getElementById('quantity').value = data.quantity || '0';
-        document.getElementById('unit_price').value = data.unit_price || '0.00';
-        document.getElementById('storage_location').value = data.storage_location || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Adjust Warehouse Stock levels';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Adjust stock';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, productsDb, {
+            doc_id: 'id',
+            item_name: 'item_name',
+            sku: 'sku',
+            category: 'category',
+            quantity: 'quantity',
+            unit_price: 'unit_price',
+            storage_location: 'storage_location'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Adjust Warehouse Stock levels',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Adjust stock'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('productForm').reset();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register / Adjust Warehouse Product';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Product Stock';
-        document.getElementById('btn-cancel').style.display = 'none';
+        crudCancelEdit('productForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register / Adjust Warehouse Product',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Product Stock'
+        });
     }
 </script>
 {% endblock %}

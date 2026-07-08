@@ -166,55 +166,27 @@
         }
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
         const data = JSON.parse(document.getElementById(id).textContent);
-        
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('investor_id').value = data.investor_id || '';
-        document.getElementById('amount').value = data.amount || '';
-        document.getElementById('payment_method').value = data.payment_method || 'Bank Wire';
-        document.getElementById('value_date').value = data.value_date || '';
-        document.getElementById('status').value = data.status || 'Cleared';
-        document.getElementById('notes').value = data.notes || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Influx Record';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Record';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, [data], {
+            investor_id: 'investor_id',
+            amount: 'amount',
+            payment_method: 'payment_method',
+            value_date: 'value_date',
+            status: 'status',
+            notes: 'notes'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Influx Record',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Record'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('inboundForm').reset();
+        crudCancelEdit('inboundForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Inbound Capital',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Capital Influx'
+        });
         document.getElementById('value_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Inbound Capital';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Capital Influx';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

@@ -27,8 +27,7 @@ def vite_assets(request):
             for key, value in manifest.items():
                 if key.endswith('main.js'):
                     ctx['vite_js_url'] = settings.STATIC_URL + 'dist/' + value['file']
-                    if 'css' in value:
-                        ctx['vite_css_url'] = settings.STATIC_URL + 'dist/' + value['css'][0]
-                    break
+                elif key.endswith('.css'):
+                    ctx['vite_css_url'] = settings.STATIC_URL + 'dist/' + value['file']
 
     return ctx

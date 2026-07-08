@@ -7,8 +7,27 @@ from django.db.models.signals import pre_delete
 from config.logger import accounts_logger
 
 import hashlib
+import uuid
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    tenant = models.ForeignKey(
+        'registry.Organization', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='user_profiles'
+    )
+    phone = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = 'User Profiles'
+
+    def __str__(self):
+        return f"{self.user.username} profile"
 
 class AuditLog(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
     action = models.CharField(max_length=100)  # e.g., 'LOGIN', 'USER_CREATE', 'EXPORT_REPORT'
     module = models.CharField(max_length=50)   # e.g., 'hrm', 'inventory', 'accounts'
@@ -83,6 +102,7 @@ def block_audit_log_delete(sender, instance, **kwargs):
 
 
 class ActiveSession(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='active_sessions')
     session_key = models.CharField(max_length=40, unique=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)

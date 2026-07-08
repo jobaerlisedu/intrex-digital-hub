@@ -33,6 +33,7 @@ from django.contrib.auth import views as auth_views
 from config import views as config_views
 
 urlpatterns = [
+    path('health/', config_views.health_check, name='health_check'),
     path('admin/', admin.site.urls),
     path('erp/', config_views.erp_dashboard, name='erp_dashboard'),
     path('', include('frontend.urls', namespace='frontend')),

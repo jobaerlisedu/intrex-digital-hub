@@ -152,57 +152,27 @@
         document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = billsDb.find(b => b.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('bill_number').value = data.bill_number || '';
-        document.getElementById('vendor_name').value = data.vendor_name || '';
-        document.getElementById('issue_date').value = data.issue_date || '';
-        document.getElementById('due_date').value = data.due_date || '';
-        document.getElementById('grand_total').value = data.grand_total || '0.00';
-        document.getElementById('status').value = data.status || 'Pending';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Vendor Bill';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Bill';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, billsDb, {
+            bill_number: 'bill_number',
+            vendor_name: 'vendor_name',
+            issue_date: 'issue_date',
+            due_date: 'due_date',
+            grand_total: 'grand_total',
+            status: 'status'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Vendor Bill',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Bill'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('billForm').reset();
+        crudCancelEdit('billForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Vendor Bill Invoice',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Vendor Bill'
+        });
         document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
         document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Vendor Bill Invoice';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Vendor Bill';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

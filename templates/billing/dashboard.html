@@ -1,83 +1,35 @@
 {% extends 'erp_base.html' %}
 {% block title %}Financial Dashboard - Intrex ERP{% endblock %}
 
-{% block extra_css %}
-<style>
-    .kpi-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-        margin-bottom: 32px;
-    }
-    .kpi-card {
-        padding: 24px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--sidebar-border);
-        border-radius: 12px;
-        position: relative;
-        overflow: hidden;
-    }
-    .kpi-card::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: var(--accent-color);
-        opacity: 0.8;
-    }
-    .kpi-card.green::after { background: #10b981; }
-    .kpi-card.red::after { background: #ef4444; }
-    .kpi-card.orange::after { background: #f59e0b; }
-    
-    .kpi-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 8px 0;
-    }
-    .kpi-label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="flex-between" style="margin-bottom: 24px;">
     <h2>Accounts & Billing Financial Dashboard</h2>
 </div>
 
-<!-- KPIs -->
 <div class="kpi-container">
     <div class="kpi-card green">
         <div class="kpi-label">Liquid Cash Balance</div>
         <div class="kpi-value">BDT {{ cash_balance|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: #10b981;"><i class="fa-solid fa-circle-check"></i> Reconciled</div>
+        <div class="kpi-subtitle" style="color: var(--color-success);"><i class="fa-solid fa-circle-check"></i> Reconciled</div>
     </div>
     <div class="kpi-card orange">
         <div class="kpi-label">Receivables Overdue</div>
         <div class="kpi-value">BDT {{ receivables_overdue|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">Sales pending collection</div>
+        <div class="kpi-subtitle">Sales pending collection</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-label">Accounts Payable Due</div>
         <div class="kpi-value">BDT {{ payables_due|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">Scheduled vendor bills</div>
+        <div class="kpi-subtitle">Scheduled vendor bills</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Net Profit / Margin</div>
         <div class="kpi-value">BDT {{ net_profit|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: var(--accent-color); font-weight:700;"><i class="fa-solid fa-percent"></i> {{ net_profit_margin|floatformat:1 }}% Margin</div>
+        <div class="kpi-subtitle" style="color: var(--accent-color); font-weight:700;"><i class="fa-solid fa-percent"></i> {{ net_profit_margin|floatformat:1 }}% Margin</div>
     </div>
 </div>
 
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 32px;">
-    <!-- Cash Flow Chart -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> Monthly Operating Cash flow</h3>
         <div style="height: 250px; position: relative;">
@@ -85,7 +37,6 @@
         </div>
     </div>
 
-    <!-- Review Queue -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-user-check" style="color:var(--accent-color);"></i> Maker-Checker Journal Review</h3>
         <div style="display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto;">
@@ -112,7 +63,6 @@
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-    <!-- Recent Invoices -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-file-invoice" style="color:var(--accent-color);"></i> Recent Sales Invoices</h3>
         <table class="data-table">
@@ -143,7 +93,6 @@
         </table>
     </div>
 
-    <!-- Recent Bills -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-receipt" style="color:var(--accent-color);"></i> Recent Vendor Bills</h3>
         <table class="data-table">
@@ -177,7 +126,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const ctx = document.getElementById('cashFlowChart').getContext('2d');

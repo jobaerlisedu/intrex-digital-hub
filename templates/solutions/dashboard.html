@@ -1,84 +1,35 @@
 {% extends 'erp_base.html' %}
 {% block title %}Solutions Dashboard - Intrex ERP{% endblock %}
 
-{% block extra_css %}
-<style>
-    .kpi-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 20px;
-        margin-bottom: 32px;
-    }
-    .kpi-card {
-        padding: 24px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--sidebar-border);
-        border-radius: 12px;
-        position: relative;
-        overflow: hidden;
-    }
-    .kpi-card::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: var(--accent-color);
-        opacity: 0.8;
-    }
-    .kpi-card.blue::after { background: var(--accent-color); }
-    .kpi-card.green::after { background: #10b981; }
-    .kpi-card.red::after { background: #ef4444; }
-    .kpi-card.purple::after { background: #8b5cf6; }
-    
-    .kpi-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin: 8px 0;
-    }
-    .kpi-label {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="flex-between" style="margin-bottom: 24px;">
     <h2>Service Solutions & Projects Dashboard</h2>
 </div>
 
-<!-- KPIs -->
 <div class="kpi-container">
     <div class="kpi-card blue">
         <div class="kpi-label">Active Technical Projects</div>
         <div class="kpi-value">{{ active_count }}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">Currently in deployment</div>
+        <div class="kpi-subtitle">Currently in deployment</div>
     </div>
     <div class="kpi-card green">
         <div class="kpi-label">Task Completion Rate</div>
         <div class="kpi-value">{{ completion_rate|floatformat:1 }}%</div>
-        <div style="font-size: 0.8rem; color: #10b981;"><i class="fa-solid fa-circle-check"></i> Overall engineering tasks</div>
+        <div class="kpi-subtitle" style="color: var(--color-success);"><i class="fa-solid fa-circle-check"></i> Overall engineering tasks</div>
     </div>
     <div class="kpi-card purple">
         <div class="kpi-label">Total Scoped Budget</div>
         <div class="kpi-value">BDT {{ total_budget|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">All contract revenues</div>
+        <div class="kpi-subtitle">All contract revenues</div>
     </div>
     <div class="kpi-card red">
         <div class="kpi-label">Actual Project Spends</div>
         <div class="kpi-value">BDT {{ actual_spend|floatformat:2 }}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">Procured materials costs</div>
+        <div class="kpi-subtitle">Procured materials costs</div>
     </div>
 </div>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-    <!-- Upcoming Meetings -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-calendar-days" style="color:var(--accent-color);"></i> Upcoming Technical Reviews & Kickoffs</h3>
         <div style="display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
@@ -101,7 +52,6 @@
         </div>
     </div>
 
-    <!-- Expiring Licenses Alert -->
     <div class="glass-card" style="margin: 0;">
         <h3 style="margin-top:0; font-size:1.05rem; color:var(--text-primary); border-bottom: 1px solid var(--sidebar-border); padding-bottom:12px;"><i class="fa-solid fa-key" style="color:#f59e0b;"></i> License Expirations (Next 30 Days)</h3>
         <div style="display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 4px;">

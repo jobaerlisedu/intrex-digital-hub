@@ -29,10 +29,10 @@
     .kpi-alert {
         border-left: 4px solid;
     }
-    .kpi-alert.alert-warning { border-left-color: #f59e0b; }
-    .kpi-alert.alert-danger { border-left-color: #ef4444; }
-    .kpi-alert.alert-success { border-left-color: #10b981; }
-    .kpi-alert.alert-info { border-left-color: #3b82f6; }
+    .kpi-alert.alert-warning { border-left-color: var(--color-warning); }
+    .kpi-alert.alert-danger { border-left-color: var(--color-danger); }
+    .kpi-alert.alert-success { border-left-color: var(--color-success); }
+    .kpi-alert.alert-info { border-left-color: var(--color-info); }
 </style>
 
 <div class="dashboard-header" style="margin-bottom: 32px;">
@@ -44,74 +44,68 @@
     </p>
 </div>
 
-<!-- KPI Alert Row -->
 {% if kpis.low_stock_items > 0 or kpis.pending_approvals > 0 or kpis.expiring_licenses > 0 %}
 <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
     {% if kpis.low_stock_items > 0 %}
-    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-        <i class="fa-solid fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.2rem;"></i>
+    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-exclamation-triangle" style="color: var(--color-warning); font-size: 1.2rem;"></i>
         <div><strong style="font-size: 0.95rem;">{{ kpis.low_stock_items }}</strong> low stock items</div>
     </div>
     {% endif %}
     {% if kpis.pending_approvals > 0 %}
-    <div class="kpi-alert alert-danger" style="flex: 1; min-width: 200px; background: #fef2f2; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-        <i class="fa-solid fa-clock" style="color: #ef4444; font-size: 1.2rem;"></i>
+    <div class="kpi-alert alert-danger" style="flex: 1; min-width: 200px; background: #fef2f2; border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-clock" style="color: var(--color-danger); font-size: 1.2rem;"></i>
         <div><strong style="font-size: 0.95rem;">{{ kpis.pending_approvals }}</strong> pending approvals</div>
     </div>
     {% endif %}
     {% if kpis.expiring_licenses > 0 %}
-    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-        <i class="fa-solid fa-key" style="color: #f59e0b; font-size: 1.2rem;"></i>
+    <div class="kpi-alert alert-warning" style="flex: 1; min-width: 200px; background: #fffbeb; border-radius: var(--radius-md); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+        <i class="fa-solid fa-key" style="color: var(--color-warning); font-size: 1.2rem;"></i>
         <div><strong style="font-size: 0.95rem;">{{ kpis.expiring_licenses }}</strong> licenses expiring soon</div>
     </div>
     {% endif %}
 </div>
 {% endif %}
 
-<!-- Top Metrics Row -->
-<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px;">
-    <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
-        <div class="icon-wrapper" style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+<div class="kpi-container" style="margin-bottom: 40px;">
+    <div class="kpi-card" style="display: flex; align-items: center; gap: 20px; padding: 24px;">
+        <div style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 56px; height: 56px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
             <i class="fa-solid fa-users"></i>
         </div>
-        <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Total Employees</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_employees }}</div>
+        <div style="flex:1;">
+            <div class="kpi-label" style="margin-bottom: 4px;">Total Employees</div>
+            <div class="kpi-value" style="margin: 0;">{{ kpis.total_employees }}</div>
         </div>
     </div>
-
-    <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
-        <div class="icon-wrapper" style="background: rgba(117, 182, 110, 0.1); color: var(--accent-hover); width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+    <div class="kpi-card" style="display: flex; align-items: center; gap: 20px; padding: 24px;">
+        <div style="background: rgba(117, 182, 110, 0.1); color: var(--accent-hover); width: 56px; height: 56px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
             <i class="fa-solid fa-user-graduate"></i>
         </div>
-        <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Active Students</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_students }}</div>
+        <div style="flex:1;">
+            <div class="kpi-label" style="margin-bottom: 4px;">Active Students</div>
+            <div class="kpi-value" style="margin: 0;">{{ kpis.total_students }}</div>
         </div>
     </div>
-
-    <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
-        <div class="icon-wrapper" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+    <div class="kpi-card" style="display: flex; align-items: center; gap: 20px; padding: 24px;">
+        <div style="background: rgba(59, 130, 246, 0.1); color: var(--color-info); width: 56px; height: 56px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
-        <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Products</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ kpis.total_products }}</div>
+        <div style="flex:1;">
+            <div class="kpi-label" style="margin-bottom: 4px;">Products</div>
+            <div class="kpi-value" style="margin: 0;">{{ kpis.total_products }}</div>
         </div>
     </div>
-
-    <div class="metric-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px; box-shadow: var(--glass-shadow); transition: transform 0.3s; cursor: default;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='none'">
-        <div class="icon-wrapper" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+    <div class="kpi-card" style="display: flex; align-items: center; gap: 20px; padding: 24px;">
+        <div style="background: rgba(245, 158, 11, 0.1); color: var(--color-warning); width: 56px; height: 56px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;">
             <i class="fa-solid fa-file-invoice-dollar"></i>
         </div>
-        <div>
-            <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Net Profit</div>
-            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">BDT {{ kpis.net_profit|floatformat:2 }}</div>
+        <div style="flex:1;">
+            <div class="kpi-label" style="margin-bottom: 4px;">Net Profit</div>
+            <div class="kpi-value" style="margin: 0;">BDT {{ kpis.net_profit|floatformat:2 }}</div>
         </div>
     </div>
 </div>
 
-<!-- Quick Actions Row -->
 {% if quick_actions %}
 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 32px;">
     {% for action in quick_actions %}
@@ -122,16 +116,14 @@
 </div>
 {% endif %}
 
-<!-- Section: Modules Grid -->
 <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; color: var(--text-primary);">ERP System Modules</h2>
 <div class="modules-grid">
 
-    <!-- Module Card: HRM -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'hrm' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(33, 92, 92, 0.1); color: var(--accent-color); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-users"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -155,7 +147,7 @@
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-users"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -169,12 +161,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Training -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'training' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(117, 182, 110, 0.1); color: var(--accent-hover); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(117, 182, 110, 0.1); color: var(--accent-hover); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -198,7 +189,7 @@
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-graduation-cap"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -212,12 +203,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Inventory -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'inventory' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(59, 130, 246, 0.1); color: var(--color-info); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-boxes-stacked"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -236,12 +226,12 @@
             </div>
         </div>
         <div style="padding: 16px 24px; background: #fafbfc; border-top: 1px solid var(--sidebar-border);">
-            <a href="{% url 'inventory:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: #3b82f6;">Enter Inventory</a>
+            <a href="{% url 'inventory:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: var(--color-info);">Enter Inventory</a>
         </div>
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-boxes-stacked"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -255,12 +245,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Investment -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'investment' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(16, 185, 129, 0.1); color: var(--color-success); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -274,17 +263,17 @@
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Revenue</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--color-success);">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
         <div style="padding: 16px 24px; background: #fafbfc; border-top: 1px solid var(--sidebar-border);">
-            <a href="{% url 'investment:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: #10b981;">Enter Investment</a>
+            <a href="{% url 'investment:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: var(--color-success);">Enter Investment</a>
         </div>
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -298,12 +287,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Billing -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'billing' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(245, 158, 11, 0.1); color: var(--color-warning); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -313,7 +301,7 @@
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Revenue</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--color-success);">BDT {{ kpis.total_revenue|floatformat:2 }}</span>
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Pending Invoices</span>
@@ -322,12 +310,12 @@
             </div>
         </div>
         <div style="padding: 16px 24px; background: #fafbfc; border-top: 1px solid var(--sidebar-border);">
-            <a href="{% url 'billing:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: #f59e0b;">Enter Billing</a>
+            <a href="{% url 'billing:index' %}" class="btn-submit" style="display: block; text-align: center; text-decoration: none; padding: 10px 0; background: var(--color-warning);">Enter Billing</a>
         </div>
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -341,12 +329,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Solutions -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if 'solutions' in user_modules %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-lightbulb"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -370,7 +357,7 @@
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-lightbulb"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -384,12 +371,11 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: User Management -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         {% if request.user.is_staff or request.user.is_superuser %}
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(79, 70, 229, 0.1); color: #4f46e5; width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-users-gear"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -399,7 +385,7 @@
             <div style="display: flex; gap: 20px; border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin-top: 8px;">
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Active Users</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">{{ user_stats.active_users }}</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--color-success);">{{ user_stats.active_users }}</span>
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Total Users</span>
@@ -413,7 +399,7 @@
         {% else %}
         <div style="padding: 24px; flex: 1; opacity: 0.65; background: #f8fafc;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: #e2e8f0; color: var(--text-secondary); width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-users-gear"></i>
                 </div>
                 <span class="badge danger" style="margin: 0; background: rgba(226, 232, 240, 1); color: var(--text-secondary);">Restricted</span>
@@ -427,11 +413,10 @@
         {% endif %}
     </div>
 
-    <!-- Module Card: Documentation -->
-    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
+    <div class="module-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--glass-shadow); display: flex; flex-direction: column; transition: all 0.3s; position: relative;">
         <div style="padding: 24px; flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-                <div style="background: rgba(13, 148, 136, 0.1); color: #0d9488; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                <div style="background: rgba(13, 148, 136, 0.1); color: #0d9488; width: 48px; height: 48px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
                     <i class="fa-solid fa-book-open-reader"></i>
                 </div>
                 <span class="badge success" style="margin: 0;">Active</span>
@@ -445,7 +430,7 @@
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 2px;">Portal Status</span>
-                    <span style="font-size: 1.1rem; font-weight: 600; color: #10b981;">Online</span>
+                    <span style="font-size: 1.1rem; font-weight: 600; color: var(--color-success);">Online</span>
                 </div>
             </div>
         </div>
@@ -456,16 +441,15 @@
 
 </div>
 
-<!-- Module Summary Section -->
 {% if summaries %}
-<div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; padding: 28px; box-shadow: var(--glass-shadow); margin-bottom: 32px;">
+<div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--glass-shadow); margin-bottom: 32px;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--text-primary);">Pending Items & Alerts</h2>
         <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Across all modules</span>
     </div>
     <div style="display: flex; flex-direction: column; gap: 12px;">
         {% for item in summaries %}
-        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f8fafc; border-radius: var(--radius-md);">
             <span class="badge {{ item.module|lower }}" style="min-width: 80px; text-align: center; background: {% if item.module == 'HRM' %}rgba(33,92,92,0.1){% elif item.module == 'Inventory' %}rgba(59,130,246,0.1){% elif item.module == 'Billing' %}rgba(245,158,11,0.1){% else %}rgba(100,100,100,0.1){% endif %}; color: {% if item.module == 'HRM' %}var(--accent-color){% elif item.module == 'Inventory' %}#3b82f6{% elif item.module == 'Billing' %}#f59e0b{% else %}#666{% endif %}; font-weight: 600; font-size: 0.8rem;">
                 {{ item.module }}
             </span>
@@ -478,8 +462,7 @@
 </div>
 {% endif %}
 
-<!-- Recent Activities / Logs -->
-<div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: 20px; padding: 28px; box-shadow: var(--glass-shadow);">
+<div class="glass-card" style="background: #ffffff; border: 1px solid var(--sidebar-border); border-radius: var(--radius-xl); padding: 28px; box-shadow: var(--glass-shadow);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2 style="font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--text-primary);">Recent System Activities</h2>
         <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Latest actions logged</span>

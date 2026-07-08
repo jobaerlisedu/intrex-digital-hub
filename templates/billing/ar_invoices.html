@@ -200,29 +200,6 @@
         document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function updateGrandTotal() {
         const subtotal = parseFloat(document.getElementById('subtotal').value || 0.0);
         const taxRate = parseFloat(document.getElementById('tax_rate').value || 0.0);
@@ -233,18 +210,17 @@
     function editRecord(id) {
         const data = invoicesDb.find(i => i.id === id);
         if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('invoice_number').value = data.invoice_number || '';
-        document.getElementById('client_name').value = data.client_name || '';
-        document.getElementById('issue_date').value = data.issue_date || '';
-        document.getElementById('due_date').value = data.due_date || '';
-        document.getElementById('subtotal').value = data.subtotal || '0.00';
-        document.getElementById('status').value = data.status || 'Pending';
-
-        // Set matching tax rate option if found, otherwise default to 0
+        crudEditRecord(id, invoicesDb, {
+            invoice_number: 'invoice_number',
+            client_name: 'client_name',
+            issue_date: 'issue_date',
+            due_date: 'due_date',
+            subtotal: 'subtotal',
+            status: 'status'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Customer Invoice',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Invoice'
+        });
         const ratePct = ((data.tax_amount / data.subtotal) * 100).toFixed(0);
         const taxSelect = document.getElementById('tax_rate');
         taxSelect.value = "0";
@@ -254,24 +230,17 @@
                 break;
             }
         }
-
         updateGrandTotal();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Customer Invoice';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Invoice';
-        document.getElementById('btn-cancel').style.display = 'flex';
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('invoiceForm').reset();
+        crudCancelEdit('invoiceForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Generate Customer Invoice',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Generate Invoice'
+        });
         document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
         document.getElementById('due_date').value = new Date().toISOString().substring(0, 10);
         updateGrandTotal();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Generate Customer Invoice';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Generate Invoice';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 
     function openPaymentModal(invId) {

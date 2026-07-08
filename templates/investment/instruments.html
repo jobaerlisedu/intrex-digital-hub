@@ -149,56 +149,28 @@
         }
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
         const data = JSON.parse(document.getElementById(id).textContent);
-        
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('instrument_code').value = data.instrument_code || '';
-        document.getElementById('type').value = data.type || 'Common Stock';
-        document.getElementById('face_value').value = data.face_value || '';
-        document.getElementById('coupon_rate').value = data.coupon_rate || '';
-        document.getElementById('total_units_issued').value = data.total_units_issued || '';
-        document.getElementById('units_outstanding').value = data.units_outstanding || '';
-        document.getElementById('issue_date').value = data.issue_date || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Registered Security';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Security';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, [data], {
+            instrument_code: 'instrument_code',
+            type: 'type',
+            face_value: 'face_value',
+            coupon_rate: 'coupon_rate',
+            total_units_issued: 'total_units_issued',
+            units_outstanding: 'units_outstanding',
+            issue_date: 'issue_date'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Registered Security',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Security'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('instrumentForm').reset();
+        crudCancelEdit('instrumentForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Security',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Instrument'
+        });
         document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Security';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Instrument';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

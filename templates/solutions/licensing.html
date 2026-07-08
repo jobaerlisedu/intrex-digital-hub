@@ -153,57 +153,27 @@
         document.getElementById('renewal_date').value = new Date().toISOString().substring(0, 10);
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = licensesDb.find(l => l.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('project_id').value = data.project_id || '';
-        document.getElementById('license_name').value = data.license_name || '';
-        document.getElementById('license_key').value = data.license_key || '';
-        document.getElementById('subscription_tier').value = data.subscription_tier || '';
-        document.getElementById('renewal_date').value = data.renewal_date || '';
-        document.getElementById('cost').value = data.cost || '0.00';
-        document.getElementById('status').value = data.status || 'Active';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit License Details';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update License';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, licensesDb, {
+            project_id: 'project_id',
+            license_name: 'license_name',
+            license_key: 'license_key',
+            subscription_tier: 'subscription_tier',
+            renewal_date: 'renewal_date',
+            cost: 'cost',
+            status: 'status'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit License Details',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update License'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('licenseForm').reset();
+        crudCancelEdit('licenseForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Software License Key',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save License Details'
+        });
         document.getElementById('renewal_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Software License Key';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save License Details';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}

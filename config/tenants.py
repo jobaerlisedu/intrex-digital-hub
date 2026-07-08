@@ -78,8 +78,13 @@ class TenantMiddleware:
     def __call__(self, request):
         tenant_id = None
         if request.user.is_authenticated:
-            tenant_id = getattr(request.user, 'tenant_id', None)
             set_current_user(request.user)
+            try:
+                profile = getattr(request.user, 'profile', None)
+                if profile and profile.tenant_id:
+                    tenant_id = profile.tenant_id
+            except Exception:
+                pass
         set_current_tenant(tenant_id)
         response = self.get_response(request)
         set_current_tenant(None)

@@ -11,7 +11,10 @@ export default defineConfig({
     manifest: 'manifest.json',
     emptyOutDir: true,
     rollupOptions: {
-      input: path.join(BASE, 'static_src/js/main.js'),
+      input: {
+        main: path.join(BASE, 'static_src/js/main.js'),
+        erp: path.join(BASE, 'static_src/css/erp.css'),
+      },
       output: {
         entryFileNames: 'js/[name].js',
         chunkFileNames: 'js/[name].js',

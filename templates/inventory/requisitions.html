@@ -187,29 +187,6 @@
         }
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function addNewItemRow(name = '', qty = '', uom = 'pcs') {
         const container = document.getElementById('items-container');
         const row = document.createElement('div');
@@ -245,47 +222,40 @@
     }
 
     function editRecord(id) {
+        crudEditRecord(id, requisitionsDb, {
+            doc_id: 'id',
+            client_name: 'client_name',
+            expected_delivery_date: 'expected_delivery_date',
+            priority: 'priority',
+            status: 'status',
+            notes: 'notes'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Requisition Request',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Requisition'
+        });
+
         const data = requisitionsDb.find(r => r.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('client_name').value = data.client_name || '';
-        document.getElementById('expected_delivery_date').value = data.expected_delivery_date || '';
-        document.getElementById('priority').value = data.priority || 'Medium';
-        document.getElementById('status').value = data.status || 'Pending Approval';
-        document.getElementById('notes').value = data.notes || '';
-
-        // Clear existing rows
         const container = document.getElementById('items-container');
         container.innerHTML = '';
-
-        if (data.items && data.items.length > 0) {
+        if (data && data.items && data.items.length > 0) {
             data.items.forEach(item => {
                 addNewItemRow(item.product_name, item.requested_quantity, item.unit_of_measure);
             });
         } else {
             addNewItemRow();
         }
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Requisition Request';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Requisition';
-        document.getElementById('btn-cancel').style.display = 'flex';
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('requisitionForm').reset();
+        crudCancelEdit('requisitionForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Requisition Request',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Requisition'
+        });
         document.getElementById('expected_delivery_date').value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
-        
+
         const container = document.getElementById('items-container');
         container.innerHTML = '';
         addNewItemRow();
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Log Requisition Request';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Record Requisition';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 
     function viewDetails(id) {

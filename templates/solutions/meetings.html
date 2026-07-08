@@ -149,56 +149,27 @@
         document.getElementById('meeting_date').value = new Date().toISOString().substring(0, 10);
     });
 
-    function switchTab(tab) {
-        const formDiv = document.getElementById("tab-form");
-        const listDiv = document.getElementById("tab-list");
-        const formBtn = document.getElementById("tab-form-btn");
-        const listBtn = document.getElementById("tab-list-btn");
-
-        if (tab === 'form') {
-            formDiv.style.display = 'block';
-            listDiv.style.display = 'none';
-            formBtn.style.background = 'var(--accent-color)';
-            formBtn.style.color = '#fff';
-            listBtn.style.background = 'transparent';
-            listBtn.style.color = '#64748b';
-        } else {
-            formDiv.style.display = 'none';
-            listDiv.style.display = 'block';
-            listBtn.style.background = 'var(--accent-color)';
-            listBtn.style.color = '#fff';
-            formBtn.style.background = 'transparent';
-            formBtn.style.color = '#64748b';
-        }
-    }
-
     function editRecord(id) {
-        const data = meetingsDb.find(m => m.id === id);
-        if (!data) return;
-
-        switchTab('form');
-        
-        document.getElementById('doc_id').value = id;
-        document.getElementById('project_id').value = data.project_id || '';
-        document.getElementById('title').value = data.title || '';
-        document.getElementById('meeting_date').value = data.meeting_date || '';
-        document.getElementById('start_time').value = data.start_time || '';
-        document.getElementById('video_link').value = data.video_link || '';
-        document.getElementById('agenda').value = data.agenda || '';
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Meeting Details';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Schedule';
-        document.getElementById('btn-cancel').style.display = 'flex';
+        crudEditRecord(id, meetingsDb, {
+            doc_id: 'id',
+            project_id: 'project_id',
+            title: 'title',
+            meeting_date: 'meeting_date',
+            start_time: 'start_time',
+            video_link: 'video_link',
+            agenda: 'agenda'
+        }, {
+            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Meeting Details',
+            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Schedule'
+        });
     }
 
     function cancelEdit() {
-        document.getElementById('doc_id').value = '';
-        document.getElementById('meetingForm').reset();
+        crudCancelEdit('meetingForm', {
+            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Schedule Project Conference Call',
+            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Schedule Meeting'
+        });
         document.getElementById('meeting_date').value = new Date().toISOString().substring(0, 10);
-
-        document.getElementById('form-title').innerHTML = '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Schedule Project Conference Call';
-        document.getElementById('btn-save').innerHTML = '<i class="fa-solid fa-arrow-down-to-bracket"></i> Schedule Meeting';
-        document.getElementById('btn-cancel').style.display = 'none';
     }
 </script>
 {% endblock %}
