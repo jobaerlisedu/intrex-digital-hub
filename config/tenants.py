@@ -1,17 +1,6 @@
-"""
-Multi-tenancy infrastructure.
-
-Usage:
-    from config.tenants import TenantAwareModel, TenantManager, TenantQuerySet
-
-    class MyModel(TenantAwareModel):
-        name = models.CharField(max_length=255)
-        ...
-"""
 import threading
 from django.db import models
 from django.db.models import QuerySet, Manager
-from django.contrib.auth.models import User
 
 _thread_locals = threading.local()
 
@@ -24,6 +13,14 @@ def set_current_tenant(tenant_id):
     _thread_locals.tenant_id = tenant_id
 
 
+def get_current_organization():
+    return getattr(_thread_locals, 'organization', None)
+
+
+def set_current_organization(org):
+    _thread_locals.organization = org
+
+
 def get_current_user():
     return getattr(_thread_locals, 'current_user', None)
 
@@ -31,6 +28,30 @@ def get_current_user():
 def set_current_user(user):
     _thread_locals.current_user = user
 
+
+# ─── Firestore multi-tenancy helpers ──────────────────────────────────
+
+def tenant_org_id():
+    org = get_current_organization()
+    if org:
+        return str(org.pk)
+    tid = get_current_tenant()
+    return str(tid) if tid else None
+
+
+def fs_add_org(data, org_id_field='org_id'):
+    data[org_id_field] = tenant_org_id()
+    return data
+
+
+def fs_scope_query(collection_ref, org_id_field='org_id'):
+    org_id = tenant_org_id()
+    if org_id:
+        return collection_ref.where(org_id_field, '==', org_id)
+    return collection_ref
+
+
+# ─── Django ORM tenant helpers ────────────────────────────────────────
 
 class TenantQuerySet(QuerySet):
     def for_tenant(self, tenant_id=None):
@@ -77,17 +98,23 @@ class TenantMiddleware:
 
     def __call__(self, request):
         tenant_id = None
+        org = None
         if request.user.is_authenticated:
             set_current_user(request.user)
             try:
                 profile = getattr(request.user, 'profile', None)
                 if profile and profile.tenant_id:
                     tenant_id = profile.tenant_id
+                    org = profile.tenant
             except Exception:
                 pass
         set_current_tenant(tenant_id)
+        set_current_organization(org)
+        request.tenant = org
+        request.organization = org
         response = self.get_response(request)
         set_current_tenant(None)
+        set_current_organization(None)
         set_current_user(None)
         return response
 
@@ -105,3 +132,19 @@ class TenantViewSetMixin:
             serializer.save(organization_id=tenant_id)
         else:
             serializer.save()
+
+
+class TenantAdminMixin:
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        tenant_id = get_current_tenant()
+        if tenant_id and hasattr(qs, 'for_tenant'):
+            return qs.for_tenant(tenant_id)
+        return qs
+
+    def save_model(self, request, obj, form, change):
+        if not change and hasattr(obj, 'organization_id') and not obj.organization_id:
+            obj.organization_id = get_current_tenant()
+        super().save_model(request, obj, form, change)

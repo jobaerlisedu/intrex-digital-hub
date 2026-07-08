@@ -7,7 +7,7 @@ from config.logger import firebase_logger
 
 @login_required
 def erp_dashboard(request):
-    from config.firebase import db
+    from config.firebase import tenant_db
     from config.services import KPIService
 
     kpis = KPIService.get_cross_module_kpis()
@@ -18,14 +18,14 @@ def erp_dashboard(request):
     audit_logs = []
     try:
         from google.cloud import firestore
-        logs_stream = db.collection('sys_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
+        logs_stream = tenant_db.collection('sys_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
         for doc in logs_stream:
             log_data = doc.to_dict()
             log_data['id'] = doc.id
             audit_logs.append(log_data)
     except Exception:
         try:
-            logs_stream = db.collection('sys_audit_logs').limit(5).stream()
+            logs_stream = tenant_db.collection('sys_audit_logs').limit(5).stream()
             for doc in logs_stream:
                 log_data = doc.to_dict()
                 log_data['id'] = doc.id
@@ -74,7 +74,7 @@ def health_check(request):
     code = 200
     try:
         from config.firebase import db
-        db.collection('sys_health_check').limit(1).stream()
+        db.collection('intrex_health').limit(1).stream()
         status["firestore"] = "connected"
     except Exception:
         status["firestore"] = "disconnected"

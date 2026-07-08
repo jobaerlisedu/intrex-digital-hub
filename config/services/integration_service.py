@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from config.firebase import db
+from config.firestore_utils import fs_create
 from .event_bus import event_bus
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class IntegrationService:
                 'created_by': user.username,
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
-            db.collection('fin_vendor_bills').add(bill_data)
+            fs_create('fin_vendor_bills', bill_data)
             logger.info(f"AP Bill {bill_number} auto-created from GRN {grn_data.get('grn_code')}")
 
             event_bus.publish('vendor_bill.created', {
@@ -105,7 +106,7 @@ class IntegrationService:
                 'lines': lines,
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
-            db.collection('fin_journal_entries').add(je_data)
+            fs_create('fin_journal_entries', je_data)
             logger.info(f"Journal entry {entry_code} auto-created for training payment")
 
             event_bus.publish('journal_entry.created', {
@@ -175,7 +176,7 @@ class IntegrationService:
                 'lines': lines,
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
-            db.collection('fin_journal_entries').add(je_data)
+            fs_create('fin_journal_entries', je_data)
             logger.info(f"Journal entry {entry_code} auto-created for loan disbursement")
 
             event_bus.publish('journal_entry.created', {
@@ -222,7 +223,7 @@ class IntegrationService:
                 'created_by': user.username,
                 'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
-            db.collection('inv_purchase_orders').add(po_data)
+            fs_create('inv_purchase_orders', po_data)
             logger.info(f"Purchase Order {po_code} auto-created from project requisition")
 
             event_bus.publish('purchase_order.created', {

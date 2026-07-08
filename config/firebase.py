@@ -52,3 +52,18 @@ if not firebase_admin._apps:
         raise
 
 db = firestore.client()
+
+
+# Tenant-scoped Firestore accessor.
+# Wraps db.collection() to auto-add org_id filtering and tagging.
+# Module views should use `tenant_db` for tenant-isolated operations.
+class TenantScopedFirestore:
+    def __getattr__(self, name):
+        return getattr(db, name)
+
+    def collection(self, collection_path):
+        from config.firestore_utils import fs_scope_query
+        return fs_scope_query(db.collection(collection_path))
+
+
+tenant_db = TenantScopedFirestore()

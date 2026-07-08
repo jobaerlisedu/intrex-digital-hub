@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from config.firebase import db
+from config.firestore_utils import fs_query, fs_stream
 
 logger = logging.getLogger(__name__)
 
@@ -29,23 +29,23 @@ class KPIService:
 
         try:
             # Employee count
-            employees = list(db.collection('hrm_employees').stream())
+            employees = fs_stream('hrm_employees')
             kpis['total_employees'] = len(employees)
             kpis['pending_approvals'] += len([
-                e for e in [d.to_dict() for d in employees]
+                e for e in employees
                 if e.get('status') not in ('Active', 'Resigned', 'Inactive')
             ])
 
             # Positions
-            kpis['open_positions'] = len(list(db.collection('org_positions').stream()))
+            kpis['open_positions'] = len(fs_stream('org_positions'))
 
             # Products / Inventory
-            products = [d.to_dict() for d in db.collection('inv_products').stream()]
+            products = fs_stream('inv_products')
             kpis['total_products'] = len(products)
             kpis['low_stock_items'] = sum(1 for p in products if int(p.get('quantity', 0)) <= 10)
 
             # Invoices (Revenue)
-            invoices = [d.to_dict() for d in db.collection('fin_invoices').stream()]
+            invoices = fs_stream('fin_invoices')
             for inv in invoices:
                 total = float(inv.get('grand_total', 0.0))
                 kpis['total_revenue'] += total
@@ -53,7 +53,7 @@ class KPIService:
                     kpis['pending_invoices'] += 1
 
             # Bills (Expenses)
-            bills = [d.to_dict() for d in db.collection('fin_vendor_bills').stream()]
+            bills = fs_stream('fin_vendor_bills')
             for bill in bills:
                 total = float(bill.get('grand_total', 0.0))
                 kpis['total_expenses'] += total
@@ -61,7 +61,7 @@ class KPIService:
                     kpis['pending_bills'] += 1
 
             # Journal entries for additional revenue/expense
-            journals = [d.to_dict() for d in db.collection('fin_journal_entries').stream()]
+            journals = fs_stream('fin_journal_entries')
             for j in journals:
                 if j.get('status') == 'Posted':
                     for line in j.get('lines', []):
@@ -70,17 +70,17 @@ class KPIService:
             kpis['net_profit'] = kpis['total_revenue'] - kpis['total_expenses']
 
             # Training students
-            registrations = [d.to_dict() for d in db.collection('trn_registrations').stream()]
+            registrations = fs_stream('trn_registrations')
             kpis['total_students'] = len({r.get('studentId') for r in registrations if r.get('studentId')})
 
             # Active projects
-            projects = [d.to_dict() for d in db.collection('sol_projects').stream()]
+            projects = fs_stream('sol_projects')
             kpis['active_projects'] = sum(1 for p in projects if p.get('status') not in ('Completed', 'Cancelled'))
 
             # Expiring licenses
             today = datetime.now().date()
             end_window = today + timedelta(days=30)
-            licenses = [d.to_dict() for d in db.collection('sol_software_licenses').stream()]
+            licenses = fs_stream('sol_software_licenses')
             for l in licenses:
                 r_date_str = l.get('renewal_date', '')
                 if r_date_str:
@@ -94,13 +94,13 @@ class KPIService:
             # Pending leaves/advances/claims (approvals)
             try:
                 pending_leaves = len(list(
-                    db.collection('hrm_leaves').where('status', '==', 'Pending').stream()
+                    fs_query('hrm_leaves').where('status', '==', 'Pending').stream()
                 ))
                 pending_advances = len(list(
-                    db.collection('hrm_advances').where('status', '==', 'Pending').stream()
+                    fs_query('hrm_advances').where('status', '==', 'Pending').stream()
                 ))
                 pending_claims = len(list(
-                    db.collection('hrm_expense_claims').where('status', '==', 'Pending').stream()
+                    fs_query('hrm_expense_claims').where('status', '==', 'Pending').stream()
                 ))
                 kpis['pending_approvals'] += pending_leaves + pending_advances + pending_claims
             except Exception:
@@ -108,7 +108,7 @@ class KPIService:
 
             # Investment
             try:
-                loans = [d.to_dict() for d in db.collection('invst_loans').stream()]
+                loans = fs_stream('invst_loans')
                 kpis['total_invested'] = sum(
                     float(l.get('principal_amount', 0.0)) for l in loans
                     if l.get('status') == 'Active'
@@ -127,7 +127,7 @@ class KPIService:
         summaries = []
 
         try:
-            for doc in db.collection('hrm_leaves').where('status', '==', 'Pending').limit(5).stream():
+            for doc in fs_query('hrm_leaves').where('status', '==', 'Pending').limit(5).stream():
                 d = doc.to_dict()
                 summaries.append({
                     'module': 'HRM',
@@ -140,7 +140,7 @@ class KPIService:
             pass
 
         try:
-            for doc in db.collection('hrm_expense_claims').where('status', '==', 'Pending').limit(5).stream():
+            for doc in fs_query('hrm_expense_claims').where('status', '==', 'Pending').limit(5).stream():
                 d = doc.to_dict()
                 summaries.append({
                     'module': 'HRM',
@@ -153,7 +153,7 @@ class KPIService:
             pass
 
         try:
-            for doc in db.collection('inv_requisitions').where('status', '==', 'Pending Approval').limit(5).stream():
+            for doc in fs_query('inv_requisitions').where('status', '==', 'Pending Approval').limit(5).stream():
                 d = doc.to_dict()
                 summaries.append({
                     'module': 'Inventory',
@@ -167,7 +167,7 @@ class KPIService:
 
         try:
             today_str = datetime.now().strftime('%Y-%m-%d')
-            invoices = [d.to_dict() for d in db.collection('fin_invoices').stream()]
+            invoices = fs_stream('fin_invoices')
             for inv in invoices:
                 if inv.get('status') != 'Paid' and inv.get('due_date', '') < today_str:
                     summaries.append({

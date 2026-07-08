@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from config.tenants import TenantAwareModel
 import uuid
 
 
@@ -77,7 +78,7 @@ class WorkflowTransition(models.Model):
         return f"{self.from_state} → {self.to_state} ({self.trigger})"
 
 
-class WorkflowInstance(models.Model):
+class WorkflowInstance(TenantAwareModel):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     workflow = models.ForeignKey(
         WorkflowDefinition, on_delete=models.CASCADE,
@@ -111,7 +112,7 @@ class WorkflowInstance(models.Model):
         return f"{self.workflow.name}#{self.entity_id} [{self.current_state}]"
 
 
-class WorkflowLog(models.Model):
+class WorkflowLog(TenantAwareModel):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     instance = models.ForeignKey(
         WorkflowInstance, on_delete=models.CASCADE,

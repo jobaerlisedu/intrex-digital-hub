@@ -1,6 +1,17 @@
 import json
 import os
 from django.conf import settings
+from config.tenants import get_current_tenant
+
+
+def tenant_context(request):
+    tenant_id = get_current_tenant()
+    org = getattr(request, 'tenant', None)
+    return {
+        'current_tenant': org,
+        'current_tenant_id': tenant_id,
+        'is_multi_tenant': tenant_id is not None,
+    }
 
 
 def vite_assets(request):

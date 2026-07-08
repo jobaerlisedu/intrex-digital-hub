@@ -1,4 +1,5 @@
 from django.contrib import admin
+from config.tenants import TenantAdminMixin
 from .models import WorkflowDefinition, WorkflowState, WorkflowTransition, WorkflowInstance, WorkflowLog
 
 
@@ -22,12 +23,12 @@ class WorkflowTransitionAdmin(admin.ModelAdmin):
 
 
 @admin.register(WorkflowInstance)
-class WorkflowInstanceAdmin(admin.ModelAdmin):
+class WorkflowInstanceAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ('workflow', 'entity_id', 'current_state', 'is_active', 'started_at')
     list_filter = ('is_active', 'workflow', 'current_state')
 
 
 @admin.register(WorkflowLog)
-class WorkflowLogAdmin(admin.ModelAdmin):
+class WorkflowLogAdmin(TenantAdminMixin, admin.ModelAdmin):
     list_display = ('instance', 'from_state', 'to_state', 'trigger', 'performed_by', 'timestamp')
     list_filter = ('trigger', 'timestamp')

@@ -141,6 +141,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.user_modules',
                 'config.context_processors.vite_assets',
+                'config.context_processors.tenant_context',
             ],
         },
     },
