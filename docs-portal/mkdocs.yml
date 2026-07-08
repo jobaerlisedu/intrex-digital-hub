@@ -69,6 +69,8 @@ nav:
       - Disaster Recovery: admin-runbooks/disaster-recovery.md
       - System Configuration: admin-runbooks/system-config.md
       - Modules & Sections: admin-runbooks/modules-sections.md
+  - 📋 Project Management:
+      - Product Roadmap & Backlog: project-management/product-roadmap.md
   - 🛠️ Developer Blueprint:
       - Architecture & Logic: developer/architecture.md
       - Database Schema: developer/database-schema.md
