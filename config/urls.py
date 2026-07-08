@@ -52,6 +52,9 @@ urlpatterns = [
     path('docs/', config_views.documentation_viewer, name='docs_index'),
     path('docs/<path:path>/', config_views.documentation_viewer, name='docs_page'),
 
+    # JWT Authentication API (mobile / 3rd-party)
+    path('api/v1/auth/', include('accounts.auth.urls')),
+
     # Authentication
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),

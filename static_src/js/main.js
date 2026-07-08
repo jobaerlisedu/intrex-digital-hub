@@ -4,7 +4,10 @@
  * Imports the SPA router and re-initializes dynamic components
  * after each content swap.
  */
+import AUTH from './auth.js';
 import './spa-router.js';
+
+AUTH.init();
 
 // Re-initialize after SPA content swap
 document.addEventListener('spa:content-updated', () => {

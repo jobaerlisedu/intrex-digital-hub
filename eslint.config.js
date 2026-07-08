@@ -7,10 +7,19 @@ export default [
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: {
+    globals: {
         ...globals.browser,
         ...globals.es2021,
-      },
+        Isotope: "readonly",
+        imagesLoaded: "readonly",
+        Swiper: "readonly",
+        GLightbox: "readonly",
+        AOS: "readonly",
+        PureCounter: "readonly",
+        toggleDropdown: "readonly",
+        initPagination: "readonly",
+        initSearchFilter: "readonly",
+    },
     },
     rules: {
       "no-unused-vars": ["warn", { args: "none" }],
