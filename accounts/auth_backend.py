@@ -4,6 +4,26 @@ from django.contrib.auth.hashers import check_password
 from config.firebase import db
 from config.logger import accounts_logger
 
+
+def _sync_user_to_firestore(user):
+    """Ensure the user record exists in Firestore after successful auth."""
+    try:
+        data = {
+            'username': user.username,
+            'email': user.email,
+            'password': user.password,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'is_active': user.is_active,
+            'groups': list(user.groups.values_list('name', flat=True)),
+        }
+        db.collection('sys_users').document(user.username).set(data)
+    except Exception as e:
+        accounts_logger.warning(f"Could not sync user '{user.username}' to Firestore post-auth: {e}")
+
+
 class FirestoreBackend(BaseBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         if not username or not password:
@@ -42,6 +62,8 @@ class FirestoreBackend(BaseBackend):
             for group_name in data.get('groups', []):
                 group, _ = Group.objects.get_or_create(name=group_name)
                 user.groups.add(group)
+
+            _sync_user_to_firestore(user)
 
             return user
 
