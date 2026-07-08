@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.hashers import make_password
 from django.contrib import messages
@@ -300,6 +301,37 @@ def audit_logs(request):
         'compromised_log_ids': altered_logs,
         'failed_logins_24h': failed_logins,
         'has_mass_exports_24h': has_mass_exports,
+    })
+
+
+@superuser_required
+def sync_users_view(request):
+    from accounts.management.commands.sync_users_to_firestore import sync_user_to_firestore
+    from django.contrib.auth.models import User
+
+    users = User.objects.all().order_by('date_joined')
+    total = users.count()
+    synced = 0
+    failed = 0
+    errors = []
+
+    for user in users:
+        if sync_user_to_firestore(user):
+            synced += 1
+        else:
+            failed += 1
+            errors.append(user.username)
+
+    log_action(
+        user=request.user, action='USER_SYNC', module='accounts',
+        description=f"Synced {synced} users to Firestore ({failed} failed)",
+        ip_address=get_client_ip(request),
+    )
+
+    return JsonResponse({
+        'status': 'ok' if failed == 0 else 'partial',
+        'total': total, 'synced': synced, 'failed': failed,
+        'failed_users': errors,
     })
 
 
