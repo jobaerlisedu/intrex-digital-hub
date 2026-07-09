@@ -1,8 +1,9 @@
 import os
 import time
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
 from config.logger import firebase_logger
 
 @login_required
@@ -158,3 +159,10 @@ def documentation_viewer(request, path=''):
         'html_content': html_content,
         'current_path': path
     })
+
+
+class PortalLoginView(LoginView):
+    template_name = 'portal/login.html'
+
+    def get_success_url(self):
+        return '/hrm/portal/'

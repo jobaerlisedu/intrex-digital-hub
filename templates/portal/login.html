@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Portal - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at 20% 30%, rgba(33,92,92,0.08) 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 70%, rgba(117,182,110,0.08) 0%, transparent 60%),
+                        #f0f5f5;
+            padding: 20px;
+        }
+        .login-card {
+            background: #fff; border-radius: 24px; box-shadow: 0 8px 40px rgba(33,92,92,0.08);
+            padding: 48px 40px; width: 100%; max-width: 420px; text-align: center;
+        }
+        .login-logo { width: 72px; height: 72px; margin-bottom: 16px; object-fit: contain; }
+        .login-title { font-size: 1.6rem; font-weight: 700; color: var(--text-primary, #1e293b); margin-bottom: 4px; }
+        .login-subtitle { font-size: 0.95rem; color: var(--text-secondary, #64748b); margin-bottom: 32px; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
+        .form-group .input-wrap {
+            display: flex; align-items: center; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 0 14px; transition: border-color 0.2s; background: #fafbfc;
+        }
+        .form-group .input-wrap:focus-within { border-color: #215C5C; background: #fff; }
+        .form-group .input-wrap i { color: #94a3b8; font-size: 1rem; }
+        .form-group .input-wrap input {
+            width: 100%; padding: 13px 12px; border: none; background: transparent;
+            font-size: 0.95rem; font-family: inherit; outline: none; color: #1e293b;
+        }
+        .btn-primary {
+            width: 100%; padding: 14px; border: none; border-radius: 12px;
+            background: #215C5C; color: #fff; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s; font-family: inherit;
+        }
+        .btn-primary:hover { background: #1a4a4a; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .error-msg { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .success-msg { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .back-link { display: inline-block; margin-top: 24px; color: #64748b; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: #215C5C; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        {% load static %}
+        <img src="{% static 'images/logo/intrex-logo.svg' %}" alt="Intrex" class="login-logo">
+        <h1 class="login-title">Employee Portal</h1>
+        <p class="login-subtitle">Sign in to your account</p>
+
+        {% if messages %}
+            {% for message in messages %}
+            <div class="{% if message.tags == 'error' %}error-msg{% elif message.tags == 'success' %}success-msg{% endif %}">
+                <i class="fa-solid {% if message.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if form.errors %}
+        <div class="error-msg">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            Invalid username or password. Please try again.
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'portal_login' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Username</label>
+                <div class="input-wrap">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" name="username" placeholder="Enter your username" required autocomplete="username">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-wrap">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                </div>
+            </div>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn-primary">Sign In</button>
+        </form>
+
+        <a href="{% url 'frontend:index' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+    </div>
+</body>
+</html>

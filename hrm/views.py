@@ -623,6 +623,8 @@ def employee_database(request):
                 'ec_secondary_name': request.POST.get('ec_secondary_name', ''),
                 'ec_secondary_relation': request.POST.get('ec_secondary_relation', ''),
                 'ec_secondary_mobile': request.POST.get('ec_secondary_mobile', ''),
+                'portal_username': request.POST.get('portal_username', '').strip(),
+                'portal_password': request.POST.get('portal_password', '').strip(),
                 'contact_id': contact_id
             }
 

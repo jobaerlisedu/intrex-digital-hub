@@ -262,49 +262,80 @@ class IntegrationService:
         if not person.auth_user and email:
             try:
                 from django.contrib.auth.models import User
-                username = email.split('@')[0]
-                base_username = username
+
+                # Use provided username, or auto-generate from email prefix
+                raw_username = employee_data.get('portal_username', '').strip()
+                if not raw_username:
+                    raw_username = email.split('@')[0]
+                base_username = raw_username
                 suffix = 1
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{suffix}"
+                while User.objects.filter(username=raw_username).exists():
+                    raw_username = f"{base_username}{suffix}"
                     suffix += 1
 
                 import secrets, hashlib
-                temp_password = secrets.token_urlsafe(12)
+                raw_password = employee_data.get('portal_password', '').strip()
+                if not raw_password:
+                    raw_password = secrets.token_urlsafe(12)
 
                 user = User.objects.create_user(
-                    username=username,
+                    username=raw_username,
                     email=email,
-                    password=temp_password,
+                    password=raw_password,
                     first_name=employee_data.get('first_name', ''),
                     last_name=employee_data.get('last_name', ''),
                 )
                 person.auth_user = user
                 person.save()
-                logger.info(f"Auth user {username} created for employee {name}")
+
+                if employee_data.get('portal_password', '').strip():
+                    logger.info(f"Auth user {raw_username} created for employee {name} with provided password")
+                else:
+                    logger.info(f"Auth user {raw_username} created for employee {name}")
 
                 # Sync to Firestore so employee can log in via FirestoreBackend
                 try:
                     from accounts.auth_backend import _sync_user_to_firestore
                     _sync_user_to_firestore(user)
                 except Exception:
-                    logger.warning(f"Could not sync user {username} to Firestore")
+                    logger.warning(f"Could not sync user {raw_username} to Firestore")
             except Exception as e:
                 logger.error(f"Failed to create auth user for employee {name}: {e}")
 
-        # Ensure employee users do NOT have admin hrm_access group
+        # Update existing user credentials if provided, and ensure no hrm_access
         if person.auth_user:
-            from django.contrib.auth.models import Group
+            from django.contrib.auth.models import Group, User
+            import secrets
+            updated = False
+
+            new_username = employee_data.get('portal_username', '').strip()
+            new_password = employee_data.get('portal_password', '').strip()
+
+            if new_username and new_username != person.auth_user.username:
+                base = new_username
+                suffix = 1
+                while User.objects.filter(username=new_username).exclude(pk=person.auth_user.pk).exists():
+                    new_username = f"{base}{suffix}"
+                    suffix += 1
+                person.auth_user.username = new_username
+                updated = True
+            if new_password:
+                person.auth_user.set_password(new_password)
+                updated = True
+
             hrm_group = Group.objects.filter(name='hrm_access').first()
             if hrm_group and hrm_group in person.auth_user.groups.all():
                 person.auth_user.groups.remove(hrm_group)
+                updated = True
                 logger.info(f"Removed hrm_access from employee user {person.auth_user.username}")
-                # Sync updated groups to Firestore so it persists across logins
+
+            if updated:
+                person.auth_user.save()
                 try:
                     from accounts.auth_backend import _sync_user_to_firestore
                     _sync_user_to_firestore(person.auth_user)
                 except Exception:
-                    logger.warning(f"Could not sync removed hrm_access for {person.auth_user.username}")
+                    logger.warning(f"Could not sync user {person.auth_user.username} to Firestore")
 
         return person
 
