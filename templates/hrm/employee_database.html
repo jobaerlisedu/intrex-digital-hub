@@ -1150,7 +1150,7 @@ function viewRecord(id) {
             </div>
             <div class="view-detail-item" style="grid-column: span 2;">
                 <form method="POST" action="/hrm/employee-database/${record.id}/reset-password/" style="display:inline;" onsubmit="return confirm('Reset the portal password for ${record.name}? The new password will be shown once.');">
-                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                    {% csrf_token %}
                     <button type="submit" class="btn-action" style="background:rgba(245,158,11,0.1);color:#d97706;border:1px solid #d97706;border-radius:4px;padding:6px 14px;display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
                         <i class="fa-solid fa-key"></i> Reset Password
                     </button>
