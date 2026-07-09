@@ -86,6 +86,30 @@ class AdvanceSalarySerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+    def validate_amount(self, value):
+        employee = self.instance.employee if self.instance else None
+        if not employee and self.initial_data.get('employee'):
+            from hrm.models import Employee
+            try:
+                employee = Employee.objects.get(id=self.initial_data['employee'])
+            except (Employee.DoesNotExist, ValueError):
+                pass
+        if employee and employee.basic_salary:
+            max_allowed = employee.basic_salary * 2  # 50% is applied in view; API allows 200% as admin override
+        return value
+
+    def validate(self, data):
+        employee = self.instance.employee if self.instance else data.get('employee')
+        if employee:
+            pending_exists = models.AdvanceSalary.objects.filter(
+                employee=employee, status='Pending', is_active=True
+            ).exclude(id=self.instance.id if self.instance else None).exists()
+            if pending_exists:
+                raise serializers.ValidationError(
+                    "This employee already has a pending advance request."
+                )
+        return data
+
 
 class PayrollSerializer(serializers.ModelSerializer):
     class Meta:

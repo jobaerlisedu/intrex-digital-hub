@@ -144,6 +144,7 @@ TEMPLATES = [
                 'accounts.context_processors.user_modules',
                 'config.context_processors.vite_assets',
                 'config.context_processors.tenant_context',
+                'config.context_processors.portal_notifications',
             ],
         },
     },
@@ -218,6 +219,11 @@ if _static_dist.exists():
     STATICFILES_DIRS.append(_static_dist)
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+
+# Media files (uploaded attachments)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 # Default primary key field type

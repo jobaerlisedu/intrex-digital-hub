@@ -28,75 +28,58 @@ def create_notification(recipient, title, message, notification_type='', link=''
         return None
 
 
-# Map entity types to required group names (without _access suffix)
-# Override via NOTIFICATION_ROLE_MAP in Django settings if needed
-DEFAULT_ROLE_MAP = {
-    'leave': ['hrm_manager', 'hrm_admin'],
-    'requisition': ['inventory_manager', 'inventory_admin'],
-    'expense_claim': ['hrm_manager', 'finance_admin'],
-    'advance_salary': ['hrm_manager', 'finance_admin'],
-    'performance_review': ['hrm_manager', 'hrm_admin'],
-    'onboarding_task': ['hrm_admin'],
-    'exit_clearance': ['hrm_admin'],
-}
-
-
-def _get_target_groups(entity_type):
-    from django.conf import settings
-    role_map = getattr(settings, 'NOTIFICATION_ROLE_MAP', DEFAULT_ROLE_MAP)
-    groups = role_map.get(entity_type, ['admin'])
-    return [f'{g}_access' for g in groups]
-
-
-def notify_workflow_event(event):
-    data = event.get('data', {})
-    entity_type = data.get('entity_type', '')
-    entity_id = data.get('entity_id', '')
-    new_status = data.get('new_status', '')
-    triggered_by = data.get('triggered_by', '')
-    module = data.get('module', '')
-
+def _employee_to_user(emp):
+    """Get the auth User linked to an Employee via registry.Person."""
     try:
-        from registry.services import lookup_person_by_auth_user
-        from django.contrib.auth.models import User
+        from registry.models import Person
+        if not emp.firestore_id:
+            return None
+        person = Person.objects.filter(firestore_employee_id=emp.firestore_id).first()
+        if person and person.auth_user:
+            return person.auth_user
+    except Exception:
+        pass
+    return None
 
-        if not triggered_by:
-            return
-        trigger_user = User.objects.filter(username=triggered_by).first()
-        if not trigger_user:
-            return
 
-        person = lookup_person_by_auth_user(trigger_user)
-        if not person or not person.display_name:
-            return
+def notify_manager_or_group(emp_name, detail, notification_type, link, event_data, applied_by):
+    try:
+        from hrm.models import Employee
 
-        subject_line = f"{person.display_name} updated {entity_type}"
-        detail = f"{entity_type} ({entity_id}) moved to {new_status}"
+        email = event_data.get('employee_email', '')
+        manager_user = None
+        if email:
+            emp = Employee.objects.filter(email=email, is_active=True).first()
+            if emp and emp.reporting_to:
+                manager_user = _employee_to_user(emp.reporting_to)
 
-        group_names = _get_target_groups(entity_type)
-        admins = User.objects.filter(
-            groups__name__in=group_names,
-            is_active=True,
-        ).distinct()
-
-        if not admins:
-            hrm_logger.warning(
-                f"No recipients found for workflow notification: "
-                f"entity_type={entity_type}, groups={group_names}"
-            )
-
-        for admin in admins:
-            if admin == trigger_user:
-                continue
+        if manager_user and manager_user.is_active:
             create_notification(
-                recipient=admin,
-                title=subject_line,
+                recipient=manager_user,
+                title=f"{notification_type}: {emp_name}",
                 message=detail,
-                notification_type=f'{module}_{entity_type}_status',
-                link=f'/{module}/{entity_type}/',
+                notification_type=notification_type,
+                link=link,
+            )
+            return
+    except Exception as e:
+        hrm_logger.error(f"Manager lookup error: {e}")
+
+    # Fallback: notify all hrm_access users
+    try:
+        fallback = User.objects.filter(
+            groups__name='hrm_access', is_active=True
+        ).exclude(username=applied_by)
+        for u in fallback:
+            create_notification(
+                recipient=u,
+                title=f"{notification_type}: {emp_name}",
+                message=detail,
+                notification_type=notification_type,
+                link=link,
             )
     except Exception as e:
-        hrm_logger.error(f"Workflow notification handler error: {e}")
+        hrm_logger.error(f"Fallback notification error: {e}")
 
 
 def notify_leave_applied(event):
@@ -104,57 +87,136 @@ def notify_leave_applied(event):
     emp_name = data.get('employee_name', '')
     leave_type = data.get('leave_type', '')
     duration = data.get('duration', '')
-    doc_id = data.get('doc_id', '')
-
-    try:
-        managers = User.objects.filter(
-            groups__name='hrm_access', is_active=True
-        ).exclude(username=data.get('applied_by', ''))
-
-        for mgr in managers:
-            create_notification(
-                recipient=mgr,
-                title=f"Leave Request: {emp_name}",
-                message=f"{emp_name} applied for {leave_type} ({duration})",
-                notification_type='leave_applied',
-                link='/hrm/leave/',
-            )
-    except Exception as e:
-        hrm_logger.error(f"Leave notification error: {e}")
+    detail = f"{emp_name} applied for {leave_type} ({duration})"
+    notify_manager_or_group(emp_name, detail, 'leave_applied', '/portal/approvals/', data, data.get('applied_by', ''))
 
 
-def notify_performance_review(event):
+def notify_advance_salary_applied(event):
     data = event.get('data', {})
     emp_name = data.get('employee_name', '')
-    reviewer_name = data.get('reviewer_name', '')
-    review_id = data.get('review_id', '')
-    cycle_name = data.get('cycle_name', '')
+    amount = data.get('amount', '')
+    deduct_month = data.get('deduct_month', '')
+    detail = f"{emp_name} requested advance of {amount} (deduct {deduct_month})"
+    notify_manager_or_group(emp_name, detail, 'advance_salary_applied', '/portal/approvals/', data, data.get('applied_by', ''))
+
+
+def notify_leave_decided(event, approved=True):
+    data = event.get('data', {})
+    emp_name = data.get('employee_name', '')
+    leave_type = data.get('leave_type', '')
+    duration = data.get('duration', '')
+    actor = data.get('approved_by') or data.get('rejected_by', '')
+    status = 'approved' if approved else 'rejected'
+    reason = data.get('rejection_reason', '') if not approved else ''
 
     try:
-        from django.contrib.auth.models import User
-        from registry.services import lookup_person_by_auth_user
-
-        if reviewer_name:
-            reviewer_users = User.objects.filter(
-                groups__name='hrm_access', is_active=True
+        emp_users = User.objects.filter(
+            username__iexact=data.get('employee_email', '').split('@')[0],
+            is_active=True,
+        )
+        for u in emp_users:
+            msg = f"Your {leave_type} request ({duration}) was {status} by {actor}."
+            if reason:
+                msg += f" Reason: {reason}"
+            create_notification(
+                recipient=u,
+                title=f"Leave {status}: {emp_name}",
+                message=msg,
+                notification_type=f'leave_{status}',
+                link='/portal/leave/',
             )
-            for u in reviewer_users:
-                p = lookup_person_by_auth_user(u)
-                if p and p.display_name == reviewer_name:
-                    create_notification(
-                        recipient=u,
-                        title=f"Review Assigned: {emp_name}",
-                        message=f"You've been assigned as reviewer for {emp_name} ({cycle_name})",
-                        notification_type='review_assigned',
-                        link='/hrm/performance/',
-                    )
-                    break
     except Exception as e:
-        hrm_logger.error(f"Performance review notification error: {e}")
+        hrm_logger.error(f"Leave {status} notification error: {e}")
+
+
+def notify_leave_approved(event):
+    notify_leave_decided(event, approved=True)
+
+
+def notify_leave_rejected(event):
+    notify_leave_decided(event, approved=False)
+
+
+def notify_advance_salary_decided(event, approved=True):
+    data = event.get('data', {})
+    emp_name = data.get('employee_name', '')
+    amount = data.get('amount', '')
+    actor = data.get('approved_by') or data.get('rejected_by', '')
+    status = 'approved' if approved else 'rejected'
+    reason = data.get('rejection_reason', '') if not approved else ''
+
+    try:
+        emp_users = User.objects.filter(
+            username__iexact=data.get('employee_email', '').split('@')[0],
+            is_active=True,
+        )
+        for u in emp_users:
+            msg = f"Your advance salary request ({amount}) was {status} by {actor}."
+            if reason:
+                msg += f" Reason: {reason}"
+            create_notification(
+                recipient=u,
+                title=f"Advance Salary {status}: {emp_name}",
+                message=msg,
+                notification_type=f'advance_salary_{status}',
+                link='/portal/advance-salary/',
+            )
+    except Exception as e:
+        hrm_logger.error(f"Advance salary {status} notification error: {e}")
+
+
+def notify_advance_salary_approved(event):
+    notify_advance_salary_decided(event, approved=True)
+
+
+def notify_advance_salary_rejected(event):
+    notify_advance_salary_decided(event, approved=False)
+
+
+def notify_expense_claim_decided(event, approved=True):
+    data = event.get('data', {})
+    emp_name = data.get('employee_name', '')
+    amount = data.get('amount', '')
+    category = data.get('category', '')
+    actor = data.get('approved_by') or data.get('rejected_by', '')
+    status = 'approved' if approved else 'rejected'
+    reason = data.get('rejection_reason', '') if not approved else ''
+
+    try:
+        emp_users = User.objects.filter(
+            username__iexact=data.get('employee_email', '').split('@')[0],
+            is_active=True,
+        )
+        for u in emp_users:
+            msg = f"Your {category} expense claim ({amount}) was {status} by {actor}."
+            if reason:
+                msg += f" Reason: {reason}"
+            create_notification(
+                recipient=u,
+                title=f"Expense Claim {status}: {emp_name}",
+                message=msg,
+                notification_type=f'expense_claim_{status}',
+                link='/portal/expenses/',
+            )
+    except Exception as e:
+        hrm_logger.error(f"Expense claim {status} notification error: {e}")
+
+
+def notify_expense_claim_approved(event):
+    notify_expense_claim_decided(event, approved=True)
+
+
+def notify_expense_claim_rejected(event):
+    notify_expense_claim_decided(event, approved=False)
 
 
 def init_event_subscribers():
-    event_bus.subscribe('workflow.transition', notify_workflow_event)
     event_bus.subscribe('leave.applied', notify_leave_applied)
-    event_bus.subscribe('performance.review_assigned', notify_performance_review)
+    event_bus.subscribe('leave.approved', notify_leave_approved)
+    event_bus.subscribe('leave.rejected', notify_leave_rejected)
+    event_bus.subscribe('advance_salary.applied', notify_advance_salary_applied)
+    event_bus.subscribe('advance_salary.approved', notify_advance_salary_approved)
+    event_bus.subscribe('advance_salary.rejected', notify_advance_salary_rejected)
+    event_bus.subscribe('expense_claim.approved', notify_expense_claim_approved)
+    event_bus.subscribe('expense_claim.rejected', notify_expense_claim_rejected)
     hrm_logger.info("Notification event subscribers initialized")

@@ -83,7 +83,7 @@ def employee_portal_access(view_func):
       - Unauthenticated users -> redirect to login
       - Superusers/staff bypass (ERP admins can preview)
       - Regular users must have a linked employee record via registry.Person
-      - Injects `employee_data` (dict from Firestore) into kwargs
+      - Injects `emp_obj` (hrm.models.Employee instance) and `employee_data` (dict) into kwargs
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
@@ -94,26 +94,36 @@ def employee_portal_access(view_func):
         person = lookup_person_by_auth_user(request.user)
         if not person or not person.firestore_employee_id:
             if request.user.is_superuser or request.user.is_staff:
-                # Staff can preview portal without employee link
                 kwargs['employee_data'] = None
+                kwargs['emp_obj'] = None
                 return view_func(request, *args, **kwargs)
             return render(request, 'erp/403.html', {
                 'module': 'Employee Portal',
                 'module_display': 'Employee Portal',
             }, status=403)
 
+        emp_obj = None
+        employee_data = None
         try:
             from config.firebase import db
             doc = db.collection('hrm_employees').document(person.firestore_employee_id).get()
             if doc.exists:
-                emp_data = doc.to_dict()
-                emp_data['id'] = doc.id
-                kwargs['employee_data'] = emp_data
-            else:
-                kwargs['employee_data'] = None
-        except Exception:
-            kwargs['employee_data'] = None
+                employee_data = doc.to_dict()
+                employee_data['id'] = doc.id
 
+            from hrm.models import Employee
+            email = employee_data.get('email', '') if employee_data else ''
+            if email:
+                emp_obj = Employee.objects.filter(email=email).first()
+            if not emp_obj and employee_data:
+                emp_obj = Employee.objects.filter(
+                    firestore_id=person.firestore_employee_id
+                ).first()
+        except Exception:
+            pass
+
+        kwargs['employee_data'] = employee_data
+        kwargs['emp_obj'] = emp_obj
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 

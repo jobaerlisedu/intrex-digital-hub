@@ -66,7 +66,7 @@
         .portal-nav a:hover, .portal-nav a.active { background: rgba(33, 92, 92, 0.08); color: var(--accent-color); }
         .portal-nav a.active { font-weight: 600; }
 
-        .portal-user-area { display: flex; align-items: center; gap: 16px; }
+        .portal-user-area { display: flex; align-items: center; gap: 12px; }
         .portal-user-area .avatar {
             width: 34px; height: 34px; border-radius: 50%;
             background: var(--accent-color); color: #fff;
@@ -76,6 +76,58 @@
         .portal-content { max-width: 1400px; margin: 0 auto; padding: 24px; }
 
         .hamburger { display: none; background: none; border: none; font-size: 1.4rem; color: var(--text-primary); cursor: pointer; padding: 4px; }
+
+        .notif-bell-wrap { position:relative; }
+        .notif-bell-btn {
+            background:none; border:none; cursor:pointer; padding:8px; border-radius:50%;
+            color:var(--text-secondary); font-size:1.2rem; position:relative; transition:all .2s;
+            display:flex; align-items:center; justify-content:center; font-family:inherit;
+        }
+        .notif-bell-btn:hover { background:rgba(33,92,92,.08); color:var(--accent-color); }
+        .notif-badge {
+            position:absolute; top:2px; right:2px; min-width:16px; height:16px;
+            border-radius:8px; background:var(--color-danger); color:#fff;
+            font-size:.6rem; font-weight:700; display:flex; align-items:center; justify-content:center;
+            padding:0 4px; line-height:1; pointer-events:none;
+        }
+        .notif-badge.hidden { display:none; }
+        .notif-dropdown {
+            position:absolute; top:calc(100% + 8px); right:-8px; width:360px;
+            background:#fff; border:1px solid var(--sidebar-border); border-radius:12px;
+            box-shadow:0 8px 32px rgba(0,0,0,.1); z-index:2000; overflow:hidden;
+            opacity:0; visibility:hidden; transform:translateY(-4px); transition:all .2s;
+        }
+        .notif-dropdown.open { opacity:1; visibility:visible; transform:translateY(0); }
+        .notif-dd-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 16px 10px; border-bottom:1px solid var(--sidebar-border);
+            font-size:.85rem; font-weight:600; color:var(--text-primary);
+        }
+        .notif-dd-header span { color:var(--text-secondary); font-weight:400; font-size:.78rem; }
+        .notif-dd-list { max-height:320px; overflow-y:auto; }
+        .notif-dd-item {
+            display:flex; gap:12px; padding:12px 16px; text-decoration:none;
+            color:var(--text-primary); transition:background .15s; align-items:flex-start;
+            border-bottom:1px solid var(--sidebar-border);
+        }
+        .notif-dd-item:last-child { border-bottom:none; }
+        .notif-dd-item:hover { background:var(--bg-color); }
+        .notif-dd-item.unread { background:#f6fbfb; }
+        .notif-dd-icon {
+            width:32px; height:32px; border-radius:8px; display:flex;
+            align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0;
+        }
+        .notif-dd-body { flex:1; min-width:0; }
+        .notif-dd-title { font-size:.82rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .notif-dd-msg { font-size:.75rem; color:var(--text-secondary); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .notif-dd-time { font-size:.68rem; color:var(--text-secondary); margin-top:2px; opacity:.7; }
+        .notif-dd-footer { padding:10px 16px; text-align:center; border-top:1px solid var(--sidebar-border); }
+        .notif-dd-footer a {
+            font-size:.82rem; font-weight:600; color:var(--accent-color); text-decoration:none;
+        }
+        .notif-dd-footer a:hover { text-decoration:underline; }
+        .notif-dd-empty { text-align:center; padding:40px 20px; color:var(--text-secondary); font-size:.85rem; }
+        .notif-dd-empty i { font-size:1.8rem; opacity:.3; margin-bottom:8px; }
 
         @media (max-width: 1024px) {
             .portal-nav { display: none; }
@@ -116,18 +168,56 @@
             </button>
 
             <nav class="portal-nav" id="portalNav">
-                <a href="{% url 'portal:dashboard' %}" class="{% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a>
-                <a href="{% url 'portal:profile' %}" class="{% if request.resolver_match.url_name == 'portal_profile' %}active{% endif %}"><i class="fa-solid fa-user"></i> Profile</a>
-                <a href="{% url 'portal:attendance' %}" class="{% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> Attendance</a>
-                <a href="{% url 'portal:leave' %}" class="{% if request.resolver_match.url_name == 'portal_leave' %}active{% endif %}"><i class="fa-regular fa-calendar-check"></i> Leave</a>
-                <a href="{% url 'portal:payslips' %}" class="{% if request.resolver_match.url_name == 'portal_payslips' %}active{% endif %}"><i class="fa-solid fa-wallet"></i> Payslips</a>
-                <a href="{% url 'portal:performance' %}" class="{% if request.resolver_match.url_name == 'portal_performance' %}active{% endif %}"><i class="fa-regular fa-star"></i> Performance</a>
-                <a href="{% url 'portal:documents' %}" class="{% if request.resolver_match.url_name == 'portal_documents' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> Documents</a>
-                <a href="{% url 'portal:training' %}" class="{% if request.resolver_match.url_name == 'portal_training_catalog' %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Training</a>
+                <a href="{% url 'portal:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+                <a href="{% url 'portal:profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}"><i class="fa-solid fa-user"></i> Profile</a>
+                <a href="{% url 'portal:attendance' %}" class="{% if request.resolver_match.url_name == 'attendance' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> Attendance</a>
+                <a href="{% url 'portal:roster' %}" class="{% if request.resolver_match.url_name == 'roster' %}active{% endif %}"><i class="fa-solid fa-calendar-days"></i> Roster</a>
+                <a href="{% url 'portal:leave' %}" class="{% if request.resolver_match.url_name == 'leave' %}active{% endif %}"><i class="fa-regular fa-calendar-check"></i> Leave</a>
+                <a href="{% url 'portal:payslips' %}" class="{% if request.resolver_match.url_name == 'payslips' %}active{% endif %}"><i class="fa-solid fa-wallet"></i> Payslips</a>
+                <a href="{% url 'portal:advance_salary' %}" class="{% if request.resolver_match.url_name == 'advance_salary' %}active{% endif %}"><i class="fa-solid fa-hand-holding-dollar"></i> Advance</a>
+                <a href="{% url 'portal:performance' %}" class="{% if request.resolver_match.url_name == 'performance' %}active{% endif %}"><i class="fa-regular fa-star"></i> Performance</a>
+                <a href="{% url 'portal:documents' %}" class="{% if request.resolver_match.url_name == 'documents' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> Documents</a>
+                <a href="{% url 'portal:training_catalog' %}" class="{% if request.resolver_match.url_name == 'training_catalog' %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Training</a>
+                {% if emp_obj.direct_reports.all %}
+                <a href="{% url 'portal:approvals' %}" class="{% if request.resolver_match.url_name == 'approvals' %}active{% endif %}"><i class="fa-solid fa-check-double"></i> Approvals</a>
+                {% endif %}
             </nav>
 
             <div class="portal-user-area">
-                <span style="font-size:0.85rem;color:var(--text-secondary);display:none;">{{ request.user.username }}</span>
+                <div class="notif-bell-wrap">
+                    <button class="notif-bell-btn" id="notifBellBtn" aria-label="Notifications" title="Notifications">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notif-badge {% if portal_unread_count == 0 %}hidden{% endif %}" id="notifBadge">{{ portal_unread_count }}</span>
+                    </button>
+                    <div class="notif-dropdown" id="notifDropdown">
+                        <div class="notif-dd-header">
+                            Notifications
+                            <span>{{ portal_unread_count }} unread</span>
+                        </div>
+                        <div class="notif-dd-list">
+                            {% for n in portal_recent_notifications %}
+                            <a href="{{ n.link|default:'#' }}" class="notif-dd-item {% if not n.is_read %}unread{% endif %}">
+                                <div class="notif-dd-icon" style="background:{% if 'leave' in n.notification_type %}{% if 'approved' in n.notification_type %}#ecfdf5;color:#065f46{% elif 'rejected' in n.notification_type %}#fef2f2;color:#991b1b{% else %}#fffbeb;color:#92400e{% endif %}{% elif 'advance' in n.notification_type %}#eff6ff;color:#1e40af{% elif 'expense' in n.notification_type %}#f0fdf4;color:#166534{% else %}rgba(33,92,92,.1);color:var(--accent-color){% endif %}">
+                                    <i class="fa-{% if 'leave' in n.notification_type %}regular fa-calendar-check{% elif 'advance' in n.notification_type %}solid fa-hand-holding-dollar{% elif 'expense' in n.notification_type %}solid fa-receipt{% elif 'review' in n.notification_type %}regular fa-star{% else %}regular fa-bell{% endif %}"></i>
+                                </div>
+                                <div class="notif-dd-body">
+                                    <div class="notif-dd-title">{{ n.title }}</div>
+                                    <div class="notif-dd-msg">{{ n.message }}</div>
+                                    <div class="notif-dd-time">{{ n.created_at|date:"M d, H:i" }}</div>
+                                </div>
+                            </a>
+                            {% empty %}
+                            <div class="notif-dd-empty">
+                                <i class="fa-regular fa-bell-slash"></i>
+                                <div>No notifications yet</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="notif-dd-footer">
+                            <a href="{% url 'portal:notifications' %}">View All Notifications <i class="fa-solid fa-arrow-right" style="font-size:.65rem;"></i></a>
+                        </div>
+                    </div>
+                </div>
                 <div class="avatar">{{ request.user.username|first|upper }}</div>
                 <form action="{% url 'logout' %}" method="post" style="margin:0;">
                     {% csrf_token %}
@@ -163,6 +253,42 @@
         document.querySelectorAll('.alert-close-btn').forEach(function(btn) {
             btn.addEventListener('click', function() { this.parentElement.style.display = 'none'; });
         });
+
+        var notifBtn = document.getElementById('notifBellBtn');
+        var notifDrop = document.getElementById('notifDropdown');
+        if (notifBtn && notifDrop) {
+            notifBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                notifDrop.classList.toggle('open');
+            });
+            document.addEventListener('click', function(e) {
+                if (!notifBtn.contains(e.target) && !notifDrop.contains(e.target)) {
+                    notifDrop.classList.remove('open');
+                }
+            });
+        }
+
+        function pollNotifCount() {
+            var badge = document.getElementById('notifBadge');
+            if (!badge) return;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/hrm/notifications/unread-count/', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    } catch(e) {}
+                }
+            };
+            xhr.send();
+        }
+        setInterval(pollNotifCount, 30000);
     </script>
     {% block extra_js %}{% endblock %}
 </body>

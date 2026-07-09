@@ -18,6 +18,7 @@
 <div class="doc-layout">
   <div class="doc-card">
     <h3><i class="fa-solid fa-file" style="color:var(--accent-color);"></i> My Documents</h3>
+    {% if documents %}
     <table class="data-table">
       <thead>
         <tr><th>Document Type</th><th>Document Number</th><th>Expiry</th></tr>
@@ -27,17 +28,19 @@
         <tr>
           <td><strong>{{ doc.document_type }}</strong></td>
           <td>{{ doc.document_number|default:'-' }}</td>
-          <td>{{ doc.expiry_date|default:'N/A' }}</td>
+          <td>{{ doc.expiry_date|date:"M d, Y"|default:'N/A' }}</td>
         </tr>
-        {% empty %}
-        <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-secondary);">No documents on record.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <p style="color:var(--text-secondary);font-size:.88rem;padding:20px 0;text-align:center;">No documents on record.</p>
+    {% endif %}
   </div>
 
   <div class="doc-card">
     <h3><i class="fa-solid fa-laptop" style="color:var(--accent-color);"></i> Assigned Assets</h3>
+    {% if assets %}
     <table class="data-table">
       <thead>
         <tr><th>Asset Name</th><th>Asset Tag</th><th>Serial Number</th><th>Status</th></tr>
@@ -50,11 +53,12 @@
           <td>{{ asset.serial_number|default:'-' }}</td>
           <td><span class="badge info">{{ asset.status }}</span></td>
         </tr>
-        {% empty %}
-        <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">No assets assigned.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <p style="color:var(--text-secondary);font-size:.88rem;padding:20px 0;text-align:center;">No assets assigned.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

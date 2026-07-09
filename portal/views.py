@@ -1,101 +1,84 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 from django.contrib import messages
-from django.utils import timezone
-from config.firebase import db
-from google.cloud import firestore
+from datetime import date, datetime, timedelta
+from django.db.models import Q, Sum as SumAgg
+
 from accounts.decorators import employee_portal_access
 from config.logger import hrm_logger
-from config.services.integration_service import IntegrationService
-import random
-from datetime import datetime, date
-from django.db.models import Q
+from config.services.event_bus import event_bus
 
-
-def _get_collection(collection_name, order_field='createdAt', descending=True):
-    try:
-        direction = firestore.Query.DESCENDING if descending else firestore.Query.ASCENDING
-        docs = db.collection(collection_name).order_by(order_field, direction=direction).stream()
-        results = []
-        for doc in docs:
-            item = doc.to_dict()
-            item['id'] = doc.id
-            results.append(item)
-        return results
-    except Exception as e:
-        hrm_logger.error(f"Error fetching {collection_name}: {e}")
-        return []
+from hrm.models import (
+    Employee, Leave, LeaveBalance, Holiday,
+    Attendance, PerformanceReview, PerformanceImprovementPlan,
+    Document, Asset, PayrollEmployee, AdvanceSalary, ExpenseClaim, EmployeeShift,
+    TrainingNeed, DevelopmentPlan, TrainingNomination,
+    Notification, NotificationPreference,
+    KeyPosition, SuccessorCandidate, SuccessionPlan,
+    EmployeeEducation, EmployeeExperience, EmployeeSkill,
+    Competency, CompetencyRating,
+    FeedbackRequest, FeedbackResponse, FeedbackQuestion,
+    EngagementSurvey, SurveyResponse,
+    ComplianceReminder, TalentReviewMeeting, NineBoxCell,
+)
 
 
 @employee_portal_access
-def dashboard(request, employee_data):
-    if not employee_data:
+def dashboard(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
     try:
-        emp_name = employee_data.get('name', '')
+        today = date.today()
+        month_start = today.replace(day=1)
 
         # Attendance this month
-        today = date.today()
-        month_prefix = today.strftime('%Y-%m')
-        att_docs = db.collection('hrm_attendance').where('name', '==', emp_name).stream()
-        present_count = 0
-        absent_count = 0
-        late_count = 0
-        for doc in att_docs:
-            d = doc.to_dict()
-            if d.get('date', '').startswith(month_prefix):
-                status = d.get('status', '')
-                if status == 'Present':
-                    present_count += 1
-                elif status == 'Absent':
-                    absent_count += 1
-                elif status == 'Late':
-                    late_count += 1
+        month_attendance = Attendance.objects.filter(
+            employee=emp_obj, date__gte=month_start, date__lte=today
+        )
+        present_count = month_attendance.filter(status='Present').count()
+        absent_count = month_attendance.filter(status='Absent').count()
+        late_count = month_attendance.filter(status='Late').count()
 
         # Pending leave requests
-        pending_leaves = sum(1 for lv in db.collection('hrm_leaves')
-                             .where('name', '==', emp_name)
-                             .where('status', '==', 'Pending').stream())
+        pending_leaves = Leave.objects.filter(
+            employee=emp_obj, status='Pending', is_active=True
+        ).count()
 
         # Performance reviews
-        total_reviews = sum(1 for rv in db.collection('hrm_performance_reviews')
-                            .where('employee', '==', emp_name).stream())
+        total_reviews = PerformanceReview.objects.filter(
+            employee=emp_obj, is_active=True
+        ).count()
 
         # Recent leaves
-        leave_docs = db.collection('hrm_leaves') \
-            .where('name', '==', emp_name) \
-            .order_by('createdAt', direction=firestore.Query.DESCENDING) \
-            .limit(5).stream()
-        recent_leaves = []
-        for doc in leave_docs:
-            d = doc.to_dict()
-            d['id'] = doc.id
-            recent_leaves.append(d)
+        recent_leaves = Leave.objects.filter(
+            employee=emp_obj, is_active=True
+        ).order_by('-from_date')[:5]
 
         # Upcoming holidays
-        holiday_docs = db.collection('hrm_holidays').stream()
-        today_str = today.isoformat()
-        upcoming_holidays = []
-        for doc in holiday_docs:
-            d = doc.to_dict()
-            if d.get('from_date', '') >= today_str:
-                d['id'] = doc.id
-                upcoming_holidays.append(d)
-        upcoming_holidays = sorted(upcoming_holidays, key=lambda h: h.get('from_date', ''))[:5]
+        upcoming_holidays = Holiday.objects.filter(
+            from_date__gte=today, is_active=True
+        ).order_by('from_date')[:5]
 
-        # Leave balance
-        from hrm.models import Employee as SQLEmployee, LeaveBalance
-        emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
-        balances = LeaveBalance.objects.filter(employee=emp_obj, is_active=True) if emp_obj else []
+        # Leave balances
+        balances = LeaveBalance.objects.filter(
+            employee=emp_obj, is_active=True
+        )
+
+        # Today's attendance for check-in/check-out
+        today_attendance = Attendance.objects.filter(
+            employee=emp_obj, date=today
+        ).first()
 
     except Exception as e:
         hrm_logger.error(f"Portal dashboard error: {e}")
-        present_count = absent_count = late_count = pending_leaves = total_reviews = 0
+        present_count = absent_count = late_count = 0
+        pending_leaves = total_reviews = 0
         recent_leaves = upcoming_holidays = balances = []
+        today_attendance = None
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'present_count': present_count,
         'absent_count': absent_count,
         'late_count': late_count,
@@ -104,30 +87,53 @@ def dashboard(request, employee_data):
         'recent_leaves': recent_leaves,
         'upcoming_holidays': upcoming_holidays,
         'balances': balances,
+        'today_attendance': today_attendance,
     }
     return render(request, 'portal/dashboard.html', context)
 
 
 @employee_portal_access
-def profile(request, employee_data):
+def profile(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
 
     if request.method == 'POST':
         try:
+            from config.firebase import db
             doc_id = employee_data.get('id')
             updates = {}
-            fields = ['phone', 'alt_phone', 'city', 'zip',
-                      'ec_primary_name', 'ec_primary_relation', 'ec_primary_mobile',
-                      'ec_secondary_name', 'ec_secondary_relation', 'ec_secondary_mobile']
+            fields = [
+                'phone', 'alt_phone', 'city', 'zip',
+                'ec_primary_name', 'ec_primary_relation', 'ec_primary_mobile',
+                'ec_secondary_name', 'ec_secondary_relation', 'ec_secondary_mobile',
+            ]
             for f in fields:
                 val = request.POST.get(f, '').strip()
                 if val:
                     updates[f] = val
-            if updates:
+            if updates and doc_id:
                 db.collection('hrm_employees').document(doc_id).update(updates)
+                # Dual-write to Django ORM
+                orm_fields = {
+                    'phone': 'phone',
+                    'alt_phone': 'alt_phone',
+                    'city': 'city',
+                    'zip': 'zip',
+                    'ec_primary_name': 'ec_primary_name',
+                    'ec_primary_relation': 'ec_primary_relation',
+                    'ec_primary_mobile': 'ec_primary_mobile',
+                    'ec_secondary_name': 'ec_secondary_name',
+                    'ec_secondary_relation': 'ec_secondary_relation',
+                    'ec_secondary_mobile': 'ec_secondary_mobile',
+                }
+                orm_changed = False
+                for post_key, orm_attr in orm_fields.items():
+                    if post_key in updates:
+                        setattr(emp_obj, orm_attr, updates[post_key])
+                        orm_changed = True
+                if orm_changed:
+                    emp_obj.save(update_fields=list(orm_fields.values()))
                 messages.success(request, "Profile updated successfully.")
-                # Re-fetch to show updated data
                 doc = db.collection('hrm_employees').document(doc_id).get()
                 if doc.exists:
                     employee_data = doc.to_dict()
@@ -137,105 +143,283 @@ def profile(request, employee_data):
             messages.error(request, "Failed to update profile.")
         return redirect('portal:profile')
 
-    context = {'employee': employee_data}
+    context = {'employee': employee_data, 'emp_obj': emp_obj}
     return render(request, 'portal/profile.html', context)
 
 
 @employee_portal_access
-def attendance(request, employee_data):
-    if not employee_data:
+def attendance(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    emp_name = employee_data.get('name', '')
-    logs = _get_collection('hrm_attendance')
-    my_logs = [l for l in logs if l.get('name') == emp_name]
+    today = date.today()
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+        if action in ('check_in', 'check_out'):
+            now = datetime.now()
+            att = Attendance.objects.filter(employee=emp_obj, date=today).first()
+            if action == 'check_in':
+                if att and att.check_in:
+                    messages.warning(request, 'You have already checked in today.')
+                else:
+                    if not att:
+                        att = Attendance(employee=emp_obj, date=today, status='Present')
+                    att.check_in = now.time()
+                    att.save()
+                    messages.success(request, f'Checked in at {now.strftime("%H:%M")}.')
+            elif action == 'check_out':
+                if not att or not att.check_in:
+                    messages.error(request, 'You must check in first.')
+                elif att.check_out:
+                    messages.warning(request, 'You have already checked out today.')
+                else:
+                    att.check_out = now.time()
+                    att.save()
+                    messages.success(request, f'Checked out at {now.strftime("%H:%M")}.')
+        return redirect('portal:attendance')
+    month_param = request.GET.get('month', '')
+
+    if month_param:
+        try:
+            year, mon = month_param.split('-')
+            month_start = date(int(year), int(mon), 1)
+        except (ValueError, IndexError):
+            month_start = today.replace(day=1)
+    else:
+        month_start = today.replace(day=1)
+
+    if month_start.month == 12:
+        month_end = date(month_start.year + 1, 1, 1)
+        next_month = month_end
+    else:
+        month_end = date(month_start.year, month_start.month + 1, 1)
+    prev_month = date(month_start.year, month_start.month - 1, 1) if month_start.month > 1 else date(month_start.year - 1, 12, 1)
+
+    logs = Attendance.objects.filter(
+        employee=emp_obj, is_active=True,
+        date__gte=month_start, date__lt=month_end,
+    ).order_by('-date')
+
+    month_label = month_start.strftime('%B %Y')
+
+    # Stats for the month
+    present_count = sum(1 for l in logs if l.status == 'Present')
+    absent_count = sum(1 for l in logs if l.status == 'Absent')
+    late_count = sum(1 for l in logs if l.status == 'Late')
 
     context = {
         'employee': employee_data,
-        'logs': my_logs,
+        'emp_obj': emp_obj,
+        'logs': logs,
+        'month_start': month_start,
+        'month_label': month_label,
+        'prev_month': prev_month.strftime('%Y-%m'),
+        'next_month': next_month.strftime('%Y-%m'),
+        'present_count': present_count,
+        'absent_count': absent_count,
+        'late_count': late_count,
     }
     return render(request, 'portal/attendance.html', context)
 
 
 @employee_portal_access
-def leave(request, employee_data):
-    if not employee_data:
+def roster(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    emp_name = employee_data.get('name', '')
-    emp_email = employee_data.get('email', '')
+    today = date.today()
+    week_param = request.GET.get('week', '')
+
+    if week_param:
+        try:
+            week_start = date.fromisoformat(week_param)
+        except ValueError:
+            week_start = today
+    else:
+        week_start = today
+
+    # Snap to Monday
+    week_start = week_start - timedelta(days=week_start.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    # Build day-by-day data
+    week_days = []
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        shift = EmployeeShift.objects.filter(
+            employee=emp_obj, is_active=True,
+            start_date__lte=day,
+        ).filter(
+            Q(end_date__gte=day) | Q(end_date__isnull=True)
+        ).first()
+        att = Attendance.objects.filter(employee=emp_obj, date=day).first()
+        week_days.append({
+            'date': day,
+            'is_today': day == today,
+            'is_past': day < today,
+            'shift_name': shift.shift_name if shift else None,
+            'check_in': att.check_in if att else None,
+            'check_out': att.check_out if att else None,
+            'status': att.status if att else None,
+        })
+
+    prev_week = week_start - timedelta(days=7)
+    next_week = week_start + timedelta(days=7)
+
+    # Current active shift
+    current_shift = EmployeeShift.objects.filter(
+        employee=emp_obj, is_active=True,
+        start_date__lte=today,
+    ).filter(
+        Q(end_date__gte=today) | Q(end_date__isnull=True)
+    ).first()
+
+    # Upcoming shifts
+    upcoming_shifts = EmployeeShift.objects.filter(
+        employee=emp_obj, is_active=True,
+        start_date__gt=today,
+    ).order_by('start_date')[:5]
+
+    context = {
+        'employee': employee_data,
+        'emp_obj': emp_obj,
+        'week_days': week_days,
+        'week_start': week_start,
+        'week_end': week_end,
+        'prev_week': prev_week.isoformat(),
+        'next_week': next_week.isoformat(),
+        'current_shift': current_shift,
+        'upcoming_shifts': upcoming_shifts,
+    }
+    return render(request, 'portal/roster.html', context)
+
+
+@employee_portal_access
+def leave(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
+        return redirect('portal_login')
 
     if request.method == 'POST':
         action = request.POST.get('action')
 
         if action == 'apply_leave':
             try:
-                from_date = request.POST.get('from_date', '')
-                to_date = request.POST.get('to_date', '')
+                from_date_str = request.POST.get('from_date', '')
+                to_date_str = request.POST.get('to_date', '')
                 leave_type = request.POST.get('leave_type', '')
                 reason = request.POST.get('reason', '')
 
-                try:
-                    fd = date.fromisoformat(from_date)
-                    td = date.fromisoformat(to_date)
-                    days = (td - fd).days + 1
-                    duration = f"{days} Day{'s' if days != 1 else ''}"
-                except Exception:
-                    duration = ''
+                fd = date.fromisoformat(from_date_str)
+                td = date.fromisoformat(to_date_str)
+
+                if td < fd:
+                    messages.error(request, "To date must be after from date.")
+                    return redirect('portal:leave')
+
+                days = (td - fd).days + 1
+                duration = f"{days} Day{'s' if days != 1 else ''}"
 
                 # Check leave balance
-                from hrm.models import Employee as SQLEmployee, LeaveBalance
-                emp_obj = SQLEmployee.objects.filter(email=emp_email).first()
-                if emp_obj:
-                    balance = LeaveBalance.objects.filter(
-                        employee=emp_obj, leave_type=leave_type, is_active=True
-                    ).first()
-                    if balance and balance.available <= 0:
-                        messages.error(request, f"Insufficient {leave_type} leave balance.")
-                        return redirect('portal:leave')
+                balance = LeaveBalance.objects.filter(
+                    employee=emp_obj, leave_type=leave_type, is_active=True
+                ).first()
+                if balance and days > balance.available:
+                    messages.error(request, f"Insufficient {leave_type} leave balance. You have {balance.available} day(s) available but requested {days}.")
+                    return redirect('portal:leave')
 
-                _, new_ref = db.collection('hrm_leaves').add({
-                    'name': emp_name,
-                    'type': leave_type,
-                    'from_date': from_date,
-                    'to_date': to_date,
-                    'duration': duration,
-                    'reason': reason,
-                    'status': 'Pending',
-                    'createdAt': firestore.SERVER_TIMESTAMP,
-                })
+                leave_obj = Leave.objects.create(
+                    employee=emp_obj,
+                    leave_type=leave_type,
+                    from_date=fd,
+                    to_date=td,
+                    duration=duration,
+                    reason=reason,
+                    status='Pending',
+                    created_by=request.user,
+                )
+
+                # Update pending count on balance
+                if balance:
+                    balance.pending = balance.pending + days
+                    balance.save()
+
+                # Handle medical certificate upload for sick leave
+                if leave_type == 'Sick' and request.FILES.get('attachment'):
+                    from hrm.models import Document as HrmDocument
+                    try:
+                        uploaded_file = request.FILES['attachment']
+                        HrmDocument.objects.create(
+                            employee=emp_obj,
+                            document_type='Medical Certificate',
+                            document_number=str(leave_obj.id),
+                            file=uploaded_file,
+                            is_active=True,
+                        )
+                    except Exception as e:
+                        hrm_logger.error(f"Medical certificate upload error: {e}")
+
+                # Fire notification event
+                try:
+                    event_bus.publish('leave.applied', {
+                        'employee_name': employee_data.get('name', ''),
+                        'employee_email': emp_obj.email or '',
+                        'leave_type': leave_type,
+                        'duration': duration,
+                        'doc_id': str(leave_obj.id),
+                        'applied_by': request.user.username,
+                    })
+                except Exception:
+                    pass
+
                 messages.success(request, "Leave request submitted successfully.")
             except Exception as e:
                 hrm_logger.error(f"Portal leave apply error: {e}")
                 messages.error(request, "Failed to submit leave request.")
 
         elif action == 'cancel_leave':
-            doc_id = request.POST.get('doc_id')
-            if doc_id:
+            leave_id = request.POST.get('leave_id')
+            if leave_id:
                 try:
-                    doc = db.collection('hrm_leaves').document(doc_id).get()
-                    if doc.exists and doc.to_dict().get('name') == emp_name and doc.to_dict().get('status') == 'Pending':
-                        db.collection('hrm_leaves').document(doc_id).delete()
-                        messages.success(request, "Leave request cancelled.")
+                    leave_obj = Leave.objects.get(
+                        id=leave_id, employee=emp_obj, status='Pending', is_active=True
+                    )
+                    requested_days = (leave_obj.to_date - leave_obj.from_date).days + 1
+                    balance = LeaveBalance.objects.filter(
+                        employee=emp_obj, leave_type=leave_obj.leave_type, is_active=True
+                    ).first()
+                    if balance:
+                        balance.pending = max(0, balance.pending - requested_days)
+                        balance.save()
+                    leave_obj.is_active = False
+                    leave_obj.save()
+                    messages.success(request, "Leave request cancelled.")
+                except Leave.DoesNotExist:
+                    messages.error(request, "Leave request not found or already processed.")
                 except Exception as e:
                     hrm_logger.error(f"Portal leave cancel error: {e}")
+                    messages.error(request, "Failed to cancel leave.")
 
         return redirect('portal:leave')
 
-    my_leaves = _get_collection('hrm_leaves')
-    my_leaves = [l for l in my_leaves if l.get('name') == emp_name]
+    my_leaves = Leave.objects.filter(employee=emp_obj, is_active=True).order_by('-from_date')
+    holidays = Holiday.objects.filter(is_active=True).order_by('from_date')
+    balances = LeaveBalance.objects.filter(employee=emp_obj, is_active=True)
 
-    holidays = _get_collection('hrm_holidays')
-
-    # Get leave balances from Django ORM
-    from hrm.models import Employee as SQLEmployee, LeaveBalance
-    emp_obj = SQLEmployee.objects.filter(email=emp_email).first()
-    balances = []
-    if emp_obj:
-        balances = LeaveBalance.objects.filter(employee=emp_obj, is_active=True)
+    # Annotate leaves with their medical certificate attachment
+    from hrm.models import Document as HrmDocument
+    leave_ids_list = [str(lv.id) for lv in my_leaves]
+    all_attachments = HrmDocument.objects.filter(
+        employee=emp_obj, document_type='Medical Certificate',
+        document_number__in=leave_ids_list, is_active=True
+    )
+    att_map = {doc.document_number: doc for doc in all_attachments}
+    for lv in my_leaves:
+        lv._attachment = att_map.get(str(lv.id))
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'leaves': my_leaves,
         'holidays': holidays,
         'balances': balances,
@@ -244,77 +428,205 @@ def leave(request, employee_data):
 
 
 @employee_portal_access
-def payslips(request, employee_data):
-    if not employee_data:
+def payslips(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    emp_name = employee_data.get('name', '')
-    payrolls = _get_collection('hrm_payrolls')
+    # Get all available periods for the filter dropdown
+    all_periods = PayrollEmployee.objects.filter(
+        employee=emp_obj
+    ).select_related('payroll').values_list(
+        'payroll__period', flat=True
+    ).distinct().order_by('-payroll__period')
+
+    period = request.GET.get('period', '')
+
+    base_qs = PayrollEmployee.objects.filter(employee=emp_obj).select_related('payroll')
+    if period:
+        base_qs = base_qs.filter(payroll__period=period)
+
+    entries = base_qs.order_by('-payroll__created_at')
+
+    # Enrich each entry with advance deductions for the same period
+    enriched = []
+    for e in entries:
+        advance_deductions = AdvanceSalary.objects.filter(
+            employee=emp_obj,
+            deduct_month=e.payroll.period,
+            status='Deducted',
+            is_active=True,
+        ).aggregate(total=SumAgg('amount'))['total'] or 0
+        enriched.append({
+            'entry': e,
+            'advance_deduction': advance_deductions,
+        })
 
     context = {
         'employee': employee_data,
-        'payrolls': payrolls,
+        'emp_obj': emp_obj,
+        'entries': enriched,
+        'all_periods': all_periods,
+        'selected_period': period,
     }
     return render(request, 'portal/payslips.html', context)
 
 
 @employee_portal_access
-def performance(request, employee_data):
-    if not employee_data:
+def advance_salary(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    emp_name = employee_data.get('name', '')
+    # Tenure-based eligibility
+    from dateutil.relativedelta import relativedelta
+    today = date.today()
+    joining = emp_obj.joining_date
+    if joining:
+        tenure_months = (today.year - joining.year) * 12 + (today.month - joining.month)
+        if tenure_months < 6:
+            tenure_limit_pct = 0
+        elif tenure_months < 12:
+            tenure_limit_pct = 0.25
+        elif tenure_months < 24:
+            tenure_limit_pct = 0.35
+        else:
+            tenure_limit_pct = 0.50
+    else:
+        tenure_limit_pct = 0.50
+
+    max_amount = float(emp_obj.basic_salary or 0) * tenure_limit_pct
+    has_pending = AdvanceSalary.objects.filter(
+        employee=emp_obj, status='Pending', is_active=True
+    ).exists()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'apply_advance':
+            try:
+                amount = request.POST.get('amount', '')
+                deduct_month = request.POST.get('deduct_month', '')
+                reason = request.POST.get('reason', '')
+
+                if not amount or not deduct_month:
+                    messages.error(request, "Amount and deduction month are required.")
+                    return redirect('portal:advance_salary')
+
+                amount_val = float(amount)
+                if amount_val <= 0:
+                    messages.error(request, "Amount must be greater than zero.")
+                    return redirect('portal:advance_salary')
+
+                if amount_val > max_amount:
+                    messages.error(
+                        request,
+                        f"Maximum advance amount is {max_amount:,.2f} (50% of basic salary)."
+                    )
+                    return redirect('portal:advance_salary')
+
+                if has_pending:
+                    messages.error(request, "You already have a pending advance request.")
+                    return redirect('portal:advance_salary')
+
+                advance = AdvanceSalary.objects.create(
+                    employee=emp_obj,
+                    amount=amount_val,
+                    deduct_month=deduct_month,
+                    reason=reason,
+                    status='Pending',
+                    created_by=request.user,
+                )
+
+                try:
+                    event_bus.publish('advance_salary.applied', {
+                        'employee_name': employee_data.get('name', ''),
+                        'employee_email': emp_obj.email or '',
+                        'amount': str(amount_val),
+                        'deduct_month': deduct_month,
+                        'doc_id': str(advance.id),
+                        'applied_by': request.user.username,
+                    })
+                except Exception:
+                    pass
+
+                messages.success(request, "Advance salary request submitted successfully.")
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid amount. Please enter a valid number.")
+            except Exception as e:
+                hrm_logger.error(f"Portal advance salary error: {e}")
+                messages.error(request, "Failed to submit advance request.")
+        return redirect('portal:advance_salary')
+
+    my_advances = AdvanceSalary.objects.filter(
+        employee=emp_obj, is_active=True
+    ).order_by('-created_at')
+
+    context = {
+        'employee': employee_data,
+        'emp_obj': emp_obj,
+        'advances': my_advances,
+        'max_amount': max_amount,
+        'has_pending': has_pending,
+        'next_month': date.today().replace(day=1),
+    }
+    return render(request, 'portal/advance_salary.html', context)
+
+
+@employee_portal_access
+def performance(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
+        return redirect('portal_login')
 
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'submit_self_assessment':
             try:
-                doc_id = request.POST.get('doc_id')
+                review_id = request.POST.get('review_id')
                 strengths = request.POST.get('strengths', '')
                 improvements = request.POST.get('improvements', '')
                 goals = request.POST.get('goals', '')
-                if doc_id:
-                    db.collection('hrm_performance_reviews').document(doc_id).update({
-                        'strengths': strengths,
-                        'improvements': improvements,
-                        'goals': goals,
-                        'status': 'Manager-Review',
-                    })
+                if review_id:
+                    PerformanceReview.objects.filter(
+                        id=review_id, employee=emp_obj, status='Self-Assessment'
+                    ).update(
+                        strengths=strengths,
+                        improvements=improvements,
+                        goals=goals,
+                        status='Manager-Review',
+                    )
                     messages.success(request, "Self-assessment submitted successfully.")
             except Exception as e:
                 hrm_logger.error(f"Portal self-assessment error: {e}")
                 messages.error(request, "Failed to submit self-assessment.")
         return redirect('portal:performance')
 
-    reviews = _get_collection('hrm_performance_reviews')
-    my_reviews = [r for r in reviews if r.get('employee') == emp_name]
+    reviews = PerformanceReview.objects.filter(
+        employee=emp_obj, is_active=True
+    ).select_related('review_cycle', 'reviewer').order_by('-created_at')
 
-    pips_data = _get_collection('hrm_pips')
-    my_pips = [p for p in pips_data if p.get('employee') == emp_name]
+    pips = PerformanceImprovementPlan.objects.filter(
+        employee=emp_obj, is_active=True
+    ).order_by('-created_at')
 
     context = {
         'employee': employee_data,
-        'reviews': my_reviews,
-        'pips': my_pips,
+        'emp_obj': emp_obj,
+        'reviews': reviews,
+        'pips': pips,
     }
     return render(request, 'portal/performance.html', context)
 
 
 @employee_portal_access
-def documents(request, employee_data):
-    if not employee_data:
+def documents(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    emp_name = employee_data.get('name', '')
-
-    all_docs = _get_collection('hrm_documents')
-    my_docs = [d for d in all_docs if d.get('employee') == emp_name]
-
-    all_assets = _get_collection('hrm_assets')
-    my_assets = [a for a in all_assets if a.get('employee') == emp_name]
+    my_docs = Document.objects.filter(employee=emp_obj, is_active=True)
+    my_assets = Asset.objects.filter(employee=emp_obj, is_active=True)
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'documents': my_docs,
         'assets': my_assets,
     }
@@ -322,58 +634,47 @@ def documents(request, employee_data):
 
 
 @employee_portal_access
-def training_catalog(request, employee_data):
-    if not employee_data:
+def training_catalog(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
         return redirect('portal_login')
 
-    courses = _get_collection('trn_courses')
-    batches = _get_collection('trn_batches')
-    emp_name = employee_data.get('name', '')
     emp_email = employee_data.get('email', '')
 
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'express_interest':
             try:
-                course_id = request.POST.get('course_id')
-                course_doc = db.collection('trn_courses').document(course_id).get()
-                course_name = course_doc.to_dict().get('title', '') if course_doc.exists else ''
-                db.collection('hrm_training_interests').add({
-                    'employee': emp_name,
-                    'employee_email': emp_email,
-                    'course_name': course_name,
-                    'course_id': course_id,
-                    'status': 'Interested',
-                    'createdAt': firestore.SERVER_TIMESTAMP,
-                })
-                messages.success(request, f"Interest registered for {course_name}.")
+                course_name = request.POST.get('course_name', '')
+                course_provider = request.POST.get('course_provider', '')
+                TrainingNomination.objects.create(
+                    employee=emp_obj,
+                    course_name=course_name or request.POST.get('course_name', 'Training Course'),
+                    provider=course_provider,
+                    status='Nominated',
+                    created_by=request.user,
+                )
+                messages.success(request, f"Interest registered for training.")
             except Exception as e:
                 hrm_logger.error(f"Training interest error: {e}")
                 messages.error(request, "Failed to register interest.")
         return redirect('portal:training_catalog')
 
-    my_nominations = _get_collection('hrm_training_interests')
-    my_nominations = [n for n in my_nominations if n.get('employee') == emp_name]
+    my_nominations = TrainingNomination.objects.filter(
+        employee=emp_obj, is_active=True
+    ).order_by('-created_at')
 
     context = {
         'employee': employee_data,
-        'courses': courses,
-        'batches': batches,
+        'emp_obj': emp_obj,
         'my_nominations': my_nominations,
     }
     return render(request, 'portal/training_catalog.html', context)
 
 
 @employee_portal_access
-def development_plans(request, employee_data):
+def development_plans(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-
-    emp_email = employee_data.get('email', '')
-    emp_name = employee_data.get('name', '')
-
-    from hrm.models import Employee as SQLEmployee, DevelopmentPlan, TrainingNeed
-    emp_obj = SQLEmployee.objects.filter(email=emp_email).first()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -398,6 +699,7 @@ def development_plans(request, employee_data):
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'plans': plans,
         'needs': needs,
     }
@@ -405,20 +707,23 @@ def development_plans(request, employee_data):
 
 
 @employee_portal_access
-def notifications(request, employee_data):
+def notifications(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
 
-    from hrm.models import Notification, NotificationPreference
-
     if request.method == 'POST':
         action = request.POST.get('action')
+        from django.utils import timezone
         if action == 'mark_read':
             nid = request.POST.get('notification_id')
             if nid:
-                Notification.objects.filter(id=nid, recipient=request.user).update(is_read=True)
+                Notification.objects.filter(id=nid, recipient=request.user).update(
+                    is_read=True, read_at=timezone.now()
+                )
         elif action == 'mark_all_read':
-            Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+            Notification.objects.filter(recipient=request.user, is_read=False).update(
+                is_read=True, read_at=timezone.now()
+            )
         elif action == 'update_prefs':
             pref, _ = NotificationPreference.objects.get_or_create(user=request.user)
             pref.notify_in_app = request.POST.get('notify_in_app') == 'on'
@@ -427,40 +732,41 @@ def notifications(request, employee_data):
             messages.success(request, "Notification preferences updated.")
         return redirect('portal:notifications')
 
-    notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')[:100]
-    unread_count = notifications.filter(is_read=False).count()
+    filter_mode = request.GET.get('filter', 'all')
+    base_qs = Notification.objects.filter(recipient=request.user, is_active=True).order_by('-created_at')
+    if filter_mode == 'unread':
+        notifications = base_qs.filter(is_read=False)
+    elif filter_mode == 'read':
+        notifications = base_qs.filter(is_read=True)
+    else:
+        notifications = base_qs
+
+    notifications = notifications[:100]
+    unread_count = base_qs.filter(is_read=False).count()
     pref, _ = NotificationPreference.objects.get_or_create(user=request.user)
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'notifications': notifications,
         'unread_count': unread_count,
         'prefs': pref,
+        'filter_mode': filter_mode,
     }
     return render(request, 'portal/notifications.html', context)
 
 
 @employee_portal_access
-def succession(request, employee_data):
+def succession(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
 
-    from hrm.models import KeyPosition, SuccessorCandidate, SuccessionPlan
-
-    emp_name = employee_data.get('name', '')
-    emp_email = employee_data.get('email', '')
-
-    # Find this employee's candidacy
-    from hrm.models import Employee as SQLEmployee
-    emp_obj = SQLEmployee.objects.filter(email=emp_email).first()
     my_candidates = SuccessorCandidate.objects.filter(
         employee=emp_obj, is_active=True
     ).select_related('key_position') if emp_obj else []
 
-    # Key positions the employee might be a candidate for
     key_positions = KeyPosition.objects.filter(is_active=True)
 
-    # Succession plans relevant to the employee's department
     emp_dept = employee_data.get('department', '')
     plans = SuccessionPlan.objects.filter(
         Q(department=emp_dept) | Q(department=''), is_active=True
@@ -468,6 +774,7 @@ def succession(request, employee_data):
 
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'my_candidates': my_candidates,
         'key_positions': key_positions,
         'plans': plans,
@@ -475,18 +782,12 @@ def succession(request, employee_data):
     return render(request, 'portal/succession.html', context)
 
 
-# ── Phase 5: Employee Skills & Education (Portal) ───────────────────
+# ── Employee Skills & Education ───────────────────
 
 @employee_portal_access
-def skills_inventory(request, employee_data):
+def skills_inventory(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-    from hrm.models import (
-        Employee as SQLEmployee,
-        EmployeeEducation, EmployeeExperience, EmployeeSkill,
-        Competency, CompetencyRating,
-    )
-    emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -529,21 +830,19 @@ def skills_inventory(request, employee_data):
     comp_ratings = CompetencyRating.objects.filter(employee=emp_obj, is_active=True).select_related('competency') if emp_obj else []
 
     context = {
-        'employee': employee_data, 'education': education, 'experiences': experiences,
+        'employee': employee_data, 'emp_obj': emp_obj,
+        'education': education, 'experiences': experiences,
         'skills': skills, 'competencies': competencies, 'comp_ratings': comp_ratings,
     }
     return render(request, 'portal/skills_inventory.html', context)
 
 
-# ── Phase 5: 360 Feedback (Portal) ─────────────────────────────────
+# ── 360 Feedback ─────────────────────────────────
 
 @employee_portal_access
-def feedback_360(request, employee_data):
+def feedback_360(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-    from hrm.models import Employee as SQLEmployee, FeedbackRequest, FeedbackResponse, FeedbackQuestion
-
-    emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -555,8 +854,10 @@ def feedback_360(request, employee_data):
                         qid = key.split('_', 1)[1]
                         FeedbackResponse.objects.update_or_create(
                             request=req, question_id=qid,
-                            defaults={'rating': int(val) if val.isdigit() else None,
-                                      'response_text': val if not val.isdigit() else ''},
+                            defaults={
+                                'rating': int(val) if val.isdigit() else None,
+                                'response_text': val if not val.isdigit() else '',
+                            },
                         )
                 req.status = 'Completed'
                 req.save()
@@ -570,19 +871,16 @@ def feedback_360(request, employee_data):
     ).select_related('reviewer', 'review_cycle') if emp_obj else []
     questions = FeedbackQuestion.objects.filter(is_active=True)
 
-    context = {'employee': employee_data, 'my_requests': my_requests, 'questions': questions}
+    context = {'employee': employee_data, 'emp_obj': emp_obj, 'my_requests': my_requests, 'questions': questions}
     return render(request, 'portal/feedback_360.html', context)
 
 
-# ── Phase 5: Engagement Surveys (Portal) ────────────────────────────
+# ── Engagement Surveys ────────────────────────────
 
 @employee_portal_access
-def surveys(request, employee_data):
+def surveys(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-    from hrm.models import Employee as SQLEmployee, EngagementSurvey, SurveyQuestion, SurveyResponse
-
-    emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -607,25 +905,23 @@ def surveys(request, employee_data):
     my_responses = SurveyResponse.objects.filter(employee=emp_obj).values_list('survey_id', flat=True).distinct() if emp_obj else []
 
     context = {
-        'employee': employee_data, 'active_surveys': active_surveys,
+        'employee': employee_data, 'emp_obj': emp_obj,
+        'active_surveys': active_surveys,
         'my_responses': my_responses,
     }
     return render(request, 'portal/surveys.html', context)
 
 
-# ── Phase 5: Compliance Calendar (Portal) ───────────────────────────
+# ── Compliance Calendar ───────────────────────────
 
 @employee_portal_access
-def compliance_calendar(request, employee_data):
+def compliance_calendar(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-    from hrm.models import Employee as SQLEmployee, ComplianceReminder
     from hrm.services import sync_document_compliance_reminders, check_compliance_overdue_reminders
 
     sync_document_compliance_reminders()
     check_compliance_overdue_reminders()
-
-    emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
 
     if request.method == 'POST' and emp_obj:
         action = request.POST.get('action')
@@ -653,29 +949,204 @@ def compliance_calendar(request, employee_data):
 
     reminders = ComplianceReminder.objects.filter(employee=emp_obj, is_active=True) if emp_obj else []
 
-    context = {'employee': employee_data, 'reminders': reminders}
+    context = {'employee': employee_data, 'emp_obj': emp_obj, 'reminders': reminders}
     return render(request, 'portal/compliance_calendar.html', context)
 
 
-# ── Phase 5: Talent Review / 9-Box (Portal) ────────────────────────
+# ── Talent Review / 9-Box ────────────────────────
 
 @employee_portal_access
-def talent_review(request, employee_data):
+def talent_review(request, employee_data, emp_obj):
     if not employee_data:
         return redirect('portal_login')
-    from hrm.models import Employee as SQLEmployee, TalentReviewMeeting, NineBoxCell
-
-    emp_obj = SQLEmployee.objects.filter(email=employee_data.get('email', '')).first()
 
     meetings = TalentReviewMeeting.objects.filter(is_active=True, status='Completed')
     cells = NineBoxCell.objects.filter(is_active=True).select_related('talent_review', 'employee')
     my_cell = cells.filter(employee=emp_obj).first() if emp_obj else None
 
+    box_levels = ['High', 'Medium', 'Low']
+
     context = {
         'employee': employee_data,
+        'emp_obj': emp_obj,
         'meetings': meetings,
         'cells': cells,
         'my_cell': my_cell,
-        'emp_obj': emp_obj,
+        'perf_levels': box_levels,
+        'pot_levels': box_levels,
     }
     return render(request, 'portal/talent_review.html', context)
+
+
+@employee_portal_access
+def approvals(request, employee_data, emp_obj):
+    if not employee_data or not emp_obj:
+        return redirect('portal_login')
+
+    direct_reports = Employee.objects.filter(reporting_to=emp_obj, is_active=True)
+    is_manager = direct_reports.exists()
+
+    pending_leaves = Leave.objects.none()
+    pending_advances = AdvanceSalary.objects.none()
+    pending_expenses = ExpenseClaim.objects.none()
+
+    if is_manager:
+        pending_leaves = Leave.objects.filter(
+            employee__in=direct_reports, status='Pending', is_active=True
+        ).order_by('-from_date')
+
+        pending_advances = AdvanceSalary.objects.filter(
+            employee__in=direct_reports, status='Pending', is_active=True
+        ).order_by('-created_at')
+
+        pending_expenses = ExpenseClaim.objects.filter(
+            employee__in=direct_reports, status='Pending', is_active=True
+        ).order_by('-created_at')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+        request_id = request.POST.get('request_id', '')
+
+        if not is_manager:
+            messages.error(request, 'You are not authorized to perform this action.')
+            return redirect('portal:approvals')
+
+        try:
+            if action == 'approve_leave':
+                obj = Leave.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Approved'
+                obj.updated_by = request.user
+                obj.save()
+
+                event_bus.publish('leave.approved', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'leave_type': obj.leave_type,
+                    'duration': obj.duration,
+                    'doc_id': str(obj.id),
+                    'approved_by': request.user.username,
+                })
+                messages.success(request, f"Leave request from {obj.employee.name} approved.")
+
+            elif action == 'reject_leave':
+                obj = Leave.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Rejected'
+                obj.updated_by = request.user
+                obj.save()
+
+                rejection_reason = request.POST.get('rejection_reason', '').strip()
+
+                event_bus.publish('leave.rejected', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'leave_type': obj.leave_type,
+                    'duration': obj.duration,
+                    'doc_id': str(obj.id),
+                    'rejected_by': request.user.username,
+                    'rejection_reason': rejection_reason,
+                })
+                msg = f"Leave request from {obj.employee.name} rejected."
+                if rejection_reason:
+                    msg += f" Reason: {rejection_reason}"
+                messages.success(request, msg)
+
+            elif action == 'approve_advance':
+                obj = AdvanceSalary.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Approved'
+                obj.updated_by = request.user
+                obj.save()
+
+                event_bus.publish('advance_salary.approved', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'amount': str(obj.amount),
+                    'deduct_month': obj.deduct_month,
+                    'doc_id': str(obj.id),
+                    'approved_by': request.user.username,
+                })
+                messages.success(request, f"Advance salary from {obj.employee.name} approved.")
+
+            elif action == 'reject_advance':
+                obj = AdvanceSalary.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Rejected'
+                obj.updated_by = request.user
+                obj.save()
+
+                rejection_reason = request.POST.get('rejection_reason', '').strip()
+
+                event_bus.publish('advance_salary.rejected', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'amount': str(obj.amount),
+                    'deduct_month': obj.deduct_month,
+                    'doc_id': str(obj.id),
+                    'rejected_by': request.user.username,
+                    'rejection_reason': rejection_reason,
+                })
+                msg = f"Advance salary from {obj.employee.name} rejected."
+                if rejection_reason:
+                    msg += f" Reason: {rejection_reason}"
+                messages.success(request, msg)
+
+            elif action == 'approve_expense':
+                obj = ExpenseClaim.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Approved'
+                obj.updated_by = request.user
+                obj.save()
+
+                event_bus.publish('expense_claim.approved', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'amount': str(obj.amount),
+                    'category': obj.category,
+                    'doc_id': str(obj.id),
+                    'approved_by': request.user.username,
+                })
+                messages.success(request, f"Expense claim from {obj.employee.name} approved.")
+
+            elif action == 'reject_expense':
+                obj = ExpenseClaim.objects.get(id=request_id, employee__in=direct_reports, status='Pending')
+                obj.status = 'Rejected'
+                obj.updated_by = request.user
+                obj.save()
+
+                rejection_reason = request.POST.get('rejection_reason', '').strip()
+
+                event_bus.publish('expense_claim.rejected', {
+                    'employee_name': obj.employee.name,
+                    'employee_email': obj.employee.email,
+                    'amount': str(obj.amount),
+                    'category': obj.category,
+                    'doc_id': str(obj.id),
+                    'rejected_by': request.user.username,
+                    'rejection_reason': rejection_reason,
+                })
+                msg = f"Expense claim from {obj.employee.name} rejected."
+                if rejection_reason:
+                    msg += f" Reason: {rejection_reason}"
+                messages.success(request, msg)
+
+            else:
+                messages.error(request, 'Unknown action.')
+
+        except Leave.DoesNotExist:
+            messages.error(request, 'Leave request not found or already processed.')
+        except AdvanceSalary.DoesNotExist:
+            messages.error(request, 'Advance salary request not found or already processed.')
+        except ExpenseClaim.DoesNotExist:
+            messages.error(request, 'Expense claim not found or already processed.')
+        except Exception as e:
+            hrm_logger.error(f"Approval action error: {e}")
+            messages.error(request, 'An error occurred while processing the action.')
+
+        return redirect('portal:approvals')
+
+    context = {
+        'employee': employee_data,
+        'emp_obj': emp_obj,
+        'is_manager': is_manager,
+        'pending_leaves': pending_leaves,
+        'pending_advances': pending_advances,
+        'pending_expenses': pending_expenses,
+    }
+    return render(request, 'portal/approvals.html', context)

@@ -42,3 +42,22 @@ def vite_assets(request):
                     ctx['vite_css_url'] = settings.STATIC_URL + 'dist/' + value['file']
 
     return ctx
+
+
+def portal_notifications(request):
+    if not request.user.is_authenticated:
+        return {'portal_unread_count': 0, 'portal_recent_notifications': []}
+
+    from hrm.models import Notification
+    unread_count = Notification.objects.filter(
+        recipient=request.user, is_read=False, is_active=True
+    ).count()
+    recent = list(Notification.objects.filter(
+        recipient=request.user, is_active=True
+    ).order_by('-created_at')[:5].values(
+        'id', 'title', 'message', 'notification_type', 'link', 'is_read', 'created_at'
+    ))
+    return {
+        'portal_unread_count': unread_count,
+        'portal_recent_notifications': recent,
+    }

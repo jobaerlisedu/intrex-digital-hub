@@ -61,3 +61,9 @@ urlpatterns = [
     path('portal-login/', config_views.PortalLoginView.as_view(), name='portal_login'),
     path('portal/', include('portal.urls')),
 ]
+
+# Serve media files in development
+from django.conf import settings
+from django.conf.urls.static import static
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

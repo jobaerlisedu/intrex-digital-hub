@@ -126,6 +126,11 @@ class Employee(models.Model):
     work_permit_number = encrypt(models.CharField(max_length=100, blank=True, null=True))
     work_permit_expiry = models.DateField(blank=True, null=True)
     linkedin_url = models.URLField(max_length=500, blank=True, null=True)
+    reporting_to = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='direct_reports',
+        help_text="The manager/supervisor this employee reports to"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -378,6 +383,8 @@ class Holiday(models.Model):
 class AdvanceSalary(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
         ('Deducted', 'Deducted'),
     ]
 

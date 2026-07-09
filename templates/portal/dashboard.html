@@ -61,6 +61,28 @@
       <div class="stat-label">Performance Reviews</div>
     </div>
   </div>
+  <div class="stat-card" style="cursor:pointer;" onclick="document.getElementById('checkInOutForm').submit();">
+    <i class="fa-solid fa-clock" style="background:#f0fdf4;color:#16a34a;"></i>
+    <div class="stat-info">
+      {% if today_attendance and today_attendance.check_in %}
+        <div class="stat-num" style="font-size:.9rem;">
+          {% if today_attendance.check_out %}Checked Out{% else %}Checked In{% endif %}
+        </div>
+        <div class="stat-label">
+          {% if today_attendance.check_in %}In: {{ today_attendance.check_in|time:"H:i" }}{% endif %}
+          {% if today_attendance.check_out %} &middot; Out: {{ today_attendance.check_out|time:"H:i" }}{% endif %}
+          {% if not today_attendance.check_out %}&middot; <span style="color:#16a34a;">Tap to check out</span>{% endif %}
+        </div>
+      {% else %}
+        <div class="stat-num" style="font-size:.9rem;">Not Checked In</div>
+        <div class="stat-label"><span style="color:#16a34a;">Tap to check in</span></div>
+      {% endif %}
+    </div>
+    <form id="checkInOutForm" method="POST" action="{% url 'portal:attendance' %}" style="display:none;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{% if today_attendance and today_attendance.check_in and not today_attendance.check_out %}check_out{% else %}check_in{% endif %}">
+    </form>
+  </div>
 </div>
 
 <div class="portal-grid">
@@ -73,8 +95,14 @@
       <a href="{% url 'portal:attendance' %}" class="quick-link-btn">
         <i class="fa-solid fa-clock-rotate-left"></i> My Attendance
       </a>
+      <a href="{% url 'portal:roster' %}" class="quick-link-btn">
+        <i class="fa-solid fa-calendar-days"></i> Duty Roster
+      </a>
       <a href="{% url 'portal:payslips' %}" class="quick-link-btn">
         <i class="fa-solid fa-wallet"></i> Payslips
+      </a>
+      <a href="{% url 'portal:advance_salary' %}" class="quick-link-btn">
+        <i class="fa-solid fa-hand-holding-dollar"></i> Advance Salary
       </a>
       <a href="{% url 'portal:performance' %}" class="quick-link-btn">
         <i class="fa-regular fa-star"></i> Performance
@@ -94,6 +122,11 @@
       <a href="{% url 'portal:surveys' %}" class="quick-link-btn">
         <i class="fa-regular fa-rectangle-list"></i> Surveys
       </a>
+      {% if emp_obj.direct_reports.all %}
+      <a href="{% url 'portal:approvals' %}" class="quick-link-btn">
+        <i class="fa-solid fa-check-double"></i> Approvals
+      </a>
+      {% endif %}
       <a href="{% url 'portal:compliance_calendar' %}" class="quick-link-btn">
         <i class="fa-regular fa-calendar"></i> Compliance
       </a>
@@ -109,12 +142,12 @@
       {% for h in upcoming_holidays %}
       <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--sidebar-border);">
         <div style="width:40px;height:40px;border-radius:8px;background:rgba(33,92,92,.1);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent-color);font-weight:700;font-size:.7rem;line-height:1.2;">
-          <span>{{ h.from_date|slice:"8:10" }}</span>
-          <span>{{ h.from_date|slice:"5:7" }}</span>
+          <span>{{ h.from_date|date:"d" }}</span>
+          <span>{{ h.from_date|date:"m" }}</span>
         </div>
         <div style="flex:1;">
           <div style="font-weight:600;font-size:.88rem;">{{ h.holiday_name }}</div>
-          <div style="font-size:.78rem;color:var(--text-secondary);">{{ h.type }}</div>
+          <div style="font-size:.78rem;color:var(--text-secondary);">{{ h.holiday_type }}</div>
         </div>
       </div>
       {% endfor %}
@@ -129,8 +162,8 @@
       {% for lv in recent_leaves %}
       <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--sidebar-border);">
         <div style="flex:1;">
-          <div style="font-weight:600;font-size:.88rem;">{{ lv.type }}</div>
-          <div style="font-size:.78rem;color:var(--text-secondary);">{{ lv.from_date }} &rarr; {{ lv.to_date }}</div>
+          <div style="font-weight:600;font-size:.88rem;">{{ lv.leave_type }}</div>
+          <div style="font-size:.78rem;color:var(--text-secondary);">{{ lv.from_date|date:"M d" }} &rarr; {{ lv.to_date|date:"M d" }}</div>
         </div>
         <span class="badge {% if lv.status == 'Approved' %}success{% elif lv.status == 'Pending' %}warning{% else %}danger{% endif %}">{{ lv.status }}</span>
       </div>
@@ -147,14 +180,39 @@
       <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--sidebar-border);">
         <div style="flex:1;font-size:.88rem;font-weight:600;">{{ b.leave_type }}</div>
         <div style="font-size:.82rem;">
-          <span style="color:var(--text-secondary);">{{ b.used }}d used</span>
+          <span style="color:var(--text-secondary);">{{ b.used|floatformat:0 }}d used</span>
           <span style="margin:0 6px;color:var(--text-secondary);">/</span>
-          <span style="font-weight:700;color:{% if b.available <= 0 %}#dc2626{% else %}var(--accent-color){% endif %};">{{ b.available }}d left</span>
+          <span style="font-weight:700;color:{% if b.available <= 0 %}#dc2626{% else %}var(--accent-color){% endif %};">{{ b.available|floatformat:0 }}d left</span>
         </div>
       </div>
       {% endfor %}
     {% else %}
       <p style="color:var(--text-secondary);font-size:.88rem;padding:20px 0;text-align:center;">No leave balances configured.</p>
+    {% endif %}
+  </div>
+
+  <div class="portal-card">
+    <h3>
+      <i class="fa-regular fa-bell" style="color:var(--accent-color);"></i> Recent Notifications
+      {% if portal_unread_count %}
+      <span class="badge" style="margin-left:auto;background:var(--color-danger);color:#fff;font-size:.72rem;padding:2px 8px;border-radius:10px;">{{ portal_unread_count }} new</span>
+      {% endif %}
+    </h3>
+    {% if portal_recent_notifications %}
+      {% for n in portal_recent_notifications %}
+      <a href="{{ n.link|default:'#' }}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--sidebar-border);text-decoration:none;color:inherit;">
+        <div style="width:6px;height:6px;border-radius:50%;background:{% if not n.is_read %}#ef4444{% else %}var(--text-secondary){% endif %};margin-top:6px;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;{% if not n.is_read %}color:var(--text-primary){% else %}color:var(--text-secondary){% endif %};">{{ n.title|truncatechars:45 }}</div>
+          <div style="font-size:.74rem;color:var(--text-secondary);margin-top:1px;">{{ n.created_at|date:"M d, H:i" }}</div>
+        </div>
+      </a>
+      {% endfor %}
+      <a href="{% url 'portal:notifications' %}" style="display:block;text-align:center;padding:10px 0 0 0;font-size:.82rem;font-weight:600;color:var(--accent-color);text-decoration:none;">
+        View All <i class="fa-solid fa-arrow-right" style="font-size:.65rem;"></i>
+      </a>
+    {% else %}
+      <p style="color:var(--text-secondary);font-size:.85rem;padding:24px 0;text-align:center;">No notifications yet.</p>
     {% endif %}
   </div>
 </div>

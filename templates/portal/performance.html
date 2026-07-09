@@ -34,12 +34,12 @@
 <div id="pfp-panel-reviews" class="pf-panel active">
   {% for rv in reviews %}
   <div class="pf-card">
-    <h3><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> {{ rv.review_cycle }} ({{ rv.status }})</h3>
+    <h3><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> {{ rv.review_cycle.name }} ({{ rv.status }})</h3>
     {% if rv.status == 'Self-Assessment' %}
     <form method="POST" action="{% url 'portal:performance' %}">
       {% csrf_token %}
       <input type="hidden" name="action" value="submit_self_assessment">
-      <input type="hidden" name="doc_id" value="{{ rv.id }}">
+      <input type="hidden" name="review_id" value="{{ rv.id }}">
       <div class="pf-field">
         <label>Strengths</label>
         <textarea name="strengths" class="form-control" style="height:80px;resize:none;" placeholder="What did you do well?">{{ rv.strengths }}</textarea>
@@ -58,7 +58,7 @@
     </form>
     {% else %}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-      <div class="pf-field"><label>Reviewer</label><div style="font-weight:600;">{{ rv.reviewer|default:'N/A' }}</div></div>
+      <div class="pf-field"><label>Reviewer</label><div style="font-weight:600;">{{ rv.reviewer.name|default:'N/A' }}</div></div>
       <div class="pf-field"><label>Score</label><div style="font-weight:600;">{{ rv.overall_score|default:'Pending' }}</div></div>
     </div>
     <div class="pf-field"><label>Strengths</label><div>{{ rv.strengths|default:'-' }}</div></div>
@@ -80,7 +80,7 @@
     <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-color);"></i> PIP ({{ pip.status }})</h3>
     <div class="pf-field"><label>Issue</label><div>{{ pip.issue_description }}</div></div>
     <div class="pf-field"><label>Goals</label><div>{{ pip.improvement_goals }}</div></div>
-    <div class="pf-field"><label>Period</label><div>{{ pip.start_date }} &rarr; {{ pip.end_date }}</div></div>
+    <div class="pf-field"><label>Period</label><div>{{ pip.start_date|date:"M d, Y" }} &rarr; {{ pip.end_date|date:"M d, Y" }}</div></div>
     <div class="pf-field">
       <label>Status</label>
       <div><span class="badge {% if pip.status == 'Completed' %}success{% elif pip.status == 'Failed' %}danger{% else %}warning{% endif %}">{{ pip.status }}</span></div>

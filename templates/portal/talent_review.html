@@ -38,7 +38,7 @@
 <div class="ptr-card">
   <h3><i class="fa-solid fa-grid-2" style="color:var(--accent-color);"></i> Full 9-Box Grid</h3>
   <div class="nine-box-portal">
-    {% for perf in 'High','Medium','Low' %}{% for pot in 'High','Medium','Low' %}
+    {% for perf in perf_levels %}{% for pot in pot_levels %}
     <div class="nine-cell {% if my_cell and my_cell.performance == perf and my_cell.potential == pot %}highlight{% endif %}">
       <h6 style="background:{% if perf == 'High' and pot == 'High' %}#10b98120;color:#059669{% elif perf == 'Low' or pot == 'Low' %}#fee2e2;color:#dc2626{% else %}#dbeafe;color:#2563eb{% endif %};">{{ perf }} / {{ pot }}</h6>
       <ul>{% for c in cells %}{% if c.performance == perf and c.potential == pot %}
