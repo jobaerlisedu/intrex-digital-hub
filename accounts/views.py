@@ -17,8 +17,7 @@ from config.logger import accounts_logger
 # ─────────────────────────────────────────────
 @staff_required
 def user_list(request):
-    # User Management is Django SQLite-only — Firestore replica is write-only via signals
-    # Exclude portal employee users (they have a Person linked to hrm_employees)
+    # Exclude employee-linked users (they have a Person linked to hrm_employees)
     employee_user_ids = Person.objects.filter(
         firestore_employee_id__gt='', auth_user__isnull=False
     ).values_list('auth_user_id', flat=True)

@@ -88,7 +88,7 @@ def notify_leave_applied(event):
     leave_type = data.get('leave_type', '')
     duration = data.get('duration', '')
     detail = f"{emp_name} applied for {leave_type} ({duration})"
-    notify_manager_or_group(emp_name, detail, 'leave_applied', '/portal/approvals/', data, data.get('applied_by', ''))
+    notify_manager_or_group(emp_name, detail, 'leave_applied', '/hrm/leave/', data, data.get('applied_by', ''))
 
 
 def notify_advance_salary_applied(event):
@@ -97,7 +97,7 @@ def notify_advance_salary_applied(event):
     amount = data.get('amount', '')
     deduct_month = data.get('deduct_month', '')
     detail = f"{emp_name} requested advance of {amount} (deduct {deduct_month})"
-    notify_manager_or_group(emp_name, detail, 'advance_salary_applied', '/portal/approvals/', data, data.get('applied_by', ''))
+    notify_manager_or_group(emp_name, detail, 'advance_salary_applied', '/hrm/payroll/', data, data.get('applied_by', ''))
 
 
 def notify_leave_decided(event, approved=True):
@@ -123,7 +123,7 @@ def notify_leave_decided(event, approved=True):
                 title=f"Leave {status}: {emp_name}",
                 message=msg,
                 notification_type=f'leave_{status}',
-                link='/portal/leave/',
+                link='/hrm/leave/',
             )
     except Exception as e:
         hrm_logger.error(f"Leave {status} notification error: {e}")
@@ -159,7 +159,7 @@ def notify_advance_salary_decided(event, approved=True):
                 title=f"Advance Salary {status}: {emp_name}",
                 message=msg,
                 notification_type=f'advance_salary_{status}',
-                link='/portal/advance-salary/',
+                link='/hrm/payroll/',
             )
     except Exception as e:
         hrm_logger.error(f"Advance salary {status} notification error: {e}")
@@ -196,7 +196,7 @@ def notify_expense_claim_decided(event, approved=True):
                 title=f"Expense Claim {status}: {emp_name}",
                 message=msg,
                 notification_type=f'expense_claim_{status}',
-                link='/portal/expenses/',
+                link='/hrm/expenses/',
             )
     except Exception as e:
         hrm_logger.error(f"Expense claim {status} notification error: {e}")

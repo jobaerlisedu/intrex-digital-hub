@@ -107,7 +107,7 @@ def sync_employees_from_firestore():
             first_name = name.split()[0] if name and ' ' in name else (data.get('first_name', name.split()[0] if name else ''))
             last_name = ' '.join(name.split()[1:]) if name and ' ' in name else (data.get('last_name', ''))
 
-            # Find matching User by email (portal user in sys_users)
+            # Find matching User by email (from sys_users)
             user = User.objects.filter(email=email).first()
             if not user:
                 continue

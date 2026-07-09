@@ -66,6 +66,26 @@
             <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ open_positions }}</div>
         </div>
     </div>
+
+    <div class="glass-card" style="display: flex; align-items: center; gap: 20px; margin-bottom: 0;">
+        <div style="background: rgba(239, 68, 68, 0.1); color: #dc2626; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+            <i class="fa-solid fa-gavel"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary);">Open Cases</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ open_cases }}</div>
+        </div>
+    </div>
+
+    <div class="glass-card" style="display: flex; align-items: center; gap: 20px; margin-bottom: 0;">
+        <div style="background: rgba(147, 51, 234, 0.1); color: #7c3aed; width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+            <i class="fa-regular fa-calendar-check"></i>
+        </div>
+        <div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary);">Upcoming Hearings</div>
+            <div style="font-size: 1.8rem; font-weight: 700; color: var(--text-primary);">{{ upcoming_hearings }}</div>
+        </div>
+    </div>
 </div>
 
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
@@ -88,6 +108,7 @@
             <a href="{% url 'hrm:engagement_surveys' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-rectangle-list"></i> Surveys</a>
             <a href="{% url 'hrm:compliance_calendar' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-calendar"></i> Compliance</a>
             <a href="{% url 'hrm:talent_review' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-grid-2"></i> Talent Review</a>
+            <a href="{% url 'hrm:disciplinary' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-gavel"></i> Disciplinary</a>
             <a href="{% url 'hrm:succession_planning' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-tree"></i> Succession</a>
             <a href="{% url 'hrm:onboarding_offboarding' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-right-left"></i> Onboarding</a>
             <a href="{% url 'hrm:expense_claims' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-credit-card"></i> Expenses</a>
@@ -111,4 +132,39 @@
         </div>
     </div>
 </div>
+
+{% if recent_cases %}
+<div style="margin-top: 24px;">
+    <div class="glass-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;"><i class="fa-solid fa-gavel" style="color:var(--accent-color);margin-right:8px;"></i>Recent Disciplinary Cases</h3>
+            <a href="{% url 'hrm:disciplinary' %}" style="font-size:.85rem;color:var(--accent-color);text-decoration:none;">View All &rarr;</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Case #</th>
+                        <th>Employee</th>
+                        <th>Offense</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in recent_cases %}
+                    <tr>
+                        <td><strong>{{ case.case_number }}</strong></td>
+                        <td>{{ case.employee__name|default:'—' }}</td>
+                        <td>{{ case.nature_of_offense|truncatewords:6 }}</td>
+                        <td><span class="pf-status-pill badge-{{ case.severity|lower }}">{{ case.severity }}</span></td>
+                        <td><span class="pf-status-pill badge-{{ case.status|lower|cut:' ' }}">{{ case.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

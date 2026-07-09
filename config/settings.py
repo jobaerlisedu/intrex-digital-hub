@@ -104,7 +104,6 @@ INSTALLED_APPS = [
     'investment',
     'solutions',
     'training',
-    'portal',
     'accounts',
 
     # Cross-Module Linking
@@ -144,7 +143,7 @@ TEMPLATES = [
                 'accounts.context_processors.user_modules',
                 'config.context_processors.vite_assets',
                 'config.context_processors.tenant_context',
-                'config.context_processors.portal_notifications',
+
             ],
         },
     },

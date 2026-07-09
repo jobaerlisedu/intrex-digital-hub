@@ -167,23 +167,58 @@
                             <span>Report Generator</span>
                         </a>
                     </li>
-                    <li style="padding: 8px 16px 4px; font-size: 0.75rem; font-weight: 700; color: var(--accent-hover); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--sidebar-border);">Analytics</li>
                     <li>
-                        <a href="{% url 'hrm:analytics_dashboard' %}" class="submenu-link {% if request.resolver_match.url_name == 'analytics_dashboard' %}active{% endif %}">
-                            <i class="fa-solid fa-chart-pie"></i>
-                            <span>HR Analytics</span>
+                        <a href="{% url 'hrm:performance' %}" class="submenu-link {% if request.resolver_match.url_name == 'performance' %}active{% endif %}">
+                            <i class="fa-solid fa-star"></i>
+                            <span>Performance Management</span>
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'hrm:analytics_workforce' %}" class="submenu-link {% if request.resolver_match.url_name == 'analytics_workforce' %}active{% endif %}">
-                            <i class="fa-solid fa-users"></i>
-                            <span>Workforce Analytics</span>
+                        <a href="{% url 'hrm:disciplinary' %}" class="submenu-link {% if request.resolver_match.url_name == 'disciplinary' %}active{% endif %}">
+                            <i class="fa-solid fa-gavel"></i>
+                            <span>Disciplinary</span>
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'hrm:analytics_training' %}" class="submenu-link {% if request.resolver_match.url_name == 'analytics_training' %}active{% endif %}">
-                            <i class="fa-solid fa-graduation-cap"></i>
-                            <span>Training Analytics</span>
+                        <a href="{% url 'hrm:succession_planning' %}" class="submenu-link {% if request.resolver_match.url_name == 'succession_planning' %}active{% endif %}">
+                            <i class="fa-solid fa-tree"></i>
+                            <span>Succession Planning</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:compliance_calendar' %}" class="submenu-link {% if request.resolver_match.url_name == 'compliance_calendar' %}active{% endif %}">
+                            <i class="fa-regular fa-calendar"></i>
+                            <span>Compliance Calendar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:talent_review' %}" class="submenu-link {% if request.resolver_match.url_name == 'talent_review' %}active{% endif %}">
+                            <i class="fa-solid fa-grid-2"></i>
+                            <span>Talent Review</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:skills_inventory' %}" class="submenu-link {% if request.resolver_match.url_name == 'skills_inventory' %}active{% endif %}">
+                            <i class="fa-solid fa-brain"></i>
+                            <span>Skills Inventory</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:feedback_360' %}" class="submenu-link {% if request.resolver_match.url_name == 'feedback_360' %}active{% endif %}">
+                            <i class="fa-solid fa-comments"></i>
+                            <span>360 Feedback</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:engagement_surveys' %}" class="submenu-link {% if request.resolver_match.url_name == 'engagement_surveys' %}active{% endif %}">
+                            <i class="fa-solid fa-poll"></i>
+                            <span>Engagement Surveys</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'hrm:hrm_settings' %}" class="submenu-link {% if request.resolver_match.url_name == 'hrm_settings' %}active{% endif %}">
+                            <i class="fa-solid fa-gear"></i>
+                            <span>Settings</span>
                         </a>
                     </li>
                 </ul>

@@ -56,6 +56,10 @@ from .serializers import (
     ComplianceReminderSerializer,
     TalentReviewMeetingSerializer,
     NineBoxCellSerializer,
+    DisciplinaryCaseSerializer,
+    DisciplinaryHearingSerializer,
+    DisciplinaryActionSerializer,
+    DisciplinaryAppealSerializer,
 )
 
 
@@ -719,3 +723,55 @@ class NineBoxCellViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['talent_review', 'employee', 'performance', 'potential', 'is_active']
     ordering_fields = ['talent_review', 'employee']
+
+
+# ── Disciplinary Management ───────────────────────────────────────────────
+
+class DisciplinaryCaseViewSet(viewsets.ModelViewSet):
+    queryset = models.DisciplinaryCase.objects.filter(is_active=True).select_related('employee', 'reported_by')
+    serializer_class = DisciplinaryCaseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['employee', 'severity', 'status', 'is_active']
+    search_fields = ['case_number', 'nature_of_offense', 'description']
+    ordering_fields = ['-created_at', '-incident_date', 'severity', 'status']
+
+    def perform_create(self, serializer):
+        serializer.save(reported_by=self.request.user, created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+
+class DisciplinaryHearingViewSet(viewsets.ModelViewSet):
+    queryset = models.DisciplinaryHearing.objects.filter(is_active=True).select_related('case')
+    serializer_class = DisciplinaryHearingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['case', 'status', 'is_active']
+    ordering_fields = ['-hearing_date', 'status']
+
+
+class DisciplinaryActionViewSet(viewsets.ModelViewSet):
+    queryset = models.DisciplinaryAction.objects.filter(is_active=True).select_related('case', 'issued_by')
+    serializer_class = DisciplinaryActionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['case', 'action_type', 'status', 'is_active']
+    search_fields = ['description']
+    ordering_fields = ['-issued_date', '-effective_date', 'action_type']
+
+    def perform_create(self, serializer):
+        serializer.save(issued_by=self.request.user)
+
+
+class DisciplinaryAppealViewSet(viewsets.ModelViewSet):
+    queryset = models.DisciplinaryAppeal.objects.filter(is_active=True).select_related('action', 'decided_by')
+    serializer_class = DisciplinaryAppealSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['action', 'status', 'is_active']
+    ordering_fields = ['-appeal_date', 'status']
+
+    def perform_update(self, serializer):
+        serializer.save(decided_by=self.request.user)

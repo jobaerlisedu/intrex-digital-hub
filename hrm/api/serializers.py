@@ -476,3 +476,44 @@ class NineBoxCellSerializer(serializers.ModelSerializer):
         model = models.NineBoxCell
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+# ── Disciplinary Management ────────────────────────────────────────────
+
+class DisciplinaryCaseSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.name')
+    employee_emp_id = serializers.ReadOnlyField(source='employee.emp_id')
+
+    class Meta:
+        model = models.DisciplinaryCase
+        fields = '__all__'
+        read_only_fields = ['id', 'case_number', 'created_at', 'updated_at']
+
+
+class DisciplinaryHearingSerializer(serializers.ModelSerializer):
+    case_number = serializers.ReadOnlyField(source='case.case_number')
+
+    class Meta:
+        model = models.DisciplinaryHearing
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DisciplinaryActionSerializer(serializers.ModelSerializer):
+    case_number = serializers.ReadOnlyField(source='case.case_number')
+    employee_name = serializers.ReadOnlyField(source='case.employee.name')
+
+    class Meta:
+        model = models.DisciplinaryAction
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class DisciplinaryAppealSerializer(serializers.ModelSerializer):
+    action_type = serializers.ReadOnlyField(source='action.action_type')
+    case_number = serializers.ReadOnlyField(source='action.case.case_number')
+
+    class Meta:
+        model = models.DisciplinaryAppeal
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']

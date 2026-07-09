@@ -268,7 +268,7 @@ class IntegrationService:
                 from django.contrib.auth.models import User
 
                 # Use provided username, or auto-generate from email prefix
-                raw_username = employee_data.get('portal_username', '').strip()
+                raw_username = employee_data.get('username', '').strip()
                 if not raw_username:
                     raw_username = email.split('@')[0]
                 base_username = raw_username
@@ -278,7 +278,7 @@ class IntegrationService:
                     suffix += 1
 
                 import secrets, hashlib
-                raw_password = employee_data.get('portal_password', '').strip()
+                raw_password = employee_data.get('password', '').strip()
                 if not raw_password:
                     raw_password = secrets.token_urlsafe(12)
 
@@ -292,7 +292,7 @@ class IntegrationService:
                 person.auth_user = user
                 person.save()
 
-                if employee_data.get('portal_password', '').strip():
+                if employee_data.get('password', '').strip():
                     logger.info(f"Auth user {raw_username} created for employee {name} with provided password")
                 else:
                     logger.info(f"Auth user {raw_username} created for employee {name}")
@@ -312,8 +312,8 @@ class IntegrationService:
             import secrets
             updated = False
 
-            new_username = employee_data.get('portal_username', '').strip()
-            new_password = employee_data.get('portal_password', '').strip()
+            new_username = employee_data.get('username', '').strip()
+            new_password = employee_data.get('password', '').strip()
 
             if new_username and new_username != person.auth_user.username:
                 base = new_username

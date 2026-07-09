@@ -59,7 +59,6 @@
       <div class="step" id="step-ind-1"><div class="step-circle"><i class="fa-solid fa-key"></i></div><div class="step-label">Salary And Bank Info</div></div>
       <div class="step" id="step-ind-2"><div class="step-circle"><i class="fa-solid fa-circle-info"></i></div><div class="step-label">Personal Information</div></div>
       <div class="step" id="step-ind-3"><div class="step-circle"><i class="fa-solid fa-id-badge"></i></div><div class="step-label">Biological Info Contact</div></div>
-      <div class="step" id="step-ind-4"><div class="step-circle"><i class="fa-solid fa-laptop"></i></div><div class="step-label">Portal Access</div></div>
     </div>
 
     <form method="POST" action="{% url 'hrm:employee_database' %}" id="empForm" enctype="multipart/form-data">
@@ -362,29 +361,6 @@
 
         <div class="step-footer">
           <button type="button" class="btn-prev" onclick="goStep(2)">Previous</button>
-          <button type="button" class="btn-next" onclick="goStep(4)">Next</button>
-        </div>
-      </div>
-
-      <!-- Step 5: Portal Access Credentials -->
-      <div class="wizard-step" id="ws-4">
-        <h3 class="form-section-title">Portal Access Credentials:</h3>
-        <p style="color:var(--text-secondary);font-size:0.9rem;margin:0 0 20px 0;">
-          <i class="fa-solid fa-info-circle" style="color:var(--accent-color);"></i>
-          Leave blank to auto-generate credentials from the employee's email.
-        </p>
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label>Portal Username</label>
-            <input type="text" name="portal_username" class="form-control" placeholder="Auto: email prefix" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Portal Password</label>
-            <input type="text" name="portal_password" class="form-control" placeholder="Auto: random 12-char" autocomplete="off">
-          </div>
-        </div>
-        <div class="step-footer">
-          <button type="button" class="btn-prev" onclick="goStep(3)">Previous</button>
           <button type="submit" class="btn-next" style="display:flex;align-items:center;gap:8px;">
             <i class="fa-solid fa-circle-check"></i> Submit
           </button>
@@ -502,7 +478,7 @@ function switchEmpTab(tab) {
 
 // Wizard step navigation
 let currentStep = 0;
-const totalSteps = 5;
+const totalSteps = 4;
 
 function goStep(n) {
   // If moving forward, validate required fields in the current step
@@ -1155,43 +1131,6 @@ function viewRecord(id) {
                 <div class="view-detail-value">${record.ec_secondary_mobile ? `<a href="tel:${record.ec_secondary_mobile}" style="color: var(--accent-color); text-decoration: none;"><i class="fa-solid fa-phone" style="color: var(--accent-color); margin-right: 8px;"></i>${record.ec_secondary_mobile}</a>` : '—'}</div>
             </div>
             
-            <!-- Portal Access -->
-            <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
-                <h4 style="margin: 0; color: var(--accent-color); font-weight: 700; font-size: 1.05rem;"><i class="fa-solid fa-laptop" style="margin-right: 8px;"></i>Portal Access</h4>
-            </div>
-            ${record.portal_has_user ? `
-            <div class="view-detail-item">
-                <div class="view-detail-label">PORTAL USERNAME</div>
-                <div class="view-detail-value" style="font-family: monospace;">${record.portal_username || '—'}</div>
-            </div>
-            <div class="view-detail-item">
-                <div class="view-detail-label">PORTAL STATUS</div>
-                <div class="view-detail-value"><span class="badge success">Active</span></div>
-            </div>
-            <div class="view-detail-item" style="grid-column: span 2;">
-                <div class="view-detail-label">LAST LOGIN</div>
-                <div class="view-detail-value">${record.portal_last_login ? new Date(record.portal_last_login).toLocaleString() : 'Never'}</div>
-            </div>
-            <div class="view-detail-item" style="grid-column: span 2;">
-                <form method="POST" action="/hrm/employee-database/${record.id}/reset-password/" style="display:inline;" onsubmit="return confirm('Reset the portal password for ${record.name}? The new password will be shown once.');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn-action" style="background:rgba(245,158,11,0.1);color:#d97706;border:1px solid #d97706;border-radius:4px;padding:6px 14px;display:inline-flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
-                        <i class="fa-solid fa-key"></i> Reset Password
-                    </button>
-                </form>
-                <a href="/hrm/portal/login/" target="_blank" style="margin-left:8px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(33,92,92,0.1);color:var(--accent-color);border:1px solid var(--accent-color);border-radius:4px;text-decoration:none;font-size:0.85rem;">
-                    <i class="fa-solid fa-external-link-alt"></i> Open Portal
-                </a>
-            </div>
-            ` : `
-            <div class="view-detail-item" style="grid-column: span 2;">
-                <div class="view-detail-value" style="color: var(--text-secondary); font-style: italic;">
-                    <i class="fa-solid fa-circle-exclamation" style="color: #f59e0b; margin-right: 6px;"></i>
-                    Portal access not set up. Re-save the employee record to auto-provision portal credentials.
-                </div>
-            </div>
-            `}
-
             <!-- Exit Details (If applicable) -->
             ${(record.exit_date || record.exit_type || record.exit_reason) ? `
             <div style="grid-column: span 2; margin-top: 15px; border-bottom: 2px solid var(--sidebar-border); padding-bottom: 6px;">
@@ -1214,6 +1153,41 @@ function viewRecord(id) {
     `;
 
     openGlobalModal("Employee Profile - " + (record.emp_id || 'N/A'), htmlContent, record.name, "PERSONNEL RECORD");
+    fetchDisciplinaryHistory(record.emp_id);
+}
+
+function fetchDisciplinaryHistory(empId) {
+    if (!empId) return;
+    fetch('/hrm/employee-cases/' + encodeURIComponent(empId) + '/')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.cases || data.cases.length === 0) return;
+            const modalBody = document.querySelector('#globalModal .modal-body');
+            if (!modalBody) return;
+            let html = '<div style="margin-top:20px;border-top:2px solid var(--sidebar-border);padding-top:16px;">';
+            html += '<h4 style="color:var(--accent-color);font-weight:700;font-size:1.05rem;margin:0 0 12px 0;"><i class="fa-solid fa-gavel" style="margin-right:8px;"></i>Disciplinary History</h4>';
+            html += '<div style="display:flex;flex-direction:column;gap:12px;">';
+            data.cases.forEach(c => {
+                const sevClass = (c.severity || '').toLowerCase();
+                html += '<div style="border:1px solid var(--sidebar-border);border-radius:8px;padding:12px;background:rgba(0,0,0,0.015);">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+                html += '<strong style="font-size:.9rem;">' + c.case_number + '</strong>';
+                html += '<span class="pf-status-pill badge-' + sevClass + '" style="font-size:.75rem;">' + (c.severity || '—') + '</span>';
+                html += '</div>';
+                html += '<div style="font-size:.85rem;color:var(--text-secondary);margin-bottom:4px;"><strong>Offense:</strong> ' + (c.nature_of_offense || '—') + '</div>';
+                html += '<div style="font-size:.85rem;color:var(--text-secondary);margin-bottom:4px;"><strong>Status:</strong> <span class="pf-status-pill badge-' + (c.status || '').toLowerCase().replace(/ /g,'') + '" style="font-size:.75rem;">' + (c.status || '—') + '</span></div>';
+                if (c.hearings && c.hearings.length > 0) {
+                    html += '<div style="font-size:.8rem;color:var(--text-secondary);margin-top:6px;"><strong>Hearings:</strong> ' + c.hearings.map(h => h.status).join(', ') + '</div>';
+                }
+                if (c.actions && c.actions.length > 0) {
+                    html += '<div style="font-size:.8rem;color:var(--text-secondary);"><strong>Actions:</strong> ' + c.actions.map(a => a.action_type).join(', ') + '</div>';
+                }
+                html += '</div>';
+            });
+            html += '</div></div>';
+            modalBody.insertAdjacentHTML('beforeend', html);
+        })
+        .catch(() => {});
 }
 </script>
 {% endblock %}

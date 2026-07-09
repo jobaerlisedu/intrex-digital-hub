@@ -1,23 +1,12 @@
 import os
 import time
-from django.shortcuts import render, redirect
-from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView
 from config.logger import firebase_logger
 
 @login_required
 def erp_dashboard(request):
-    # Redirect non-admin employees straight to their portal dashboard
-    if not request.user.is_staff and not request.user.is_superuser:
-        try:
-            from registry.models import Person
-            if Person.objects.filter(auth_user=request.user, person_type='employee', is_active=True).exclude(firestore_employee_id='').exists():
-                from django.shortcuts import redirect
-                return redirect('portal:dashboard')
-        except Exception:
-            pass
-
     from config.firebase import tenant_db
     from config.services import KPIService
 
@@ -161,8 +150,3 @@ def documentation_viewer(request, path=''):
     })
 
 
-class PortalLoginView(LoginView):
-    template_name = 'portal/login.html'
-
-    def get_success_url(self):
-        return '/portal/'

@@ -54,6 +54,10 @@ from .viewsets import (
     ComplianceReminderViewSet,
     TalentReviewMeetingViewSet,
     NineBoxCellViewSet,
+    DisciplinaryCaseViewSet,
+    DisciplinaryHearingViewSet,
+    DisciplinaryActionViewSet,
+    DisciplinaryAppealViewSet,
 )
 
 router = routers.DefaultRouter()
@@ -111,5 +115,9 @@ router.register(r'survey-responses', SurveyResponseViewSet, basename='hrm-survey
 router.register(r'compliance-reminders', ComplianceReminderViewSet, basename='hrm-compliance-reminder')
 router.register(r'talent-review-meetings', TalentReviewMeetingViewSet, basename='hrm-talent-review-meeting')
 router.register(r'nine-box-cells', NineBoxCellViewSet, basename='hrm-nine-box-cell')
+router.register(r'disciplinary-cases', DisciplinaryCaseViewSet, basename='hrm-disciplinary-case')
+router.register(r'disciplinary-hearings', DisciplinaryHearingViewSet, basename='hrm-disciplinary-hearing')
+router.register(r'disciplinary-actions', DisciplinaryActionViewSet, basename='hrm-disciplinary-action')
+router.register(r'disciplinary-appeals', DisciplinaryAppealViewSet, basename='hrm-disciplinary-appeal')
 
 urlpatterns = router.urls

@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from . import analytics_views
 
 app_name = 'hrm'
 
@@ -9,7 +8,6 @@ urlpatterns = [
     path('recruitment/', views.recruitment, name='recruitment'),
     path('department/', views.department, name='department'),
     path('employee-database/', views.employee_database, name='employee_database'),
-    path('employee-database/<str:doc_id>/reset-password/', views.reset_employee_password, name='reset_employee_password'),
     path('attendance/', views.attendance, name='attendance'),
     path('leave/', views.leave, name='leave'),
     path('payroll/', views.payroll, name='payroll'),
@@ -20,11 +18,7 @@ urlpatterns = [
     path('expenses/', views.expense_claims, name='expense_claims'),
     path('vault/', views.document_asset_vault, name='document_asset_vault'),
     path('performance/', views.performance, name='performance'),
-
-    # Analytics
-    path('analytics/', analytics_views.dashboard, name='analytics_dashboard'),
-    path('analytics/workforce/', analytics_views.workforce, name='analytics_workforce'),
-    path('analytics/training/', analytics_views.training, name='analytics_training'),
+    path('disciplinary/', views.disciplinary, name='disciplinary'),
 
     # Notifications & Succession
     path('notifications/', views.notification_center, name='notification_center'),
@@ -38,4 +32,5 @@ urlpatterns = [
     path('compliance-calendar/', views.compliance_calendar, name='compliance_calendar'),
     path('talent-review/', views.talent_review, name='talent_review'),
     path('settings/', views.hrm_settings, name='hrm_settings'),
+    path('employee-cases/<str:emp_id>/', views.employee_cases_json, name='employee_cases_json'),
 ]

@@ -1487,3 +1487,157 @@ class NineBoxCell(models.Model):
 
     def __str__(self):
         return f'{self.employee.name} (P:{self.performance} / Pot:{self.potential})'
+
+
+# ── Disciplinary Management ──────────────────────────────────────
+
+class DisciplinaryCase(models.Model):
+    SEVERITY_CHOICES = [
+        ('Minor', 'Minor'),
+        ('Major', 'Major'),
+        ('Gross', 'Gross Misconduct'),
+    ]
+    STATUS_CHOICES = [
+        ('Open', 'Open'),
+        ('Under Investigation', 'Under Investigation'),
+        ('Hearing Scheduled', 'Hearing Scheduled'),
+        ('Resolved', 'Resolved'),
+        ('Dismissed', 'Dismissed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='disciplinary_cases')
+    case_number = models.CharField(max_length=50, unique=True)
+    incident_date = models.DateField()
+    nature_of_offense = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='Minor')
+    description = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Open')
+    resolution = models.TextField(blank=True, default='')
+    resolved_date = models.DateField(null=True, blank=True)
+    reported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='reported_cases')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Disciplinary Case'
+        verbose_name_plural = 'Disciplinary Cases'
+
+    def __str__(self):
+        return f'{self.case_number} - {self.employee}'
+
+    def save(self, *args, **kwargs):
+        if not self.case_number:
+            import datetime
+            year = datetime.datetime.now().strftime('%Y')
+            prefix = f'DC-{year}-'
+            last = DisciplinaryCase.objects.filter(case_number__startswith=prefix).order_by('case_number').last()
+            num = int(last.case_number.split('-')[-1]) + 1 if last else 1
+            self.case_number = f'{prefix}{num:04d}'
+        super().save(*args, **kwargs)
+
+
+class DisciplinaryHearing(models.Model):
+    STATUS_CHOICES = [
+        ('Scheduled', 'Scheduled'),
+        ('Completed', 'Completed'),
+        ('Postponed', 'Postponed'),
+        ('Cancelled', 'Cancelled'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(DisciplinaryCase, on_delete=models.CASCADE, related_name='hearings')
+    hearing_date = models.DateTimeField()
+    panel_members = models.TextField(blank=True, default='', help_text='Comma-separated names of panel members')
+    location = models.CharField(max_length=255, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+    outcome = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Scheduled')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-hearing_date']
+        verbose_name = 'Disciplinary Hearing'
+        verbose_name_plural = 'Disciplinary Hearings'
+
+    def __str__(self):
+        return f'Hearing for {self.case.case_number} on {self.hearing_date.date()}'
+
+
+class DisciplinaryAction(models.Model):
+    ACTION_CHOICES = [
+        ('Verbal Warning', 'Verbal Warning'),
+        ('Written Warning', 'Written Warning'),
+        ('Final Written Warning', 'Final Written Warning'),
+        ('Suspension', 'Suspension'),
+        ('Pay Cut', 'Pay Cut'),
+        ('Demotion', 'Demotion'),
+        ('Termination', 'Termination'),
+        ('Other', 'Other'),
+    ]
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Issued', 'Issued'),
+        ('Under Appeal', 'Under Appeal'),
+        ('Enforced', 'Enforced'),
+        ('Overturned', 'Overturned'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(DisciplinaryCase, on_delete=models.CASCADE, related_name='actions')
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES)
+    description = models.TextField()
+    issued_date = models.DateField()
+    effective_date = models.DateField()
+    expiry_date = models.DateField(null=True, blank=True, help_text='For warnings/suspensions with limited duration')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    issued_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='issued_actions')
+    supporting_document = models.TextField(blank=True, default='', help_text='URL or reference to supporting document')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-issued_date']
+        verbose_name = 'Disciplinary Action'
+        verbose_name_plural = 'Disciplinary Actions'
+
+    def __str__(self):
+        return f'{self.action_type} - {self.case.case_number}'
+
+
+class DisciplinaryAppeal(models.Model):
+    STATUS_CHOICES = [
+        ('Submitted', 'Submitted'),
+        ('Under Review', 'Under Review'),
+        ('Upheld', 'Upheld'),
+        ('Overturned', 'Overturned'),
+        ('Rejected', 'Rejected'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    action = models.ForeignKey(DisciplinaryAction, on_delete=models.CASCADE, related_name='appeals')
+    appeal_date = models.DateField()
+    grounds = models.TextField(help_text='Reasons for the appeal')
+    supporting_evidence = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Submitted')
+    decision_date = models.DateField(null=True, blank=True)
+    decision_notes = models.TextField(blank=True, default='')
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='appeal_decisions')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-appeal_date']
+        verbose_name = 'Disciplinary Appeal'
+        verbose_name_plural = 'Disciplinary Appeals'
+
+    def __str__(self):
+        return f'Appeal against {self.action} on {self.appeal_date}'

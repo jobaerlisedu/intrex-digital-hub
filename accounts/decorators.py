@@ -75,59 +75,6 @@ def staff_required(view_func):
     return _wrapped_view
 
 
-def employee_portal_access(view_func):
-    """
-    Decorator for Employee Self-Service Portal views.
-
-    Rules:
-      - Unauthenticated users -> redirect to login
-      - Superusers/staff bypass (ERP admins can preview)
-      - Regular users must have a linked employee record via registry.Person
-      - Injects `emp_obj` (hrm.models.Employee instance) and `employee_data` (dict) into kwargs
-    """
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect(f'/login/?next={request.path}')
-
-        from registry.services import lookup_person_by_auth_user
-        person = lookup_person_by_auth_user(request.user)
-        if not person or not person.firestore_employee_id:
-            if request.user.is_superuser or request.user.is_staff:
-                kwargs['employee_data'] = None
-                kwargs['emp_obj'] = None
-                return view_func(request, *args, **kwargs)
-            return render(request, 'erp/403.html', {
-                'module': 'Employee Portal',
-                'module_display': 'Employee Portal',
-            }, status=403)
-
-        emp_obj = None
-        employee_data = None
-        try:
-            from config.firebase import db
-            doc = db.collection('hrm_employees').document(person.firestore_employee_id).get()
-            if doc.exists:
-                employee_data = doc.to_dict()
-                employee_data['id'] = doc.id
-
-            from hrm.models import Employee
-            email = employee_data.get('email', '') if employee_data else ''
-            if email:
-                emp_obj = Employee.objects.filter(email=email).first()
-            if not emp_obj and employee_data:
-                emp_obj = Employee.objects.filter(
-                    firestore_id=person.firestore_employee_id
-                ).first()
-        except Exception:
-            pass
-
-        kwargs['employee_data'] = employee_data
-        kwargs['emp_obj'] = emp_obj
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
-
-
 def superuser_required(view_func):
     """Decorator: only system admins (is_superuser) can access."""
     @wraps(view_func)
