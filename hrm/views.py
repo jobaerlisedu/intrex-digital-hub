@@ -702,10 +702,18 @@ def reset_employee_password(request, doc_id):
             messages.error(request, "Employee not found.")
             return redirect('hrm:employee_database')
         emp = doc.to_dict()
+        emp['id'] = doc_id
+
+        # Try to sync first if no Person/User exists yet
         person = Person.objects.filter(firestore_employee_id=doc_id).first()
         if not person or not person.auth_user:
-            messages.warning(request, "No portal user exists for this employee. Sync the record first.")
+            IntegrationService.employee_to_user_registry(emp)
+            person = Person.objects.filter(firestore_employee_id=doc_id).first()
+
+        if not person or not person.auth_user:
+            messages.warning(request, "Could not create portal user. Make sure the employee has an email address.")
             return redirect('hrm:employee_database')
+
         import secrets
         new_password = secrets.token_urlsafe(8)
         person.auth_user.set_password(new_password)

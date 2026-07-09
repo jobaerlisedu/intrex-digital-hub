@@ -254,6 +254,10 @@ class IntegrationService:
             phone=phone,
             roles=['employee'],
         )
+        if not person:
+            logger.warning(f"Cannot create Person for employee {name}: no email provided")
+            return None
+
         employee_id = employee_data.get('id', '')
         if employee_id:
             person.firestore_employee_id = employee_id
