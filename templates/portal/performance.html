@@ -1,0 +1,106 @@
+{% extends 'portal_base.html' %}
+{% block title %}My Performance - Employee Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+.pf-portal-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; }
+.pf-portal-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
+.pf-portal-tab-btn:hover { color:var(--accent-color); }
+.pf-portal-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
+.pf-panel { display:none; }
+.pf-panel.active { display:block; }
+.pf-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; margin-bottom:24px; }
+.pf-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.pf-field { margin-bottom:16px; }
+.pf-field label { display:block;font-size:.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 8px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-regular fa-star" style="color:var(--accent-color);"></i> My Performance
+</h1>
+<p style="color:var(--text-secondary);margin:0 0 24px 0;font-size:.9rem;">View your performance reviews and improvement plans.</p>
+
+<div class="pf-portal-tabs">
+  <button class="pf-portal-tab-btn active" id="pfp-btn-reviews" onclick="switchPfPortalTab('reviews')">
+    <i class="fa-regular fa-star"></i> My Reviews
+  </button>
+  <button class="pf-portal-tab-btn" id="pfp-btn-pips" onclick="switchPfPortalTab('pips')">
+    <i class="fa-solid fa-triangle-exclamation"></i> Improvement Plans
+  </button>
+</div>
+
+<div id="pfp-panel-reviews" class="pf-panel active">
+  {% for rv in reviews %}
+  <div class="pf-card">
+    <h3><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> {{ rv.review_cycle }} ({{ rv.status }})</h3>
+    {% if rv.status == 'Self-Assessment' %}
+    <form method="POST" action="{% url 'portal:performance' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="submit_self_assessment">
+      <input type="hidden" name="doc_id" value="{{ rv.id }}">
+      <div class="pf-field">
+        <label>Strengths</label>
+        <textarea name="strengths" class="form-control" style="height:80px;resize:none;" placeholder="What did you do well?">{{ rv.strengths }}</textarea>
+      </div>
+      <div class="pf-field">
+        <label>Areas to Improve</label>
+        <textarea name="improvements" class="form-control" style="height:80px;resize:none;" placeholder="What could you improve?">{{ rv.improvements }}</textarea>
+      </div>
+      <div class="pf-field">
+        <label>Goals</label>
+        <textarea name="goals" class="form-control" style="height:80px;resize:none;" placeholder="Your goals for next period">{{ rv.goals }}</textarea>
+      </div>
+      <button type="submit" class="btn-pf-save" style="width:auto;padding:10px 24px;background:var(--accent-color);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
+        <i class="fa-regular fa-paper-plane"></i> Submit Self-Assessment
+      </button>
+    </form>
+    {% else %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="pf-field"><label>Reviewer</label><div style="font-weight:600;">{{ rv.reviewer|default:'N/A' }}</div></div>
+      <div class="pf-field"><label>Score</label><div style="font-weight:600;">{{ rv.overall_score|default:'Pending' }}</div></div>
+    </div>
+    <div class="pf-field"><label>Strengths</label><div>{{ rv.strengths|default:'-' }}</div></div>
+    <div class="pf-field"><label>Improvements</label><div>{{ rv.improvements|default:'-' }}</div></div>
+    <div class="pf-field"><label>Goals</label><div>{{ rv.goals|default:'-' }}</div></div>
+    <div class="pf-field"><label>Status</label><div><span class="badge warning">{{ rv.status }}</span></div></div>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="pf-card">
+    <p style="color:var(--text-secondary);text-align:center;padding:40px 0;">No performance reviews found.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="pfp-panel-pips" class="pf-panel">
+  {% for pip in pips %}
+  <div class="pf-card">
+    <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-color);"></i> PIP ({{ pip.status }})</h3>
+    <div class="pf-field"><label>Issue</label><div>{{ pip.issue_description }}</div></div>
+    <div class="pf-field"><label>Goals</label><div>{{ pip.improvement_goals }}</div></div>
+    <div class="pf-field"><label>Period</label><div>{{ pip.start_date }} &rarr; {{ pip.end_date }}</div></div>
+    <div class="pf-field">
+      <label>Status</label>
+      <div><span class="badge {% if pip.status == 'Completed' %}success{% elif pip.status == 'Failed' %}danger{% else %}warning{% endif %}">{{ pip.status }}</span></div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="pf-card">
+    <p style="color:var(--text-secondary);text-align:center;padding:40px 0;">No improvement plans found.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchPfPortalTab(tab) {
+  document.querySelectorAll('.pf-portal-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('pfp-btn-' + tab).classList.add('active');
+  document.querySelectorAll('.pf-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('pfp-panel-' + tab).classList.add('active');
+}
+</script>
+{% endblock %}

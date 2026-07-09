@@ -1,0 +1,100 @@
+{% extends 'portal_base.html' %}
+{% block title %}Succession Planning - Employee Portal{% endblock %}
+{% block extra_css %}
+<style>
+.tab-nav { display:flex; gap:4px; margin-bottom:24px; background:var(--bg-color); padding:4px; border-radius:10px; width:fit-content; }
+.tab-nav .tab-btn { padding:10px 22px; border:none; border-radius:8px; background:transparent; cursor:pointer; font-size:.88rem; font-weight:600; color:var(--text-secondary); }
+.tab-nav .tab-btn.active { background:#fff; color:var(--text-primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.candidate-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:18px; margin-bottom:12px; }
+.candidate-card h4 { margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+.readiness-bar { height:6px; border-radius:3px; background:#e5e7eb; width:100px; overflow:hidden; display:inline-block; vertical-align:middle; }
+.readiness-bar .fill { height:100%; border-radius:3px; }
+.plan-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:18px; margin-bottom:12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="flex-between" style="margin-bottom:24px;">
+  <h2>Succession Planning</h2>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('my-candidacy',this)">My Candidacy</button>
+  <button class="tab-btn" onclick="switchTab('key-positions',this)">Key Positions</button>
+  <button class="tab-btn" onclick="switchTab('plans',this)">Succession Plans</button>
+</div>
+
+<div id="tab-my-candidacy" class="tab-content active">
+  {% if my_candidates %}
+    {% for sc in my_candidates %}
+    <div class="candidate-card">
+      <h4>
+        {{ sc.key_position.position_title }}
+        {% if sc.is_primary %}<span class="badge badge-primary">Primary Candidate</span>{% endif %}
+      </h4>
+      <p style="font-size:.85rem;color:var(--text-secondary);margin:0 0 10px;">Department: {{ sc.key_position.department }}</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span style="font-size:.82rem;">Readiness:</span>
+        <span class="readiness-bar"><span class="fill" style="width:{% if sc.readiness == 'Ready Now' %}100{% elif sc.readiness == 'Ready in 1-2 Years' %}70{% elif sc.readiness == 'Developing' %}40{% else %}20{% endif %}%;background:{% if sc.readiness == 'Ready Now' %}var(--accent-color){% else %}rgba(107,114,128,.6){% endif %}"></span></span>
+        <span style="font-size:.82rem;">{{ sc.readiness }}</span>
+      </div>
+      {% if sc.strengths %}<p style="font-size:.82rem;margin:2px 0;"><strong>Strengths:</strong> {{ sc.strengths }}</p>{% endif %}
+      {% if sc.development_needs %}<p style="font-size:.82rem;margin:2px 0;"><strong>Development Needs:</strong> {{ sc.development_needs }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="glass-card" style="text-align:center;padding:60px 20px;">
+    <i class="fa-solid fa-user-graduate" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
+    <p style="color:var(--text-secondary);">You have not been identified as a successor candidate for any key position yet.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div id="tab-key-positions" class="tab-content">
+  {% for kp in key_positions %}
+  <div class="candidate-card">
+    <h4>{{ kp.position_title }}</h4>
+    <p style="font-size:.85rem;color:var(--text-secondary);margin:4px 0 0;">
+      {{ kp.department }} &middot;
+      Risk: <strong>{{ kp.risk_of_vacancy }}</strong> &middot;
+      Status: {{ kp.status }}
+    </p>
+    {% if kp.readiness_gap %}<p style="font-size:.82rem;margin-top:8px;color:var(--text-secondary);"><em>Readiness Gap:</em> {{ kp.readiness_gap }}</p>{% endif %}
+  </div>
+  {% empty %}
+  <div class="glass-card" style="text-align:center;padding:60px 20px;">
+    <i class="fa-solid fa-sitemap" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
+    <p style="color:var(--text-secondary);">No key positions defined yet.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="tab-plans" class="tab-content">
+  {% for plan in plans %}
+  <div class="plan-card">
+    <h4 style="margin:0 0 4px;">{{ plan.title }}</h4>
+    <p style="font-size:.85rem;color:var(--text-secondary);">{{ plan.description|truncatewords:30 }}</p>
+    <div style="font-size:.82rem;color:var(--text-secondary);margin-top:6px;">
+      Department: {{ plan.department|default:'All' }} &middot;
+      Review: {{ plan.review_date|default:'Not set' }} &middot;
+      <span class="badge badge-{{ plan.status|lower }}">{{ plan.status }}</span>
+    </div>
+  </div>
+  {% empty %}
+  <div class="glass-card" style="text-align:center;padding:60px 20px;">
+    <i class="fa-solid fa-clipboard-list" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
+    <p style="color:var(--text-secondary);">No succession plans available yet.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+</script>
+{% endblock %}

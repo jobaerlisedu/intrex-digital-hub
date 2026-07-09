@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'investment',
     'solutions',
     'training',
+    'portal',
     'accounts',
 
     # Cross-Module Linking

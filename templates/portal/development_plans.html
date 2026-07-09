@@ -1,0 +1,85 @@
+{% extends 'portal_base.html' %}
+{% block title %}Development Plans - Employee Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-header { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+.dp-section { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; margin-bottom:24px; }
+.dp-section h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.dp-plan-item { padding:14px 0; border-bottom:1px solid var(--sidebar-border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.dp-plan-item:last-child { border-bottom:none; }
+.dp-need-form { max-width:500px; }
+.form-label-dp { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
+.form-group-dp { margin-bottom:14px; }
+.btn-dp-submit { padding:10px 24px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+.btn-dp-submit:hover { opacity:.88; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 24px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> Development Plans
+</h1>
+
+<div class="dp-section">
+  <h3><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> Active Development Plans</h3>
+  {% if plans %}
+    {% for p in plans %}
+    <div class="dp-plan-item">
+      <div>
+        <strong style="font-size:.95rem;">{{ p.title }}</strong>
+        <div style="font-size:.82rem;color:var(--text-secondary);margin-top:4px;">{{ p.start_date }} &rarr; {{ p.target_end_date }}</div>
+        {% if p.description %}<p style="font-size:.85rem;margin:6px 0 0 0;color:var(--text-primary);">{{ p.description }}</p>{% endif %}
+      </div>
+      <span class="badge {% if p.status == 'Active' %}success{% elif p.status == 'Completed' %}info{% elif p.status == 'On Hold' %}warning{% else %}secondary{% endif %}">{{ p.status }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:var(--text-secondary);text-align:center;padding:20px;">No development plans assigned yet.</p>
+  {% endif %}
+</div>
+
+<div class="dp-section">
+  <h3><i class="fa-solid fa-clipboard-list" style="color:var(--accent-color);"></i> Training Needs</h3>
+  {% if needs %}
+    {% for n in needs %}
+    <div class="dp-plan-item">
+      <div>
+        <strong>{{ n.skill_gap }}</strong>
+        {% if n.recommended_training %}<div style="font-size:.82rem;color:var(--text-secondary);">Recommended: {{ n.recommended_training }}</div>{% endif %}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="badge {% if n.priority == 'High' %}danger{% elif n.priority == 'Medium' %}warning{% else %}info{% endif %}">{{ n.priority }}</span>
+        <span class="badge {% if n.status == 'Identified' %}warning{% elif n.status == 'Approved' %}success{% else %}secondary{% endif %}">{{ n.status }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:var(--text-secondary);text-align:center;padding:20px;">No training needs recorded.</p>
+  {% endif %}
+
+  <hr style="border:none;border-top:1px solid var(--sidebar-border);margin:20px 0;">
+  <h4 style="font-size:.9rem;font-weight:700;margin:0 0 12px 0;">Request a Training Need</h4>
+  <form method="POST" action="{% url 'portal:development_plans' %}" class="dp-need-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="request_training_need">
+    <div class="form-group-dp">
+      <label class="form-label-dp">Skill Gap <span>*</span></label>
+      <input type="text" name="skill_gap" class="form-control" placeholder="e.g. Advanced Python" required>
+    </div>
+    <div class="form-group-dp">
+      <label class="form-label-dp">Recommended Training</label>
+      <input type="text" name="recommended_training" class="form-control" placeholder="e.g. Django Advanced Course">
+    </div>
+    <div class="form-group-dp">
+      <label class="form-label-dp">Priority</label>
+      <select name="priority" class="form-control">
+        <option value="Low">Low</option>
+        <option value="Medium" selected>Medium</option>
+        <option value="High">High</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-dp-submit"><i class="fa-regular fa-paper-plane"></i> Submit Request</button>
+  </form>
+</div>
+{% endblock %}

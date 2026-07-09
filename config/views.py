@@ -14,7 +14,7 @@ def erp_dashboard(request):
             from registry.models import Person
             if Person.objects.filter(auth_user=request.user, person_type='employee', is_active=True).exclude(firestore_employee_id='').exists():
                 from django.shortcuts import redirect
-                return redirect('hrm:portal_dashboard')
+                return redirect('portal:dashboard')
         except Exception:
             pass
 
@@ -165,4 +165,4 @@ class PortalLoginView(LoginView):
     template_name = 'portal/login.html'
 
     def get_success_url(self):
-        return '/hrm/portal/'
+        return '/portal/'

@@ -102,7 +102,7 @@
 
     <header class="portal-header">
         <div class="portal-header-inner">
-            <a href="{% url 'hrm:portal_dashboard' %}" class="portal-brand">
+            <a href="{% url 'portal:dashboard' %}" class="portal-brand">
                 {% load static %}
                 <img src="{% static 'images/logo/intrex-logo.svg' %}" alt="Intrex">
                 <div class="portal-brand-text">
@@ -116,14 +116,14 @@
             </button>
 
             <nav class="portal-nav" id="portalNav">
-                <a href="{% url 'hrm:portal_dashboard' %}" class="{% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a>
-                <a href="{% url 'hrm:portal_profile' %}" class="{% if request.resolver_match.url_name == 'portal_profile' %}active{% endif %}"><i class="fa-solid fa-user"></i> Profile</a>
-                <a href="{% url 'hrm:portal_attendance' %}" class="{% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> Attendance</a>
-                <a href="{% url 'hrm:portal_leave' %}" class="{% if request.resolver_match.url_name == 'portal_leave' %}active{% endif %}"><i class="fa-regular fa-calendar-check"></i> Leave</a>
-                <a href="{% url 'hrm:portal_payslips' %}" class="{% if request.resolver_match.url_name == 'portal_payslips' %}active{% endif %}"><i class="fa-solid fa-wallet"></i> Payslips</a>
-                <a href="{% url 'hrm:portal_performance' %}" class="{% if request.resolver_match.url_name == 'portal_performance' %}active{% endif %}"><i class="fa-regular fa-star"></i> Performance</a>
-                <a href="{% url 'hrm:portal_documents' %}" class="{% if request.resolver_match.url_name == 'portal_documents' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> Documents</a>
-                <a href="{% url 'hrm:portal_training_catalog' %}" class="{% if request.resolver_match.url_name == 'portal_training_catalog' %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Training</a>
+                <a href="{% url 'portal:dashboard' %}" class="{% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+                <a href="{% url 'portal:profile' %}" class="{% if request.resolver_match.url_name == 'portal_profile' %}active{% endif %}"><i class="fa-solid fa-user"></i> Profile</a>
+                <a href="{% url 'portal:attendance' %}" class="{% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> Attendance</a>
+                <a href="{% url 'portal:leave' %}" class="{% if request.resolver_match.url_name == 'portal_leave' %}active{% endif %}"><i class="fa-regular fa-calendar-check"></i> Leave</a>
+                <a href="{% url 'portal:payslips' %}" class="{% if request.resolver_match.url_name == 'portal_payslips' %}active{% endif %}"><i class="fa-solid fa-wallet"></i> Payslips</a>
+                <a href="{% url 'portal:performance' %}" class="{% if request.resolver_match.url_name == 'portal_performance' %}active{% endif %}"><i class="fa-regular fa-star"></i> Performance</a>
+                <a href="{% url 'portal:documents' %}" class="{% if request.resolver_match.url_name == 'portal_documents' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> Documents</a>
+                <a href="{% url 'portal:training' %}" class="{% if request.resolver_match.url_name == 'portal_training_catalog' %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Training</a>
             </nav>
 
             <div class="portal-user-area">

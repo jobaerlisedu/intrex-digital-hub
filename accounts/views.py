@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
 import hashlib
+from registry.models import Person
 from .decorators import staff_required, superuser_required, module_access, ERP_MODULES
 from .models import log_action, get_client_ip, AuditLog, ActiveSession
 from config.logger import accounts_logger
@@ -17,7 +18,13 @@ from config.logger import accounts_logger
 @staff_required
 def user_list(request):
     # User Management is Django SQLite-only — Firestore replica is write-only via signals
-    users = User.objects.prefetch_related('groups').order_by('-date_joined')
+    # Exclude portal employee users (they have a Person linked to hrm_employees)
+    employee_user_ids = Person.objects.filter(
+        firestore_employee_id__gt='', auth_user__isnull=False
+    ).values_list('auth_user_id', flat=True)
+    users = User.objects.prefetch_related('groups').exclude(
+        id__in=employee_user_ids
+    ).order_by('-date_joined')
 
     # Annotate each user with their accessible module names
     user_data = []

@@ -1,0 +1,93 @@
+{% extends 'portal_base.html' %}
+{% block title %}My Skills - Employee Portal{% endblock %}
+{% block extra_css %}
+<style>
+.psk-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
+.psk-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
+.psk-tab-btn:hover { color:var(--accent-color); }
+.psk-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
+.psk-panel { display:none; }
+.psk-panel.active { display:block; }
+.psk-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; margin-bottom:24px; }
+.psk-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.psk-field { margin-bottom:16px; }
+.psk-field label { display:block;font-size:.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px; }
+</style>
+{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 8px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> My Skills & Profile
+</h1>
+<p style="color:var(--text-secondary);margin:0 0 24px 0;font-size:.9rem;">Manage your education, experience, and skills.</p>
+
+<div class="psk-tabs">
+  <button class="psk-tab-btn active" onclick="switchPskTab('education')"><i class="fa-solid fa-graduation-cap"></i> Education</button>
+  <button class="psk-tab-btn" onclick="switchPskTab('experience')"><i class="fa-solid fa-briefcase"></i> Experience</button>
+  <button class="psk-tab-btn" onclick="switchPskTab('skills')"><i class="fa-solid fa-chart-bar"></i> Skills</button>
+  <button class="psk-tab-btn" onclick="switchPskTab('competencies')"><i class="fa-solid fa-clipboard-check"></i> Competencies</button>
+</div>
+
+<div id="psk-panel-education" class="psk-panel active">
+  <div class="psk-card">
+    <h3><i class="fa-solid fa-graduation-cap" style="color:var(--accent-color);"></i> Education</h3>
+    <form method="POST" class="row g-2">{% csrf_token %}<input type="hidden" name="action" value="add_education">
+      <div class="col-md-4"><input name="degree" class="form-control" placeholder="Degree" required></div>
+      <div class="col-md-4"><input name="institution" class="form-control" placeholder="Institution" required></div>
+      <div class="col-md-2"><input name="start_year" type="number" class="form-control" placeholder="Start Year"></div>
+      <div class="col-md-2"><input name="end_year" type="number" class="form-control" placeholder="End Year"></div>
+      <div class="col-md-4 mt-2"><input name="grade" class="form-control" placeholder="Grade"></div>
+      <div class="col-md-12 mt-2"><button class="btn btn-primary"><i class="fa-regular fa-plus"></i> Add</button></div>
+    </form>
+    <hr>
+    {% for ed in education %}<div class="d-flex justify-content-between align-items-center mb-2"><div><strong>{{ ed.degree }}</strong> at {{ ed.institution }} ({{ ed.start_year }}-{{ ed.end_year }}) {% if ed.grade %}<span class="badge bg-info">{{ ed.grade }}</span>{% endif %}</div></div>{% empty %}<p class="text-muted">No education records.</p>{% endfor %}
+  </div>
+</div>
+
+<div id="psk-panel-experience" class="psk-panel">
+  <div class="psk-card">
+    <h3><i class="fa-solid fa-briefcase" style="color:var(--accent-color);"></i> Experience</h3>
+    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="add_experience">
+      <div class="row g-2">
+        <div class="col-md-6"><input name="company" class="form-control" placeholder="Company" required></div>
+        <div class="col-md-6"><input name="job_title" class="form-control" placeholder="Job Title" required></div>
+        <div class="col-md-5"><input name="start_date" type="date" class="form-control" required></div>
+        <div class="col-md-5"><input name="end_date" type="date" class="form-control" placeholder="End Date (leave blank if current)"></div>
+        <div class="col-md-2"><div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="is_current" id="expCurrent2"><label class="form-check-label" for="expCurrent2">Current</label></div></div>
+        <div class="col-md-12"><textarea name="description" class="form-control" rows="2" placeholder="Description"></textarea></div>
+        <div class="col-md-12"><button class="btn btn-primary mt-2"><i class="fa-regular fa-plus"></i> Add</button></div>
+      </div>
+    </form>
+    <hr>
+    {% for ex in experiences %}<div class="mb-2"><strong>{{ ex.job_title }}</strong> at {{ ex.company }} <span class="text-muted">({{ ex.start_date|date:'M Y' }} - {{ ex.end_date|date:'M Y'|default:'Present' }})</span>{% if ex.is_current %} <span class="badge bg-success">Current</span>{% endif %}</div>{% empty %}<p class="text-muted">No experience records.</p>{% endfor %}
+  </div>
+</div>
+
+<div id="psk-panel-skills" class="psk-panel">
+  <div class="psk-card">
+    <h3><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Skills</h3>
+    <form method="POST" class="row g-2">{% csrf_token %}<input type="hidden" name="action" value="add_skill">
+      <div class="col-md-5"><input name="skill_name" class="form-control" placeholder="Skill" required></div>
+      <div class="col-md-4"><select name="proficiency" class="form-control"><option value="Beginner">Beginner</option><option value="Intermediate">Intermediate</option><option value="Advanced">Advanced</option><option value="Expert">Expert</option></select></div>
+      <div class="col-md-3"><input name="years_of_experience" type="number" step="0.5" class="form-control" placeholder="Years"></div>
+      <div class="col-md-12 mt-2"><button class="btn btn-primary"><i class="fa-regular fa-plus"></i> Add</button></div>
+    </form>
+    <hr>
+    {% for sk in skills %}<div class="d-flex justify-content-between mb-2"><span><strong>{{ sk.skill_name }}</strong></span><span><span class="badge bg-secondary">{{ sk.proficiency }}</span> {% if sk.years_of_experience %}<small class="text-muted">{{ sk.years_of_experience }} yrs</small>{% endif %}</span></div>{% empty %}<p class="text-muted">No skills.</p>{% endfor %}
+  </div>
+</div>
+
+<div id="psk-panel-competencies" class="psk-panel">
+  <div class="psk-card">
+    <h3><i class="fa-solid fa-clipboard-check" style="color:var(--accent-color);"></i> My Competency Ratings</h3>
+    <div class="table-responsive"><table class="table table-hover">
+      <thead><tr><th>Competency</th><th>Category</th><th>Rating</th></tr></thead>
+      <tbody>{% for cr in comp_ratings %}<tr><td>{{ cr.competency.name }}</td><td>{{ cr.competency.category }}</td><td>{{ cr.rating }}/5</td></tr>{% empty %}<tr><td colspan="3" class="text-center text-muted">No ratings yet</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function switchPskTab(name){document.querySelectorAll('.psk-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.psk-tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('psk-panel-'+name).classList.add('active');document.querySelector('[onclick="switchPskTab(\''+name+'\')"]').classList.add('active');}
+</script>
+{% endblock %}

@@ -84,31 +84,6 @@
                 </a>
             </li>
 
-            <!-- Employee Self-Service Portal -->
-            {% if is_portal_employee %}
-            <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'hrm' and request.resolver_match.url_name|slice:':7' == 'portal_' %}active open{% endif %}">
-                <a href="#" class="nav-link dropdown-toggle" onclick="toggleDropdown(event, 'portal-dropdown')" data-tooltip="Employee Portal" style="--module-color:#059669;">
-                    <span style="display: flex; align-items: center; gap: 14px;">
-                        <i class="fa-solid fa-user-tie" style="color:#059669;"></i>
-                        <span>Employee Portal</span>
-                    </span>
-                    <i class="fa-solid fa-chevron-down dropdown-caret"></i>
-                </a>
-                <ul id="portal-dropdown" class="submenu-links {% if request.resolver_match.url_name|slice:':7' == 'portal_' %}show{% endif %}">
-                    <li><a href="{% url 'hrm:portal_dashboard' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a></li>
-                    <li><a href="{% url 'hrm:portal_profile' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_profile' %}active{% endif %}"><i class="fa-solid fa-user"></i> My Profile</a></li>
-                    <li><a href="{% url 'hrm:portal_attendance' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="fa-solid fa-calendar-check"></i> My Attendance</a></li>
-                    <li><a href="{% url 'hrm:portal_leave' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_leave' %}active{% endif %}"><i class="fa-regular fa-calendar-check"></i> My Leave</a></li>
-                    <li><a href="{% url 'hrm:portal_payslips' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_payslips' %}active{% endif %}"><i class="fa-solid fa-wallet"></i> Payslips</a></li>
-                    <li><a href="{% url 'hrm:portal_performance' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_performance' %}active{% endif %}"><i class="fa-regular fa-star"></i> Performance</a></li>
-                    <li><a href="{% url 'hrm:portal_documents' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_documents' %}active{% endif %}"><i class="fa-solid fa-folder-open"></i> Documents</a></li>
-                    <li style="padding: 8px 16px 4px; font-size: 0.75rem; font-weight: 700; color: var(--accent-hover); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--sidebar-border);">Training & Development</li>
-                    <li><a href="{% url 'hrm:portal_training_catalog' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_training_catalog' %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Training Catalog</a></li>
-                    <li><a href="{% url 'hrm:portal_development_plans' %}" class="submenu-link {% if request.resolver_match.url_name == 'portal_development_plans' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> Development Plans</a></li>
-                </ul>
-            </li>
-            {% endif %}
-
             <!-- HR Management Dropdown -->
             {% if 'hrm' in user_modules %}
             <li class="nav-item-dropdown {% if request.resolver_match.namespace == 'hrm' %}active open{% endif %}">
