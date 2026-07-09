@@ -9,6 +9,7 @@ from accounts.decorators import module_access
 from config.services.integration_service import IntegrationService
 from config.workflow_integration import ensure_workflow, try_transition, LEAVE_TRIGGER_MAP
 from config.logger import hrm_logger
+from registry.models import Person
 import random
 
 # Helper to get Firestore collection data or fallback to sample lists (no cache)
@@ -656,6 +657,21 @@ def employee_database(request):
         for doc in docs:
             emp = doc.to_dict()
             emp['id'] = doc.id
+            # Look up linked Person/auth_user for portal access info
+            try:
+                person = Person.objects.filter(firestore_employee_id=doc.id).first()
+                if person and person.auth_user:
+                    emp['portal_username'] = person.auth_user.username
+                    emp['portal_has_user'] = True
+                    emp['portal_last_login'] = person.auth_user.last_login.isoformat() if person.auth_user.last_login else None
+                else:
+                    emp['portal_username'] = None
+                    emp['portal_has_user'] = False
+                    emp['portal_last_login'] = None
+            except Exception:
+                emp['portal_username'] = None
+                emp['portal_has_user'] = False
+                emp['portal_last_login'] = None
             employees.append(emp)
     except Exception as e:
         hrm_logger.error(f"Error fetching employees: {e}")
@@ -672,6 +688,31 @@ def employee_database(request):
         'sub_departments': sub_departments,
         'positions': positions
     })
+
+@module_access('hrm')
+def reset_employee_password(request, doc_id):
+    """Reset portal password for an employee and show the new password."""
+    if request.method != 'POST':
+        return redirect('hrm:employee_database')
+    try:
+        doc = db.collection('hrm_employees').document(doc_id).get()
+        if not doc.exists:
+            messages.error(request, "Employee not found.")
+            return redirect('hrm:employee_database')
+        emp = doc.to_dict()
+        person = Person.objects.filter(firestore_employee_id=doc_id).first()
+        if not person or not person.auth_user:
+            messages.warning(request, "No portal user exists for this employee. Sync the record first.")
+            return redirect('hrm:employee_database')
+        import secrets
+        new_password = secrets.token_urlsafe(8)
+        person.auth_user.set_password(new_password)
+        person.auth_user.save()
+        messages.success(request, f"Portal password reset successfully. New password: {new_password}")
+    except Exception as e:
+        hrm_logger.error(f"Error resetting employee password: {e}")
+        messages.error(request, "Failed to reset password.")
+    return redirect('hrm:employee_database')
 
 @module_access('hrm')
 def attendance(request):

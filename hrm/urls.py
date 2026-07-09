@@ -10,6 +10,7 @@ urlpatterns = [
     path('recruitment/', views.recruitment, name='recruitment'),
     path('department/', views.department, name='department'),
     path('employee-database/', views.employee_database, name='employee_database'),
+    path('employee-database/<str:doc_id>/reset-password/', views.reset_employee_password, name='reset_employee_password'),
     path('attendance/', views.attendance, name='attendance'),
     path('leave/', views.leave, name='leave'),
     path('payroll/', views.payroll, name='payroll'),
