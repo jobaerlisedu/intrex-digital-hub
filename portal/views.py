@@ -208,6 +208,11 @@ def attendance(request, employee_data, emp_obj):
     absent_count = sum(1 for l in logs if l.status == 'Absent')
     late_count = sum(1 for l in logs if l.status == 'Late')
 
+    # Today's attendance for check-in/check-out
+    today_attendance = Attendance.objects.filter(
+        employee=emp_obj, date=today
+    ).first()
+
     context = {
         'employee': employee_data,
         'emp_obj': emp_obj,
@@ -219,6 +224,7 @@ def attendance(request, employee_data, emp_obj):
         'present_count': present_count,
         'absent_count': absent_count,
         'late_count': late_count,
+        'today_attendance': today_attendance,
     }
     return render(request, 'portal/attendance.html', context)
 

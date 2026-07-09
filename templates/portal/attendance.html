@@ -33,8 +33,8 @@
   </div>
   <form method="POST" action="" style="margin-left:auto;display:flex;gap:8px;align-items:center;">
     {% csrf_token %}
-    {% if logs.0 and logs.0.check_in and not logs.0.check_out %}
-      <span style="font-size:.82rem;color:var(--text-secondary);"><i class="fa-solid fa-circle" style="color:#16a34a;font-size:.5rem;vertical-align:middle;"></i> Checked in at {{ logs.0.check_in|time:"H:i" }}</span>
+    {% if today_attendance and today_attendance.check_in and not today_attendance.check_out %}
+      <span style="font-size:.82rem;color:var(--text-secondary);"><i class="fa-solid fa-circle" style="color:#16a34a;font-size:.5rem;vertical-align:middle;"></i> Checked in at {{ today_attendance.check_in|time:"H:i" }}</span>
       <button type="submit" name="action" value="check_out" class="btn-reject" style="padding:6px 18px;border:none;border-radius:8px;background:#fef2f2;color:#991b1b;font-weight:600;cursor:pointer;font-family:inherit;font-size:.82rem;">
         <i class="fa-solid fa-right-from-bracket"></i> Check Out
       </button>
