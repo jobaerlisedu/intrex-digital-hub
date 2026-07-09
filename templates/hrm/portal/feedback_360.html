@@ -1,0 +1,44 @@
+{% extends 'erp_base.html' %}
+{% block title %}My Feedback - Intrex ERP{% endblock %}
+{% block extra_css %}
+<style>
+.pfb-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; margin-bottom:24px; }
+.pfb-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.pfb-field { margin-bottom:16px; }
+.pfb-field label { display:block;font-size:.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px; }
+</style>
+{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 8px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-regular fa-comment" style="color:var(--accent-color);"></i> 360 Feedback
+</h1>
+<p style="color:var(--text-secondary);margin:0 0 24px 0;font-size:.9rem;">Complete feedback requests from your peers and managers.</p>
+
+{% for req in my_requests %}
+<div class="pfb-card">
+  <h3><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> Feedback from {{ req.reviewer.get_full_name|default:req.reviewer.username }}</h3>
+  <p class="text-muted">{{ req.relationship }} &middot; Cycle: {{ req.review_cycle.name }} &middot; Due: {{ req.due_date|date:'M d, Y'|default:'No due date' }}</p>
+  {% if req.status == 'Pending' %}
+  <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="submit_response"><input type="hidden" name="request_id" value="{{ req.id }}">
+    {% for q in questions %}
+    <div class="pfb-field">
+      <label>{{ q.question_text }} {% if q.is_required %}<span class="text-danger">*</span>{% endif %}</label>
+      {% if q.category == 'Rating' %}
+      <select name="q_{{ q.id }}" class="form-control" {% if q.is_required %}required{% endif %}>
+        <option value="">Select...</option>{% for i in "12345" %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <textarea name="q_{{ q.id }}" class="form-control" rows="2" {% if q.is_required %}required{% endif %}></textarea>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <button class="btn btn-primary"><i class="fa-regular fa-paper-plane"></i> Submit Feedback</button>
+  </form>
+  {% elif req.status == 'Completed' %}
+  <p class="text-success"><i class="fa-regular fa-circle-check"></i> Feedback submitted</p>
+  {% endif %}
+</div>
+{% empty %}
+<p class="text-center text-muted">No feedback requests yet.</p>
+{% endfor %}
+{% endblock %}

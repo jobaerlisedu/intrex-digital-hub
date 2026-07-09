@@ -878,12 +878,30 @@ def leave(request):
     except Exception:
         weekend_days = ['Saturday', 'Sunday']
 
+    try:
+        from .models import LeaveBalance, Employee
+        emp_balances = []
+        for emp in employees:
+            emp_obj = Employee.objects.filter(name=emp['name']).first()
+            if emp_obj:
+                balances = LeaveBalance.objects.filter(employee=emp_obj, is_active=True)
+                emp_balances.append({
+                    'name': emp['name'],
+                    'balances': [
+                        {'leave_type': b.leave_type, 'entitled': b.entitled, 'used': b.used, 'pending': b.pending, 'available': b.available}
+                        for b in balances
+                    ]
+                })
+    except Exception:
+        emp_balances = []
+
     return render(request, 'hrm/leave.html', {
         'holidays': holidays,
         'leaves': leaves,
         'employees': employees,
         'weekend_days': weekend_days,
-        'all_days': ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        'all_days': ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        'emp_balances': emp_balances,
     })
 
 @module_access('hrm')
@@ -1073,8 +1091,6 @@ def payroll(request):
         'months': months,
         'years': years
     })
-
-from django.http import JsonResponse
 
 @login_required
 @module_access('hrm')
@@ -1535,4 +1551,689 @@ def document_asset_vault(request):
         'assets': assets,
         'employees': employees
     })
+
+
+@login_required
+@module_access('hrm')
+def performance(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        # ── Review Cycles ────────────────────────────────────────────
+        if action == 'add_review_cycle':
+            try:
+                doc_id = request.POST.get('doc_id')
+                data = {
+                    'name': request.POST.get('name'),
+                    'start_date': request.POST.get('start_date'),
+                    'end_date': request.POST.get('end_date'),
+                    'review_type': request.POST.get('review_type', 'Half-Yearly'),
+                    'status': request.POST.get('status', 'Draft'),
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                }
+                if doc_id:
+                    del data['createdAt']
+                    db.collection('hrm_review_cycles').document(doc_id).update(data)
+                    messages.success(request, "Review cycle updated successfully.")
+                else:
+                    db.collection('hrm_review_cycles').add(data)
+                    messages.success(request, "Review cycle created successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error saving review cycle: {e}")
+
+        elif action == 'delete_review_cycle':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    db.collection('hrm_review_cycles').document(doc_id).delete()
+                    messages.success(request, "Review cycle deleted successfully.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting review cycle: {e}")
+
+        # ── KPI Library ──────────────────────────────────────────────
+        elif action == 'add_kpi':
+            try:
+                doc_id = request.POST.get('doc_id')
+                data = {
+                    'name': request.POST.get('name'),
+                    'description': request.POST.get('description', ''),
+                    'unit': request.POST.get('unit', ''),
+                    'target_value': request.POST.get('target_value'),
+                    'default_weight': request.POST.get('default_weight', 1.0),
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                }
+                if doc_id:
+                    del data['createdAt']
+                    db.collection('hrm_kpis').document(doc_id).update(data)
+                    messages.success(request, "KPI updated successfully.")
+                else:
+                    db.collection('hrm_kpis').add(data)
+                    messages.success(request, "KPI created successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error saving KPI: {e}")
+
+        elif action == 'delete_kpi':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    db.collection('hrm_kpis').document(doc_id).delete()
+                    messages.success(request, "KPI deleted successfully.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting KPI: {e}")
+
+        # ── Performance Reviews ──────────────────────────────────────
+        elif action == 'add_review':
+            try:
+                doc_id = request.POST.get('doc_id')
+                data = {
+                    'employee': request.POST.get('employee'),
+                    'reviewer': request.POST.get('reviewer'),
+                    'review_cycle': request.POST.get('review_cycle'),
+                    'overall_score': request.POST.get('overall_score'),
+                    'strengths': request.POST.get('strengths', ''),
+                    'improvements': request.POST.get('improvements', ''),
+                    'goals': request.POST.get('goals', ''),
+                    'status': request.POST.get('status', 'Self-Assessment'),
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                }
+                if doc_id:
+                    del data['createdAt']
+                    db.collection('hrm_performance_reviews').document(doc_id).update(data)
+                    messages.success(request, "Performance review updated successfully.")
+                else:
+                    db.collection('hrm_performance_reviews').add(data)
+                    messages.success(request, "Performance review created successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error saving review: {e}")
+
+        elif action == 'delete_review':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    db.collection('hrm_performance_reviews').document(doc_id).delete()
+                    messages.success(request, "Performance review deleted successfully.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting review: {e}")
+
+        # ── Performance Improvement Plans ────────────────────────────
+        elif action == 'add_pip':
+            try:
+                doc_id = request.POST.get('doc_id')
+                data = {
+                    'employee': request.POST.get('employee'),
+                    'issue_description': request.POST.get('issue_description', ''),
+                    'improvement_goals': request.POST.get('improvement_goals', ''),
+                    'start_date': request.POST.get('start_date'),
+                    'end_date': request.POST.get('end_date'),
+                    'status': request.POST.get('status', 'Open'),
+                    'createdAt': firestore.SERVER_TIMESTAMP,
+                }
+                if doc_id:
+                    del data['createdAt']
+                    db.collection('hrm_pips').document(doc_id).update(data)
+                    messages.success(request, "PIP updated successfully.")
+                else:
+                    db.collection('hrm_pips').add(data)
+                    messages.success(request, "PIP created successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error saving PIP: {e}")
+
+        elif action == 'delete_pip':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    db.collection('hrm_pips').document(doc_id).delete()
+                    messages.success(request, "PIP deleted successfully.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting PIP: {e}")
+
+        return redirect('hrm:performance')
+
+    review_cycles = get_collection_data('hrm_review_cycles', [])
+    kpis = get_collection_data('hrm_kpis', [])
+    reviews = get_collection_data('hrm_performance_reviews', [])
+    pips = get_collection_data('hrm_pips', [])
+
+    try:
+        emp_docs = db.collection('hrm_employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    return render(request, 'hrm/performance.html', {
+        'review_cycles': review_cycles,
+        'kpis': kpis,
+        'reviews': reviews,
+        'pips': pips,
+        'employees': employees,
+    })
+
+
+# ── Notification Center (Admin) ───────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def notification_center(request):
+    from hrm.models import Notification, NotificationPreference
+    from django.contrib.auth.models import User
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'mark_read':
+            nid = request.POST.get('notification_id')
+            if nid:
+                Notification.objects.filter(id=nid, recipient=request.user).update(is_read=True)
+                messages.success(request, "Notification marked as read.")
+        elif action == 'mark_all_read':
+            Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+            messages.success(request, "All notifications marked as read.")
+        elif action == 'update_prefs':
+            pref, _ = NotificationPreference.objects.get_or_create(user=request.user)
+            pref.notify_in_app = request.POST.get('notify_in_app') == 'on'
+            pref.notify_email = request.POST.get('notify_email') == 'on'
+            pref.save()
+            messages.success(request, "Notification preferences updated.")
+        return redirect('hrm:notification_center')
+
+    notifications = Notification.objects.filter(
+        recipient=request.user
+    ).order_by('-created_at')[:100]
+
+    unread_count = notifications.filter(is_read=False).count()
+
+    pref, _ = NotificationPreference.objects.get_or_create(user=request.user)
+
+    context = {
+        'notifications': notifications,
+        'unread_count': unread_count,
+        'prefs': pref,
+    }
+    return render(request, 'hrm/notifications.html', context)
+
+
+# ── Succession Planning (Admin) ───────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def succession_planning(request):
+    from hrm.models import KeyPosition, SuccessorCandidate, SuccessionPlan
+    from registry.models import Person
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_key_position':
+            try:
+                pos_id = request.POST.get('position', '')
+                dept_id = request.POST.get('department', '')
+                from hrm.models import Position as PosModel, Department as DeptModel
+                pos = PosModel.objects.filter(title=pos_id).first() if pos_id else None
+                dept = DeptModel.objects.filter(name=dept_id).first() if dept_id else None
+                KeyPosition.objects.create(
+                    position_title=request.POST.get('position_title'),
+                    position=pos,
+                    department=dept,
+                    risk_of_vacancy=request.POST.get('risk_of_vacancy', 'Medium'),
+                    readiness_gap=request.POST.get('readiness_gap', ''),
+                    status=request.POST.get('status', 'Active'),
+                    created_by=request.user,
+                )
+                messages.success(request, "Key position added successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error adding key position: {e}")
+                messages.error(request, "Failed to add key position.")
+
+        elif action == 'update_key_position':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    kp = KeyPosition.objects.get(id=doc_id)
+                    pos_id = request.POST.get('position', '')
+                    dept_id = request.POST.get('department', '')
+                    from hrm.models import Position as PosModel, Department as DeptModel
+                    kp.position_title = request.POST.get('position_title')
+                    kp.position = PosModel.objects.filter(title=pos_id).first() if pos_id else None
+                    kp.department = DeptModel.objects.filter(name=dept_id).first() if dept_id else None
+                    kp.risk_of_vacancy = request.POST.get('risk_of_vacancy', 'Medium')
+                    kp.readiness_gap = request.POST.get('readiness_gap', '')
+                    kp.status = request.POST.get('status', 'Active')
+                    kp.updated_by = request.user
+                    kp.save()
+                    messages.success(request, "Key position updated successfully.")
+                except Exception as e:
+                    hrm_logger.error(f"Error updating key position: {e}")
+
+        elif action == 'add_successor':
+            try:
+                emp_name = request.POST.get('employee', '')
+                from hrm.models import Employee as EmpModel
+                from django.db.models import Q as Q_
+                emp = None
+                if emp_name:
+                    emp = EmpModel.objects.filter(
+                        Q_(first_name__icontains=emp_name) | Q_(last_name__icontains=emp_name) | Q_(emp_id=emp_name)
+                    ).first()
+                SuccessorCandidate.objects.create(
+                    key_position_id=request.POST.get('key_position'),
+                    employee=emp,
+                    readiness=request.POST.get('readiness', 'Developing'),
+                    strengths=request.POST.get('strengths', ''),
+                    development_needs=request.POST.get('development_needs', ''),
+                    is_primary=request.POST.get('is_primary') == 'on',
+                    created_by=request.user,
+                )
+                messages.success(request, "Successor candidate added successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error adding successor: {e}")
+
+        elif action == 'update_successor':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    sc = SuccessorCandidate.objects.get(id=doc_id)
+                    sc.readiness = request.POST.get('readiness', 'Developing')
+                    sc.strengths = request.POST.get('strengths', '')
+                    sc.development_needs = request.POST.get('development_needs', '')
+                    sc.is_primary = request.POST.get('is_primary') == 'on'
+                    sc.updated_by = request.user
+                    sc.save()
+                    messages.success(request, "Successor candidate updated.")
+                except Exception as e:
+                    hrm_logger.error(f"Error updating successor: {e}")
+
+        elif action == 'delete_successor':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    SuccessorCandidate.objects.filter(id=doc_id).update(is_active=False)
+                    messages.success(request, "Successor candidate removed.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting successor: {e}")
+
+        elif action == 'create_plan':
+            try:
+                dept_id = request.POST.get('department', '')
+                from hrm.models import Department as DeptModel
+                dept = DeptModel.objects.filter(name=dept_id).first() if dept_id else None
+                SuccessionPlan.objects.create(
+                    title=request.POST.get('title'),
+                    department=dept,
+                    description=request.POST.get('description', ''),
+                    review_date=request.POST.get('review_date') or None,
+                    status=request.POST.get('status', 'Draft'),
+                    created_by=request.user,
+                )
+                messages.success(request, "Succession plan created successfully.")
+            except Exception as e:
+                hrm_logger.error(f"Error creating succession plan: {e}")
+
+        elif action == 'delete_position':
+            doc_id = request.POST.get('doc_id')
+            if doc_id:
+                try:
+                    KeyPosition.objects.filter(id=doc_id).update(is_active=False)
+                    messages.success(request, "Key position removed.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting key position: {e}")
+
+        return redirect('hrm:succession_planning')
+
+    key_positions = KeyPosition.objects.filter(is_active=True).select_related('position')
+    successors = SuccessorCandidate.objects.filter(is_active=True).select_related('key_position', 'employee')
+    plans = SuccessionPlan.objects.filter(is_active=True)
+
+    try:
+        emp_docs = db.collection('hrm_employees').stream()
+        employees = [{'name': (d.to_dict() or {}).get('name', ''), 'id': d.id} for d in emp_docs if (d.to_dict() or {}).get('name')]
+    except Exception:
+        employees = []
+
+    positions = get_cached_collection('org_positions')
+    departments = get_cached_collection('org_departments')
+
+    context = {
+        'key_positions': key_positions,
+        'successors': successors,
+        'plans': plans,
+        'employees': employees,
+        'positions': positions,
+        'departments': departments,
+    }
+    return render(request, 'hrm/succession.html', context)
+
+
+# ── Unread Count (AJAX) ───────────────────────────────────────────────
+
+@login_required
+def get_unread_notification_count(request):
+    from hrm.models import Notification
+    count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    return JsonResponse({'count': count})
+
+
+# ── Phase 5: Skills Inventory ──────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def skills_inventory(request):
+    from hrm.models import (
+        Employee as SQLEmployee, EmployeeEducation, EmployeeExperience,
+        EmployeeSkill, Competency, CompetencyRating,
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'add_education':
+                emp = SQLEmployee.objects.get(id=request.POST.get('employee'))
+                EmployeeEducation.objects.create(
+                    employee=emp, degree=request.POST['degree'],
+                    institution=request.POST['institution'],
+                    field_of_study=request.POST.get('field_of_study', ''),
+                    start_year=int(request.POST['start_year']) if request.POST.get('start_year') else None,
+                    end_year=int(request.POST['end_year']) if request.POST.get('end_year') else None,
+                    grade=request.POST.get('grade', ''),
+                )
+                messages.success(request, "Education record added.")
+            elif action == 'add_experience':
+                emp = SQLEmployee.objects.get(id=request.POST.get('employee'))
+                EmployeeExperience.objects.create(
+                    employee=emp, company=request.POST['company'],
+                    job_title=request.POST['job_title'],
+                    start_date=request.POST['start_date'],
+                    end_date=request.POST.get('end_date') or None,
+                    is_current=request.POST.get('is_current') == 'on',
+                    description=request.POST.get('description', ''),
+                )
+                messages.success(request, "Experience record added.")
+            elif action == 'add_skill':
+                emp = SQLEmployee.objects.get(id=request.POST.get('employee'))
+                EmployeeSkill.objects.create(
+                    employee=emp, skill_name=request.POST['skill_name'],
+                    proficiency=request.POST['proficiency'],
+                    years_of_experience=request.POST.get('years_of_experience') or None,
+                )
+                messages.success(request, "Skill added.")
+            elif action == 'add_competency_rating':
+                emp = SQLEmployee.objects.get(id=request.POST.get('employee'))
+                comp = Competency.objects.get(id=request.POST.get('competency'))
+                CompetencyRating.objects.create(
+                    employee=emp, competency=comp,
+                    rating=int(request.POST['rating']),
+                    assessed_by=request.user,
+                )
+                messages.success(request, "Competency rating saved.")
+        except Exception as e:
+            hrm_logger.error(f"Skills inventory error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:skills_inventory')
+
+    employees = SQLEmployee.objects.filter(is_active=True)
+    education = EmployeeEducation.objects.filter(is_active=True).select_related('employee')
+    experiences = EmployeeExperience.objects.filter(is_active=True).select_related('employee')
+    skills = EmployeeSkill.objects.filter(is_active=True).select_related('employee')
+    competencies = Competency.objects.filter(is_active=True)
+    competency_ratings = CompetencyRating.objects.filter(is_active=True).select_related('employee', 'competency', 'assessed_by')
+
+    context = {
+        'employees': employees, 'education': education, 'experiences': experiences,
+        'skills': skills, 'competencies': competencies, 'competency_ratings': competency_ratings,
+    }
+    return render(request, 'hrm/skills_inventory.html', context)
+
+
+# ── Phase 5: 360 Feedback ──────────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def feedback_360(request):
+    from hrm.models import (
+        Employee as SQLEmployee, ReviewCycle,
+        FeedbackQuestion, FeedbackRequest, FeedbackResponse,
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'add_question':
+                FeedbackQuestion.objects.create(
+                    category=request.POST['category'],
+                    question_text=request.POST['question_text'],
+                    is_required=request.POST.get('is_required') == 'on',
+                    order=int(request.POST.get('order', 0)),
+                )
+                messages.success(request, "Feedback question added.")
+            elif action == 'send_request':
+                reviewer_id = request.POST.get('reviewer')
+                reviewee_id = request.POST.get('reviewee')
+                cycle_id = request.POST.get('review_cycle')
+                FeedbackRequest.objects.create(
+                    reviewer_id=reviewer_id, reviewee_id=reviewee_id,
+                    review_cycle_id=cycle_id,
+                    relationship=request.POST.get('relationship', 'Peer'),
+                    due_date=request.POST.get('due_date'),
+                )
+                messages.success(request, "Feedback request sent.")
+        except Exception as e:
+            hrm_logger.error(f"360 feedback error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:feedback_360')
+
+    questions = FeedbackQuestion.objects.filter(is_active=True)
+    requests = FeedbackRequest.objects.filter(is_active=True).select_related('reviewer', 'reviewee', 'review_cycle')
+    responses = FeedbackResponse.objects.select_related('request', 'question')
+    employees = SQLEmployee.objects.filter(is_active=True)
+    cycles = ReviewCycle.objects.filter(is_active=True)
+
+    context = {
+        'questions': questions, 'requests': requests, 'responses': responses,
+        'employees': employees, 'cycles': cycles,
+    }
+    return render(request, 'hrm/feedback_360.html', context)
+
+
+# ── Phase 5: Engagement Surveys ────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def engagement_surveys(request):
+    from hrm.models import (
+        Employee as SQLEmployee,
+        EngagementSurvey, SurveyQuestion, SurveyResponse,
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'create_survey':
+                survey = EngagementSurvey.objects.create(
+                    title=request.POST['title'],
+                    description=request.POST.get('description', ''),
+                    is_anonymous=request.POST.get('is_anonymous') == 'on',
+                )
+                messages.success(request, f"Survey '{survey.title}' created.")
+            elif action == 'add_question':
+                survey = EngagementSurvey.objects.get(id=request.POST.get('survey_id'))
+                SurveyQuestion.objects.create(
+                    survey=survey,
+                    question_text=request.POST['question_text'],
+                    question_type=request.POST.get('question_type', 'text'),
+                    is_required=request.POST.get('is_required') == 'on',
+                    order=int(request.POST.get('order', 0)),
+                )
+                messages.success(request, "Survey question added.")
+        except Exception as e:
+            hrm_logger.error(f"Survey error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:engagement_surveys')
+
+    surveys = EngagementSurvey.objects.filter(is_active=True)
+    survey_questions = SurveyQuestion.objects.filter(is_active=True).select_related('survey')
+    survey_responses = SurveyResponse.objects.select_related('survey', 'question', 'employee')
+
+    context = {
+        'surveys': surveys, 'survey_questions': survey_questions,
+        'survey_responses': survey_responses,
+    }
+    return render(request, 'hrm/engagement_surveys.html', context)
+
+
+# ── Phase 5: Compliance Calendar ────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def compliance_calendar(request):
+    from hrm.models import Employee as SQLEmployee, ComplianceReminder
+    from hrm.services import sync_document_compliance_reminders, check_compliance_overdue_reminders
+
+    # Auto-sync documents and check overdue on page load
+    sync_document_compliance_reminders()
+    check_compliance_overdue_reminders()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'add_reminder':
+                ComplianceReminder.objects.create(
+                    employee_id=request.POST.get('employee'),
+                    reminder_type=request.POST['reminder_type'],
+                    title=request.POST['title'],
+                    description=request.POST.get('description', ''),
+                    due_date=request.POST['due_date'],
+                )
+                messages.success(request, "Compliance reminder added.")
+            elif action == 'complete_reminder':
+                reminder = ComplianceReminder.objects.get(id=request.POST.get('reminder_id'))
+                reminder.mark_completed()
+                messages.success(request, f"Reminder '{reminder.title}' marked complete.")
+            elif action == 'dismiss_reminder':
+                ComplianceReminder.objects.filter(id=request.POST.get('reminder_id')).update(is_active=False)
+                messages.success(request, "Reminder dismissed.")
+        except Exception as e:
+            hrm_logger.error(f"Compliance calendar error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:compliance_calendar')
+
+    reminders = ComplianceReminder.objects.filter(is_active=True).select_related('employee')
+    employees = SQLEmployee.objects.filter(is_active=True)
+    upcoming = reminders.filter(status__in=['Pending', 'Overdue']).order_by('due_date')
+
+    context = {'reminders': reminders, 'employees': employees, 'upcoming': upcoming}
+    return render(request, 'hrm/compliance_calendar.html', context)
+
+
+# ── Phase 5: Talent Review & 9-Box ──────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def talent_review(request):
+    from hrm.models import Employee as SQLEmployee, TalentReviewMeeting, NineBoxCell
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'start_meeting':
+                TalentReviewMeeting.objects.create(
+                    title=request.POST['title'],
+                    meeting_date=request.POST['meeting_date'] or None,
+                    notes=request.POST.get('notes', ''),
+                )
+                messages.success(request, "Talent review meeting created.")
+            elif action == 'add_cell':
+                meeting = TalentReviewMeeting.objects.get(id=request.POST.get('meeting_id'))
+                NineBoxCell.objects.create(
+                    talent_review=meeting,
+                    employee_id=request.POST.get('employee'),
+                    performance=request.POST['performance'],
+                    potential=request.POST['potential'],
+                    notes=request.POST.get('notes', ''),
+                )
+                messages.success(request, "9-Box cell added.")
+            elif action == 'complete_meeting':
+                TalentReviewMeeting.objects.filter(id=request.POST.get('meeting_id')).update(status='Completed')
+                messages.success(request, "Meeting marked as completed.")
+        except Exception as e:
+            hrm_logger.error(f"Talent review error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:talent_review')
+
+    meetings = TalentReviewMeeting.objects.filter(is_active=True)
+    cells = NineBoxCell.objects.filter(is_active=True).select_related('employee', 'talent_review')
+    employees = SQLEmployee.objects.filter(is_active=True)
+
+    context = {
+        'meetings': meetings, 'cells': cells, 'employees': employees,
+    }
+    return render(request, 'hrm/talent_review.html', context)
+
+
+# ── Configuration UI ───────────────────────────────────────────────
+
+@login_required
+@module_access('hrm')
+def hrm_settings(request):
+    from hrm.models import HRMSetting, LeavePolicy, RatingTemplate, RatingScale
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        try:
+            if action == 'update_setting':
+                key = request.POST.get('key')
+                value = request.POST.get('value', '')
+                obj, _ = HRMSetting.objects.update_or_create(
+                    key=key,
+                    defaults={'value': value},
+                )
+                messages.success(request, f"Setting '{key}' updated.")
+            elif action == 'add_setting':
+                HRMSetting.objects.create(
+                    key=request.POST.get('key'),
+                    value=request.POST.get('value', ''),
+                )
+                messages.success(request, "Setting created.")
+            elif action == 'delete_setting':
+                HRMSetting.objects.filter(id=request.POST.get('setting_id')).update(is_active=False)
+                messages.success(request, "Setting removed.")
+            elif action == 'add_leave_policy':
+                LeavePolicy.objects.create(
+                    employee_type=request.POST['employee_type'],
+                    leave_type=request.POST['leave_type'],
+                    entitled_days=request.POST['entitled_days'],
+                    carry_forward_days=request.POST.get('carry_forward_days', 0),
+                )
+                messages.success(request, "Leave policy added.")
+            elif action == 'delete_leave_policy':
+                LeavePolicy.objects.filter(id=request.POST.get('policy_id')).update(is_active=False)
+                messages.success(request, "Leave policy removed.")
+            elif action == 'add_rating_template':
+                RatingTemplate.objects.create(
+                    name=request.POST['name'],
+                    description=request.POST.get('description', ''),
+                )
+                messages.success(request, "Rating template created.")
+            elif action == 'add_rating_scale':
+                template = RatingTemplate.objects.get(id=request.POST.get('template_id'))
+                RatingScale.objects.create(
+                    template=template,
+                    label=request.POST['label'],
+                    value=request.POST['value'],
+                    definition=request.POST.get('definition', ''),
+                    order=int(request.POST.get('order', 0)),
+                )
+                messages.success(request, "Rating scale value added.")
+        except Exception as e:
+            hrm_logger.error(f"Settings error: {e}")
+            messages.error(request, f"Error: {e}")
+        return redirect('hrm:hrm_settings')
+
+    settings = HRMSetting.objects.filter(is_active=True)
+    leave_policies = LeavePolicy.objects.filter(is_active=True)
+    templates = RatingTemplate.objects.filter(is_active=True).prefetch_related('scales')
+
+    context = {
+        'settings': settings,
+        'leave_policies': leave_policies,
+        'templates': templates,
+    }
+    return render(request, 'hrm/hrm_settings.html', context)
 

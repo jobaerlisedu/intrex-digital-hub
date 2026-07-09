@@ -261,20 +261,28 @@ class IntegrationService:
 
         if not person.auth_user and email:
             try:
-                from django.contrib.auth.models import User
+                from django.contrib.auth.models import User, Group
+                from registry.services import get_or_create_person as gocp
                 username = email.split('@')[0]
                 base_username = username
                 suffix = 1
                 while User.objects.filter(username=username).exists():
                     username = f"{base_username}{suffix}"
                     suffix += 1
+
+                import secrets, hashlib
+                temp_password = secrets.token_urlsafe(12)
+
                 user = User.objects.create_user(
                     username=username,
                     email=email,
+                    password=temp_password,
                     first_name=employee_data.get('first_name', ''),
                     last_name=employee_data.get('last_name', ''),
                 )
-                user.set_unusable_password()
+                # Auto-assign hrm_access group so employee can log in
+                hrm_group, _ = Group.objects.get_or_create(name='hrm_access')
+                user.groups.add(hrm_group)
                 user.save()
                 person.auth_user = user
                 person.save()

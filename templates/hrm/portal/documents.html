@@ -1,0 +1,60 @@
+{% extends 'erp_base.html' %}
+{% block title %}My Documents - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.doc-layout { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.doc-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.doc-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+@media(max-width:768px){ .doc-layout { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 28px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-solid fa-folder-open" style="color:var(--accent-color);"></i> My Documents & Assets
+</h1>
+
+<div class="doc-layout">
+  <div class="doc-card">
+    <h3><i class="fa-solid fa-file" style="color:var(--accent-color);"></i> My Documents</h3>
+    <table class="data-table">
+      <thead>
+        <tr><th>Document Type</th><th>Document Number</th><th>Expiry</th></tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+        <tr>
+          <td><strong>{{ doc.document_type }}</strong></td>
+          <td>{{ doc.document_number|default:'-' }}</td>
+          <td>{{ doc.expiry_date|default:'N/A' }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-secondary);">No documents on record.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-card">
+    <h3><i class="fa-solid fa-laptop" style="color:var(--accent-color);"></i> Assigned Assets</h3>
+    <table class="data-table">
+      <thead>
+        <tr><th>Asset Name</th><th>Asset Tag</th><th>Serial Number</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for asset in assets %}
+        <tr>
+          <td><strong>{{ asset.asset_name }}</strong></td>
+          <td>{{ asset.asset_tag|default:'-' }}</td>
+          <td>{{ asset.serial_number|default:'-' }}</td>
+          <td><span class="badge info">{{ asset.status }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">No assets assigned.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'erp_base.html' %}
+{% block title %}My Payslips - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.ps-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.ps-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 28px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-solid fa-wallet" style="color:var(--accent-color);"></i> My Payslips
+</h1>
+
+<div class="ps-card">
+  <h3><i class="fa-solid fa-file-invoice" style="color:var(--accent-color);"></i> Payslip History</h3>
+  <table class="data-table">
+    <thead>
+      <tr><th>Period</th><th>Employees</th><th>Total Net Pay</th><th>Status</th><th>View</th></tr>
+    </thead>
+    <tbody>
+      {% for pr in payrolls %}
+      <tr>
+        <td><strong>{{ pr.period }}</strong></td>
+        <td>{{ pr.employee_count }}</td>
+        <td>${{ pr.total_net_pay|floatformat:2 }}</td>
+        <td>
+          <span class="badge {% if pr.status == 'Disbursed' %}success{% else %}info{% endif %}">{{ pr.status }}</span>
+        </td>
+        <td>
+          <button class="btn-icon" onclick="alert('Payslip detail view coming soon.')" style="width:32px;height:32px;border:none;border-radius:6px;background:var(--accent-color);color:#fff;cursor:pointer;">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No payslips available yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'erp_base.html' %}
+{% block title %}Notification Center - Intrex ERP{% endblock %}
+{% block extra_css %}
+<style>
+.notif-filters { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
+.notif-filters .filter-btn { padding:8px 18px; border-radius:8px; border:1px solid var(--sidebar-border); background:#fff; cursor:pointer; font-size:.85rem; transition:all .2s; }
+.notif-filters .filter-btn.active { background:var(--accent-color); color:#fff; border-color:var(--accent-color); }
+.notif-list { display:flex; flex-direction:column; gap:8px; }
+.notif-item { display:flex; gap:14px; padding:16px 18px; border-radius:10px; border:1px solid var(--sidebar-border); background:#fff; transition:all .2s; align-items:flex-start; }
+.notif-item.unread { border-left:3px solid var(--accent-color); background:#f6fbfb; }
+.notif-item .notif-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.notif-item .notif-body { flex:1; min-width:0; }
+.notif-item .notif-title { font-weight:600; font-size:.9rem; color:var(--text-primary); margin-bottom:2px; }
+.notif-item .notif-msg { font-size:.83rem; color:var(--text-secondary); margin-bottom:4px; }
+.notif-item .notif-time { font-size:.75rem; color:var(--text-muted); }
+.notif-item .notif-actions { flex-shrink:0; }
+.prefs-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:20px; margin-top:24px; }
+.prefs-card h3 { margin:0 0 16px 0; font-size:.95rem; }
+.prefs-grid { display:flex; flex-direction:column; gap:12px; }
+.pref-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; }
+.pref-row label { font-size:.88rem; color:var(--text-primary); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="flex-between" style="margin-bottom:24px;">
+  <h2>Notification Center</h2>
+  <div style="display:flex; gap:10px;">
+    <form method="POST" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="mark_all_read">
+      <button type="submit" class="btn btn-outline"><i class="fa-regular fa-check-double"></i> Mark All Read</button>
+    </form>
+  </div>
+</div>
+
+<div class="notif-filters">
+  <span class="filter-btn active" onclick="filterNotifs('all',this)">All</span>
+  <span class="filter-btn" onclick="filterNotifs('unread',this)">Unread ({{ unread_count }})</span>
+  <span class="filter-btn" onclick="filterNotifs('read',this)">Read</span>
+</div>
+
+<div class="notif-list">
+  {% for n in notifications %}
+  <div class="notif-item {% if not n.is_read %}unread{% endif %}" data-read="{% if n.is_read %}read{% else %}unread{% endif %}">
+    <div class="notif-icon" style="background:{% if n.notification_type == 'leave_applied' %}rgba(245,158,11,.1);color:#d97706{% elif n.notification_type == 'review_assigned' %}rgba(99,102,241,.1);color:#6366f1{% else %}rgba(33,92,92,.1);color:var(--accent-color){% endif %}">
+      <i class="fa-{% if n.notification_type == 'leave_applied' %}solid fa-calendar-plus{% elif n.notification_type == 'review_assigned' %}solid fa-star{% else %}regular fa-bell{% endif %}"></i>
+    </div>
+    <div class="notif-body">
+      <div class="notif-title">{{ n.title }}</div>
+      <div class="notif-msg">{{ n.message }}</div>
+      <div class="notif-time">{{ n.created_at|date:"M d, Y H:i" }}</div>
+    </div>
+    <div class="notif-actions">
+      {% if not n.is_read %}
+      <form method="POST" style="display:inline;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mark_read">
+        <input type="hidden" name="notification_id" value="{{ n.id }}">
+        <button type="submit" class="btn btn-sm btn-ghost" title="Mark as read"><i class="fa-regular fa-circle-check"></i></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="glass-card" style="text-align:center;padding:60px 20px;">
+    <i class="fa-regular fa-bell-slash" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
+    <p style="color:var(--text-secondary);">No notifications yet.</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="prefs-card">
+  <h3><i class="fa-solid fa-gear"></i> Notification Preferences</h3>
+  <form method="POST">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_prefs">
+    <div class="prefs-grid">
+      <div class="pref-row">
+        <label for="notify_in_app">In-App Notifications</label>
+        <input type="checkbox" id="notify_in_app" name="notify_in_app" {% if prefs.notify_in_app %}checked{% endif %}>
+      </div>
+      <div class="pref-row">
+        <label for="notify_email">Email Notifications</label>
+        <input type="checkbox" id="notify_email" name="notify_email" {% if prefs.notify_email %}checked{% endif %}>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:16px;"><i class="fa-regular fa-floppy-disk"></i> Save Preferences</button>
+  </form>
+</div>
+
+<script>
+function filterNotifs(type, el) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.notif-item').forEach(item => {
+    if (type === 'all') item.style.display = 'flex';
+    else if (type === 'unread') item.style.display = item.dataset.read === 'unread' ? 'flex' : 'none';
+    else item.style.display = item.dataset.read === 'read' ? 'flex' : 'none';
+  });
+}
+</script>
+{% endblock %}

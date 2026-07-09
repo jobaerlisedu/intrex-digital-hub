@@ -1,0 +1,102 @@
+{% extends 'erp_base.html' %}
+{% block title %}360 Feedback - Intrex ERP{% endblock %}
+{% block extra_css %}
+<style>
+.fb-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
+.fb-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
+.fb-tab-btn:hover { color:var(--accent-color); }
+.fb-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
+.fb-panel { display:none; }
+.fb-panel.active { display:block; }
+.fb-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
+.fb-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.fb-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.fb-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.fb-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.fb-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="fb-tabs">
+  <button class="fb-tab-btn active" onclick="switchFbTab('requests')"><i class="fa-regular fa-paper-plane"></i> Requests</button>
+  <button class="fb-tab-btn" onclick="switchFbTab('questions')"><i class="fa-regular fa-circle-question"></i> Questions</button>
+  <button class="fb-tab-btn" onclick="switchFbTab('responses')"><i class="fa-regular fa-comment"></i> Responses</button>
+</div>
+
+<div id="fb-panel-requests" class="fb-panel active">
+  <div class="fb-layout">
+    <div class="fb-form-card">
+      <h4><i class="fa-regular fa-paper-plane" style="color:var(--accent-color);"></i> Send Feedback Request</h4>
+      <form method="POST">
+        {% csrf_token %}<input type="hidden" name="action" value="send_request">
+        <div class="mb-3"><label class="form-label">Reviewer</label>
+          <select name="reviewer" class="form-control" required>{% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }}</option>{% endfor %}</select></div>
+        <div class="mb-3"><label class="form-label">Reviewee</label>
+          <select name="reviewee" class="form-control" required>{% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }}</option>{% endfor %}</select></div>
+        <div class="mb-3"><label class="form-label">Review Cycle</label>
+          <select name="review_cycle" class="form-control" required>{% for c in cycles %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+        <div class="mb-3"><label class="form-label">Relationship</label>
+          <select name="relationship" class="form-control"><option>Manager</option><option>Peer</option><option>Subordinate</option><option>Self</option></select></div>
+        <div class="mb-3"><label class="form-label">Due Date</label><input name="due_date" type="date" class="form-control"></div>
+        <button class="btn btn-primary w-100"><i class="fa-regular fa-paper-plane"></i> Send</button>
+      </form>
+    </div>
+    <div class="fb-table-card">
+      <div class="fb-table-header"><h4><i class="fa-regular fa-paper-plane" style="color:var(--accent-color);"></i> Feedback Requests</h4></div>
+      <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Reviewer</th><th>Reviewee</th><th>Cycle</th><th>Relationship</th><th>Status</th><th>Due</th></tr></thead>
+        <tbody>{% for rq in requests %}<tr>
+          <td>{{ rq.reviewer.get_full_name|default:rq.reviewer.username }}</td>
+          <td>{{ rq.reviewee.name|default:rq.reviewee.first_name }}</td>
+          <td>{{ rq.review_cycle.name }}</td>
+          <td>{{ rq.relationship }}</td>
+          <td><span class="badge bg-{% if rq.status == 'Completed' %}success{% elif rq.status == 'Pending' %}warning{% else %}secondary{% endif %}">{{ rq.status }}</span></td>
+          <td>{{ rq.due_date|date:'M d, Y'|default:'-' }}</td>
+        </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted">No requests</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<div id="fb-panel-questions" class="fb-panel">
+  <div class="fb-layout">
+    <div class="fb-form-card">
+      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add Question</h4>
+      <form method="POST">
+        {% csrf_token %}<input type="hidden" name="action" value="add_question">
+        <div class="mb-3"><label class="form-label">Category</label>
+          <select name="category" class="form-control"><option>Technical</option><option>Behavioral</option><option>Leadership</option><option>Communication</option></select></div>
+        <div class="mb-3"><label class="form-label">Question</label><textarea name="question_text" class="form-control" rows="2" required></textarea></div>
+        <div class="mb-3"><label class="form-label">Order</label><input name="order" type="number" class="form-control"></div>
+        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_required" id="fbReq"><label class="form-check-label" for="fbReq">Required</label></div>
+        <button class="btn btn-primary w-100"><i class="fa-regular fa-floppy-disk"></i> Save</button>
+      </form>
+    </div>
+    <div class="fb-table-card">
+      <div class="fb-table-header"><h4><i class="fa-regular fa-circle-question" style="color:var(--accent-color);"></i> Question Bank</h4></div>
+      <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Category</th><th>Question</th><th>Required</th><th>Order</th></tr></thead>
+        <tbody>{% for q in questions %}<tr><td>{{ q.category }}</td><td>{{ q.question_text }}</td><td>{% if q.is_required %}<span class="badge bg-danger">Yes</span>{% endif %}</td><td>{{ q.order }}</td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted">No questions</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<div id="fb-panel-responses" class="fb-panel">
+  <div class="fb-table-card">
+    <div class="fb-table-header"><h4><i class="fa-regular fa-comment" style="color:var(--accent-color);"></i> Response Summary</h4></div>
+    <div class="table-responsive"><table class="table table-hover">
+      <thead><tr><th>Request</th><th>Question</th><th>Rating</th><th>Response</th></tr></thead>
+      <tbody>{% for rs in responses %}<tr>
+        <td>{{ rs.request.id }}</td><td>{{ rs.question.question_text|truncatechars:40 }}</td>
+        <td>{{ rs.rating|default:'-' }}</td><td>{{ rs.response_text|truncatechars:50 }}</td>
+      </tr>{% empty %}<tr><td colspan="4" class="text-center text-muted">No responses yet</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function switchFbTab(name){document.querySelectorAll('.fb-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.fb-tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('fb-panel-'+name).classList.add('active');document.querySelector('[onclick="switchFbTab(\''+name+'\')"]').classList.add('active');}
+</script>
+{% endblock %}

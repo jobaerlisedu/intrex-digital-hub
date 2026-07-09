@@ -1,0 +1,55 @@
+{% extends 'erp_base.html' %}
+{% block title %}Training Analytics - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.ta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+.ta-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:20px; }
+.ta-card .ta-num { font-size:1.6rem; font-weight:700; color:var(--text-primary); }
+.ta-card .ta-label { font-size:.82rem; color:var(--text-secondary); }
+.ta-chart-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.ta-chart-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:20px; }
+.ta-chart-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.ta-chart-wrap { position:relative; height:260px; }
+@media(max-width:768px){ .ta-chart-row{ grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 24px 0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+  <i class="fa-solid fa-graduation-cap" style="color:var(--accent-color);"></i> Training Analytics
+</h1>
+
+<div class="ta-grid">
+  <div class="ta-card"><div class="ta-num">{{ total_courses }}</div><div class="ta-label">Courses Offered</div></div>
+  <div class="ta-card"><div class="ta-num">{{ total_registrations }}</div><div class="ta-label">Total Enrollments</div></div>
+  <div class="ta-card"><div class="ta-num">${{ total_collected|floatformat:0 }}</div><div class="ta-label">Revenue Collected</div></div>
+  <div class="ta-card"><div class="ta-num">${{ total_due|floatformat:0 }}</div><div class="ta-label">Outstanding Dues</div></div>
+  <div class="ta-card"><div class="ta-num">{{ total_assessed }}</div><div class="ta-label">Assessments Completed</div></div>
+  <div class="ta-card"><div class="ta-num">{{ total_placed }}</div><div class="ta-label">Job Placements</div></div>
+</div>
+
+<div class="ta-chart-row">
+  <div class="ta-chart-card">
+    <h3><i class="fa-solid fa-book-open" style="color:var(--accent-color);"></i> Course Enrollments</h3>
+    <div class="ta-chart-wrap"><canvas id="courseChart"></canvas></div>
+  </div>
+  <div class="ta-chart-card">
+    <h3><i class="fa-solid fa-credit-card" style="color:var(--accent-color);"></i> Payment Status</h3>
+    <div class="ta-chart-wrap"><canvas id="paymentChart"></canvas></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('courseChart'), {
+  type: 'bar', data: { labels: {{ course_labels_json|safe }}, datasets: [{ label: 'Enrollments', data: {{ course_counts_json|safe }}, backgroundColor: '#215C5C', borderRadius: 6 }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+new Chart(document.getElementById('paymentChart'), {
+  type: 'doughnut', data: { labels: ['Fully Paid','Partially Paid','Unpaid'], datasets: [{ data: [{{ fully_paid }}, {{ partially_paid }}, {{ unpaid }}], backgroundColor: ['#10b981','#f59e0b','#ef4444'] }] },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+});
+</script>
+{% endblock %}

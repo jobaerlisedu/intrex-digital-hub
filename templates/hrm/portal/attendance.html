@@ -1,0 +1,59 @@
+{% extends 'erp_base.html' %}
+{% block title %}My Attendance - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.att-layout { display:grid; grid-template-columns:1fr; gap:24px; }
+.att-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
+.att-card h3 { margin:0 0 16px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
+.search-box { padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:.85rem; width:200px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;">
+  <h1 style="margin:0;font-size:1.4rem;font-weight:700;display:flex;align-items:center;gap:10px;">
+    <i class="fa-solid fa-calendar-check" style="color:var(--accent-color);"></i> My Attendance
+  </h1>
+  <input type="text" id="att-search" onkeyup="filterAttendance()" class="search-box" placeholder="Search by date...">
+</div>
+
+<div class="att-layout">
+  <div class="att-card">
+    <h3><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-color);"></i> Attendance History</h3>
+    <table class="data-table">
+      <thead>
+        <tr><th>Date</th><th>Check In</th><th>Check Out</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr class="att-row" data-date="{{ log.date }}">
+          <td><strong>{{ log.date }}</strong></td>
+          <td>{{ log.check_in|default:'-' }}</td>
+          <td>{{ log.check_out|default:'-' }}</td>
+          <td>
+            <span class="badge {% if log.status == 'Present' %}success{% elif log.status == 'Absent' %}danger{% elif log.status == 'Late' %}warning{% else %}info{% endif %}">
+              {{ log.status }}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">No attendance records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterAttendance() {
+  const q = document.getElementById('att-search').value.toLowerCase();
+  document.querySelectorAll('.att-row').forEach(row => {
+    const date = row.getAttribute('data-date').toLowerCase();
+    row.style.display = date.includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

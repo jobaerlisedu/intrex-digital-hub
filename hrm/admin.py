@@ -187,3 +187,307 @@ class HRMSettingAdmin(admin.ModelAdmin):
     list_display = ['key', 'is_active']
     search_fields = ['key']
     readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+# ── Phase 2: Performance Management ───────────────────────────────
+
+@admin.register(models.ReviewCycle)
+class ReviewCycleAdmin(admin.ModelAdmin):
+    list_display = ['name', 'start_date', 'end_date', 'review_type', 'status']
+    list_filter = ['review_type', 'status']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.RatingTemplate)
+class RatingTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.RatingScale)
+class RatingScaleAdmin(admin.ModelAdmin):
+    list_display = ['label', 'value', 'template', 'order']
+    list_filter = ['template']
+    search_fields = ['label']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.KPI)
+class KPIAdmin(admin.ModelAdmin):
+    list_display = ['name', 'unit', 'target_value', 'default_weight']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.EmployeeKPI)
+class EmployeeKPIAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'kpi', 'review_cycle', 'target_value', 'actual_value', 'score']
+    list_filter = ['review_cycle']
+    search_fields = ['employee__first_name', 'kpi__name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'review_cycle', 'kpi']
+
+
+@admin.register(models.PerformanceReview)
+class PerformanceReviewAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'reviewer', 'review_cycle', 'overall_score', 'status']
+    list_filter = ['status', 'review_cycle']
+    search_fields = ['employee__first_name', 'reviewer__first_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'reviewer', 'review_cycle', 'rating_template', 'rating']
+
+
+@admin.register(models.PerformanceImprovementPlan)
+class PerformanceImprovementPlanAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'start_date', 'end_date', 'status']
+    list_filter = ['status']
+    search_fields = ['employee__first_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'review']
+
+
+@admin.register(models.PIPMilestone)
+class PIPMilestoneAdmin(admin.ModelAdmin):
+    list_display = ['pip', 'description', 'due_date', 'status']
+    list_filter = ['status']
+    search_fields = ['description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+# ── Phase 3: Leave Balance & Training ────────────────────────────
+
+@admin.register(models.LeavePolicy)
+class LeavePolicyAdmin(admin.ModelAdmin):
+    list_display = ['employee_type', 'leave_type', 'entitled_days', 'carry_forward_days']
+    list_filter = ['employee_type', 'leave_type']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.LeaveBalance)
+class LeaveBalanceAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'leave_type', 'entitled', 'used', 'pending', 'available', 'period']
+    list_filter = ['leave_type', 'period']
+    search_fields = ['employee__first_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.TrainingNeed)
+class TrainingNeedAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'skill_gap', 'recommended_training', 'priority', 'status']
+    list_filter = ['priority', 'status']
+    search_fields = ['employee__first_name', 'skill_gap']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.DevelopmentPlan)
+class DevelopmentPlanAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'title', 'start_date', 'target_end_date', 'status']
+    list_filter = ['status']
+    search_fields = ['employee__first_name', 'title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.TrainingNomination)
+class TrainingNominationAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'course_name', 'provider', 'start_date', 'status', 'certificate_issued']
+    list_filter = ['status']
+    search_fields = ['employee__first_name', 'course_name', 'provider']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+# ── Phase 4: Notifications & Succession ──────────────────────────
+
+@admin.register(models.Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['recipient', 'title', 'channel', 'notification_type', 'is_read', 'created_at']
+    list_filter = ['channel', 'is_read', 'notification_type']
+    search_fields = ['recipient__username', 'title', 'message']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'read_at']
+    raw_id_fields = ['recipient']
+
+
+@admin.register(models.NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = ['user', 'notify_in_app', 'notify_email', 'notify_push', 'digest_frequency']
+    list_filter = ['notify_in_app', 'notify_email', 'digest_frequency']
+    search_fields = ['user__username']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.DeviceToken)
+class DeviceTokenAdmin(admin.ModelAdmin):
+    list_display = ['user', 'platform', 'is_active', 'created_at']
+    list_filter = ['platform', 'is_active']
+    search_fields = ['user__username', 'fcm_token']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['user']
+
+
+@admin.register(models.KeyPosition)
+class KeyPositionAdmin(admin.ModelAdmin):
+    list_display = ['position_title', 'department', 'risk_of_vacancy', 'status', 'is_active']
+    list_filter = ['risk_of_vacancy', 'status', 'is_active']
+    search_fields = ['position_title', 'readiness_gap']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['position', 'department', 'incumbent']
+
+
+@admin.register(models.SuccessorCandidate)
+class SuccessorCandidateAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'key_position', 'readiness', 'is_primary', 'is_active']
+    list_filter = ['readiness', 'is_primary', 'is_active']
+    search_fields = ['employee__first_name', 'key_position__position_title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['key_position', 'employee']
+
+
+@admin.register(models.SuccessionPlan)
+class SuccessionPlanAdmin(admin.ModelAdmin):
+    list_display = ['title', 'department', 'review_date', 'status', 'is_active']
+    list_filter = ['status', 'is_active']
+    search_fields = ['title', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['department']
+
+
+# ── Phase 5: Skills, Education, Experience ────────────────────────
+
+@admin.register(models.EmployeeEducation)
+class EmployeeEducationAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'degree', 'institution', 'end_year', 'grade']
+    list_filter = ['degree']
+    search_fields = ['employee__first_name', 'institution', 'degree']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.EmployeeExperience)
+class EmployeeExperienceAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'job_title', 'company', 'start_date', 'end_date', 'is_current']
+    list_filter = ['is_current']
+    search_fields = ['employee__first_name', 'company', 'job_title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.EmployeeSkill)
+class EmployeeSkillAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'skill_name', 'proficiency', 'years_of_experience']
+    list_filter = ['proficiency']
+    search_fields = ['employee__first_name', 'skill_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+@admin.register(models.Competency)
+class CompetencyAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'is_active']
+    list_filter = ['category', 'is_active']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.CompetencyRating)
+class CompetencyRatingAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'competency', 'rating', 'assessed_by', 'assessment_date']
+    list_filter = ['rating']
+    search_fields = ['employee__first_name', 'competency__name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'competency', 'assessed_by']
+
+
+@admin.register(models.CandidateDocument)
+class CandidateDocumentAdmin(admin.ModelAdmin):
+    list_display = ['candidate', 'document_type', 'uploaded_at']
+    list_filter = ['document_type']
+    search_fields = ['candidate__name']
+    readonly_fields = ['id', 'uploaded_at']
+    raw_id_fields = ['candidate']
+
+
+# ── Phase 5: 360 Feedback ─────────────────────────────────────────
+
+@admin.register(models.FeedbackQuestion)
+class FeedbackQuestionAdmin(admin.ModelAdmin):
+    list_display = ['category', 'question_text', 'is_required', 'order']
+    list_filter = ['category']
+    search_fields = ['question_text']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.FeedbackRequest)
+class FeedbackRequestAdmin(admin.ModelAdmin):
+    list_display = ['reviewer', 'reviewee', 'review_cycle', 'relationship', 'status', 'due_date']
+    list_filter = ['status', 'relationship']
+    search_fields = ['reviewer__username', 'reviewee__first_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['reviewer', 'reviewee', 'review_cycle']
+
+
+@admin.register(models.FeedbackResponse)
+class FeedbackResponseAdmin(admin.ModelAdmin):
+    list_display = ['request', 'question', 'rating']
+    readonly_fields = ['id', 'created_at']
+    raw_id_fields = ['request', 'question']
+
+
+# ── Phase 5: Engagement Surveys ───────────────────────────────────
+
+@admin.register(models.EngagementSurvey)
+class EngagementSurveyAdmin(admin.ModelAdmin):
+    list_display = ['title', 'start_date', 'end_date', 'is_anonymous', 'status']
+    list_filter = ['status', 'is_anonymous']
+    search_fields = ['title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.SurveyQuestion)
+class SurveyQuestionAdmin(admin.ModelAdmin):
+    list_display = ['survey', 'question_type', 'question_text', 'order', 'is_required']
+    list_filter = ['question_type']
+    search_fields = ['question_text']
+    readonly_fields = ['id']
+    raw_id_fields = ['survey']
+
+
+@admin.register(models.SurveyResponse)
+class SurveyResponseAdmin(admin.ModelAdmin):
+    list_display = ['survey', 'question', 'employee', 'response_value', 'created_at']
+    readonly_fields = ['id', 'created_at']
+    raw_id_fields = ['survey', 'question', 'employee']
+
+
+# ── Phase 5: Compliance Calendar ──────────────────────────────────
+
+@admin.register(models.ComplianceReminder)
+class ComplianceReminderAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'reminder_type', 'title', 'due_date', 'status']
+    list_filter = ['reminder_type', 'status']
+    search_fields = ['employee__first_name', 'title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee']
+
+
+# ── Phase 5: Talent Review & 9-Box ────────────────────────────────
+
+@admin.register(models.TalentReviewMeeting)
+class TalentReviewMeetingAdmin(admin.ModelAdmin):
+    list_display = ['title', 'meeting_date', 'status']
+    list_filter = ['status']
+    search_fields = ['title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(models.NineBoxCell)
+class NineBoxCellAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'talent_review', 'performance', 'potential']
+    list_filter = ['performance', 'potential']
+    search_fields = ['employee__first_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'talent_review']

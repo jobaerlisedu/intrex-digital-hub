@@ -209,12 +209,19 @@
   <div class="lv-layout">
     <div class="lv-form-card">
       <h4><i class="fa-regular fa-file-lines" style="color:var(--accent-color);"></i> Apply Leave</h4>
+
+      <!-- Leave Balance Display -->
+      <div id="balance-display" style="margin-bottom:16px;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;display:none;">
+        <strong style="font-size:.85rem;color:#166534;">Leave Balance</strong>
+        <div id="balance-details" style="margin-top:8px;font-size:.82rem;color:#166534;"></div>
+      </div>
+
       <form method="POST" action="{% url 'hrm:leave' %}">
         {% csrf_token %}
         <input type="hidden" name="lv_action" value="apply_leave">
         <div class="lv-form-group">
           <label class="form-label-red">Employee <span>*</span></label>
-          <select name="emp_name" class="form-control" required>
+          <select name="emp_name" class="form-control" required onchange="showLeaveBalance(this.value)">
             <option value="" disabled selected>Select Employee...</option>
             {% for emp in employees %}
             <option value="{{ emp.name }}">{{ emp.name }}</option>
@@ -223,7 +230,7 @@
         </div>
         <div class="lv-form-group">
           <label class="form-label-red">Leave Type <span>*</span></label>
-          <select name="leave_type" class="form-control" required>
+          <select name="leave_type" class="form-control" required onchange="showLeaveBalance(document.querySelector('[name=emp_name]').value)">
             <option value="Annual">Annual Leave</option>
             <option value="Sick">Sick Leave</option>
             <option value="Casual">Casual Leave</option>
@@ -359,6 +366,7 @@
 {% block extra_js %}
 {{ holidays|json_script:"holidays-data" }}
 {{ weekend_days|json_script:"weekend-days-data" }}
+{{ emp_balances|json_script:"emp-balances-data" }}
 
 <script>
 // Pass data from Django to JS
@@ -468,6 +476,27 @@ function filterLeaves() {
     const name = row.getAttribute('data-name').toLowerCase();
     row.style.display = name.includes(q) ? '' : 'none';
   });
+}
+
+function showLeaveBalance(empName) {
+  const leaveType = document.querySelector('[name=leave_type]').value;
+  const display = document.getElementById('balance-display');
+  const details = document.getElementById('balance-details');
+  if (!empName || !leaveType) { display.style.display = 'none'; return; }
+  const balances = JSON.parse(document.getElementById('emp-balances-data').textContent);
+  const emp = balances.find(b => b.name === empName);
+  if (!emp) { display.style.display = 'none'; return; }
+  const bal = emp.balances.find(b => b.leave_type === leaveType);
+  if (!bal) { display.style.display = 'none'; return; }
+  display.style.display = 'block';
+  details.innerHTML = `
+    <div>Entitled: <strong>${bal.entitled}</strong>d</div>
+    <div>Used: <strong>${bal.used}</strong>d</div>
+    <div>Pending: <strong>${bal.pending}</strong>d</div>
+    <div style="margin-top:4px;color:${bal.available <= 0 ? '#dc2626' : '#166534'};font-weight:700;">
+      Available: ${bal.available}d
+    </div>
+  `;
 }
 
 initPage();

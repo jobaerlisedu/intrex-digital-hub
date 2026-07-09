@@ -78,13 +78,23 @@
         </h3>
         <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
         
-        <form method="POST" action="{% url 'hrm:recruitment' %}">
+        <form method="POST" action="{% url 'hrm:recruitment' %}" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_candidate">
-            
+
             <div class="form-group">
                 <label>Candidate Name <span class="asterisk">*</span></label>
                 <input type="text" name="name" class="form-control" placeholder="e.g. John Doe" required>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" placeholder="candidate@example.com">
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Phone</label>
+                <input type="text" name="phone" class="form-control" placeholder="+8801XXXXXXXXX">
             </div>
             
             <div class="form-group" style="margin-top: 20px;">
@@ -126,6 +136,34 @@
                     <option value="Selected">Selected</option>
                     <option value="Rejected">Rejected</option>
                 </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Source</label>
+                <select name="source" class="form-control">
+                    <option value="">Select Source</option>
+                    <option value="Referral">Referral</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Job Portal">Job Portal</option>
+                    <option value="Company Website">Company Website</option>
+                    <option value="Agency">Agency</option>
+                    <option value="Walk-in">Walk-in</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Rating (1-5)</label>
+                <select name="rating" class="form-control">
+                    <option value="">Select</option>
+                    <option value="1">1</option><option value="2">2</option>
+                    <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Resume / CV</label>
+                <input type="file" name="resume" class="form-control" accept=".pdf,.doc,.docx">
             </div>
             
             <div class="form-group" style="margin-top: 20px;">

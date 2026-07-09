@@ -73,15 +73,27 @@
     <div class="glass-card">
         <h3 style="margin-top: 0;">Welcome to your HR Dashboard</h3>
         <p style="color: var(--text-secondary); line-height: 1.6;">
-            Manage your entire workforce operations here. Track job openings in Recruitment, manage organizational structure under Departments, run daily check-ins under Attendance, review staff Leaves, generate monthly Pay slips, and build employee summaries.
+            Manage your entire workforce operations here.
         </p>
-        <div style="display: flex; gap: 12px; margin-top: 24px;">
-            <a href="{% url 'hrm:employee_database' %}" class="btn-submit" style="text-decoration: none; display: inline-block;">
-                <i class="fa-solid fa-user-plus"></i> Manage Employees
-            </a>
-            <a href="{% url 'hrm:recruitment' %}" class="btn-submit" style="background: var(--text-secondary); text-decoration: none; display: inline-block;">
-                <i class="fa-solid fa-briefcase"></i> View Job Openings
-            </a>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px;">
+            <a href="{% url 'hrm:recruitment' %}" class="btn-submit" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-briefcase"></i> Recruitment</a>
+            <a href="{% url 'hrm:department' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-sitemap"></i> Departments</a>
+            <a href="{% url 'hrm:employee_database' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-users"></i> Employees</a>
+            <a href="{% url 'hrm:attendance' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-clock"></i> Attendance</a>
+            <a href="{% url 'hrm:leave' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-calendar-minus"></i> Leave</a>
+            <a href="{% url 'hrm:payroll' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-money-bill"></i> Payroll</a>
+            <a href="{% url 'hrm:performance' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-star"></i> Performance</a>
+            <a href="{% url 'hrm:skills_inventory' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-chart-bar"></i> Skills</a>
+            <a href="{% url 'hrm:feedback_360' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-comment"></i> 360 Feedback</a>
+            <a href="{% url 'hrm:engagement_surveys' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-rectangle-list"></i> Surveys</a>
+            <a href="{% url 'hrm:compliance_calendar' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-calendar"></i> Compliance</a>
+            <a href="{% url 'hrm:talent_review' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-grid-2"></i> Talent Review</a>
+            <a href="{% url 'hrm:succession_planning' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-tree"></i> Succession</a>
+            <a href="{% url 'hrm:onboarding_offboarding' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-right-left"></i> Onboarding</a>
+            <a href="{% url 'hrm:expense_claims' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-regular fa-credit-card"></i> Expenses</a>
+            <a href="{% url 'hrm:document_asset_vault' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-vault"></i> Vault</a>
+            <a href="{% url 'hrm:reports' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-chart-pie"></i> Reports</a>
+            <a href="{% url 'hrm:hrm_settings' %}" class="btn-submit" style="background:var(--text-secondary);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:.85rem;"><i class="fa-solid fa-gear"></i> Settings</a>
         </div>
     </div>
 
