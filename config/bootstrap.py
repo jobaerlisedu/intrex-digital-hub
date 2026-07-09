@@ -87,6 +87,68 @@ def sync_all_users_from_firestore():
         print(f"ERROR syncing users from Firestore: {e}")
 
 
+def sync_employees_from_firestore():
+    """Recreate Person and Employee ORM records from Firestore hrm_employees."""
+    from django.contrib.auth.models import User
+    from hrm.models import Employee
+    from registry.models import Person
+    from config.firebase import db
+
+    try:
+        docs = db.collection('hrm_employees').stream()
+        count = 0
+        for doc in docs:
+            data = doc.to_dict()
+            email = (data.get('email') or '').strip().lower()
+            if not email:
+                continue
+            name = data.get('name', '') or f"{data.get('first_name', '')} {data.get('last_name', '')}"
+            name = name.strip()
+            first_name = name.split()[0] if name and ' ' in name else (data.get('first_name', name.split()[0] if name else ''))
+            last_name = ' '.join(name.split()[1:]) if name and ' ' in name else (data.get('last_name', ''))
+
+            # Find matching User by email (portal user in sys_users)
+            user = User.objects.filter(email=email).first()
+            if not user:
+                continue
+
+            # Create Employee ORM record if missing
+            emp_obj = Employee.objects.filter(email=email).first()
+            if not emp_obj:
+                emp_obj = Employee.objects.create(
+                    firestore_id=doc.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    emp_id=data.get('emp_id', ''),
+                    email=email,
+                    phone=data.get('phone', ''),
+                    is_active=True,
+                )
+
+            # Create/update Person record
+            person, _ = Person.objects.get_or_create(
+                email=email,
+                defaults={
+                    'display_name': name or email.split('@')[0],
+                    'person_type': 'employee',
+                    'phone': data.get('phone', ''),
+                    'roles': ['employee'],
+                    'auth_user': user,
+                    'firestore_employee_id': doc.id,
+                }
+            )
+            if not person.auth_user or not person.firestore_employee_id:
+                person.auth_user = user
+                person.firestore_employee_id = doc.id
+                person.save()
+
+            count += 1
+        if count:
+            print(f"       Synced {count} employee(s) from Firestore to local database.")
+    except Exception as e:
+        print(f"ERROR syncing employees from Firestore: {e}")
+
+
 def run_startup():
     from django.core.management import call_command
 
@@ -98,3 +160,6 @@ def run_startup():
 
     print("Django Startup: Syncing all users from Firestore...")
     sync_all_users_from_firestore()
+
+    print("Django Startup: Syncing employees from Firestore...")
+    sync_employees_from_firestore()
