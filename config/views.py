@@ -7,6 +7,16 @@ from config.logger import firebase_logger
 
 @login_required
 def erp_dashboard(request):
+    # Redirect non-admin employees straight to their portal dashboard
+    if not request.user.is_staff and not request.user.is_superuser:
+        try:
+            from registry.models import Person
+            if Person.objects.filter(auth_user=request.user, person_type='employee', is_active=True).exclude(firestore_employee_id='').exists():
+                from django.shortcuts import redirect
+                return redirect('hrm:portal_dashboard')
+        except Exception:
+            pass
+
     from config.firebase import tenant_db
     from config.services import KPIService
 
