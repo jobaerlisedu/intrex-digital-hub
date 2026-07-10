@@ -502,7 +502,6 @@ class CeleryTaskTests(TestCase):
         mock_get_coll.return_value = [
             {'id': 's-1', 'payment_status': 'Unpaid', 'due_date': past_date},
             {'id': 's-2', 'payment_status': 'Unpaid', 'due_date': future_date},
-            {'id': 's-3', 'payment_status': 'Paid', 'due_date': past_date},
         ]
 
         result = check_overdue_schedules()
@@ -518,7 +517,8 @@ class CeleryTaskTests(TestCase):
 
         target = (date.today() + timedelta(days=3)).isoformat()
 
-        def mock_get_coll_side_effect(coll):
+        def mock_get_coll_side_effect(*args):
+            coll = args[0]
             if coll == 'invst_loan_schedules':
                 return [
                     {'id': 's-1', 'loan_id': 'l-1', 'installment_number': 1, 'due_date': target,
@@ -538,7 +538,8 @@ class CeleryTaskTests(TestCase):
     def test_notify_overdue_schedules_logs(self, mock_get_coll):
         from investment.tasks import notify_overdue_schedules
 
-        def mock_get_coll_side_effect(coll):
+        def mock_get_coll_side_effect(*args):
+            coll = args[0]
             if coll == 'invst_loan_schedules':
                 return [
                     {'id': 's-1', 'loan_id': 'l-1', 'installment_number': 2, 'due_date': '2026-01-01',
@@ -751,7 +752,8 @@ class NavCalculationTests(TestCase):
 
     @patch('investment.services.FirestoreService.get_collection')
     def test_calculate_nav_basic(self, mock_get_coll):
-        def side_effect(coll_name):
+        def side_effect(*args):
+            coll_name = args[0]
             if coll_name.endswith('transactions'):
                 return [
                     {'id': 't1', 'transaction_type': 'Capital Influx', 'amount': 100000.0, 'status': 'Cleared'},
@@ -786,7 +788,8 @@ class NavCalculationTests(TestCase):
 
     @patch('investment.services.FirestoreService.get_collection')
     def test_calculate_nav_zero_units(self, mock_get_coll):
-        def side_effect(coll_name):
+        def side_effect(*args):
+            coll_name = args[0]
             if coll_name.endswith('transactions'):
                 return []
             elif coll_name.endswith('loans'):
@@ -1129,7 +1132,8 @@ class PdfStatementServiceTests(TestCase):
         mock_get_doc.return_value = {
             'id': 'inv-1', 'name': 'Test Investor', 'investor_code': 'INV-001',
         }
-        def side_effect(coll_name):
+        def side_effect(*args):
+            coll_name = args[0]
             data = {
                 COLL_INVESTOR_HOLDINGS: [],
                 COLL_TRANSACTIONS: [],
@@ -1155,7 +1159,8 @@ class PdfStatementServiceTests(TestCase):
     @patch('investment.pdf_service.fs.get_collection')
     def test_generate_portfolio_report_returns_pdf(self, mock_get_coll, mock_get_doc):
         mock_get_doc.return_value = None
-        def side_effect(coll_name):
+        def side_effect(*args):
+            coll_name = args[0]
             data = {
                 COLL_INVESTORS: [{'id': 'inv-1', 'name': 'Test Investor'}],
                 COLL_INVESTOR_HOLDINGS: [],

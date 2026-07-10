@@ -5,6 +5,7 @@ Uses ReportLab to generate investor statements and portfolio reports.
 """
 from io import BytesIO
 from datetime import date, datetime
+import calendar
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm, cm
@@ -57,18 +58,28 @@ def _build_statement_doc(investor: dict, period: str) -> list:
     inv_name = investor.get('name', 'Investor')
     inv_code = investor.get('investor_code', '')
 
-    holdings = [h for h in fs.get_collection(COLL_INVESTOR_HOLDINGS) if h.get('investor_id') == inv_id]
-    transactions = [
-        t for t in fs.get_collection(COLL_TRANSACTIONS)
-        if t.get('investor_id') == inv_id and t.get('status') == 'Cleared'
-        and t.get('value_date', '').startswith(period)
-    ]
+    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', inv_id)])
+
+    year, month = map(int, period.split('-'))
+    _, last_day = calendar.monthrange(year, month)
+    period_start = f"{period}-01"
+    period_end = f"{period}-{last_day:02d}"
+
+    transactions = fs.get_collection(COLL_TRANSACTIONS, [
+        ('investor_id', '==', inv_id),
+        ('status', '==', 'Cleared'),
+        ('value_date', '>=', period_start),
+        ('value_date', '<=', period_end),
+    ])
     transactions.sort(key=lambda t: t.get('value_date', ''))
 
     nav_history = fs.get_collection(COLL_NAV_HISTORY)
     nav_history.sort(key=lambda r: r.get('nav_date', ''))
 
-    fee_accruals = [f for f in fs.get_collection(COLL_FEE_ACCRUALS) if f.get('accrual_date', '').startswith(period)]
+    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS, [
+        ('accrual_date', '>=', period_start),
+        ('accrual_date', '<=', period_end),
+    ])
 
     elements = []
 

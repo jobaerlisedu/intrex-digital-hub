@@ -55,16 +55,16 @@ class ReportService:
             money_to_float(l.get('principal_amount', 0.0)) for l in loans
         )
         total_outstanding = sum(
-            money_to_float(l.get('outstanding_balance', 0.0)) for l in loans if l.get('status') == 'Active'
+            money_to_float(l.get('outstanding_balance', 0.0)) for l in fs.get_collection(COLL_LOANS, [('status', '==', 'Active')])
         )
         total_outbound_alloc = sum(
-            money_to_float(o.get('allocated_capital', 0.0)) for o in outbound if o.get('status') == 'Active'
+            money_to_float(o.get('allocated_capital', 0.0)) for o in fs.get_collection(COLL_OUTBOUND, [('status', '==', 'Active')])
         )
         total_capital_managed = total_inflow - total_outflow + total_outstanding
 
         interest_due = sum(
             money_to_float(s.get('scheduled_interest', 0.0))
-            for s in schedules if s.get('payment_status') == 'Unpaid'
+            for s in fs.get_collection(COLL_LOAN_SCHEDULES, [('payment_status', '==', 'Unpaid')])
         )
 
         monthly_trend = ReportService._monthly_capital_trend(transactions, loans)
@@ -252,7 +252,7 @@ class ReportService:
             'total_outflow': round(total_outflow, 2),
             'net_flow': round(total_inflow - total_outflow, 2),
             'top_investors': ranked[:10],
-            'active_investor_count': len([i for i in investors if i.get('is_active')]),
+            'active_investor_count': len(fs.get_collection(COLL_INVESTORS, [('is_active', '==', True)])),
         }
 
     # ── Instrument Performance ────────────────────────────────────
@@ -344,22 +344,17 @@ class ReportService:
     def fee_impact() -> dict:
         """Show cumulative fees deducted from returns."""
         from investment.services import COLL_FEE_ACCRUALS
-        fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
-        total_mgmt = sum(
-            money_to_float(f.get('amount', '0.00'))
-            for f in fee_accruals if f.get('fee_type') == 'management'
-        )
-        total_perf = sum(
-            money_to_float(f.get('amount', '0.00'))
-            for f in fee_accruals if f.get('fee_type') == 'performance'
-        )
+        mgmt_fees = fs.get_collection(COLL_FEE_ACCRUALS, [('fee_type', '==', 'management')])
+        perf_fees = fs.get_collection(COLL_FEE_ACCRUALS, [('fee_type', '==', 'performance')])
+        total_mgmt = sum(money_to_float(f.get('amount', '0.00')) for f in mgmt_fees)
+        total_perf = sum(money_to_float(f.get('amount', '0.00')) for f in perf_fees)
         return {
             'total_management_fees': f'{total_mgmt:.2f}',
             'total_performance_fees': f'{total_perf:.2f}',
             'total_fees': f'{round(total_mgmt + total_perf, 2):.2f}',
-            'unsettled_management': f'{sum(money_to_float(f.get("amount", "0.00")) for f in fee_accruals if f.get("fee_type") == "management" and not f.get("is_settled", False)):.2f}',
-            'unsettled_performance': f'{sum(money_to_float(f.get("amount", "0.00")) for f in fee_accruals if f.get("fee_type") == "performance" and not f.get("is_settled", False)):.2f}',
-            'fee_accruals': fee_accruals,
+            'unsettled_management': f'{sum(money_to_float(f.get("amount", "0.00")) for f in mgmt_fees if not f.get("is_settled", False)):.2f}',
+            'unsettled_performance': f'{sum(money_to_float(f.get("amount", "0.00")) for f in perf_fees if not f.get("is_settled", False)):.2f}',
+            'fee_accruals': mgmt_fees + perf_fees,
         }
 
     @staticmethod
@@ -377,9 +372,7 @@ class ReportService:
         nav_history = fs.get_collection(COLL_NAV_HISTORY)
         nav_history.sort(key=lambda r: r.get('nav_date', ''))
 
-        holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
-        if investor_id:
-            holdings = [h for h in holdings if h.get('investor_id') == investor_id]
+        holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', investor_id)]) if investor_id else fs.get_collection(COLL_INVESTOR_HOLDINGS)
 
         nav_values = [money_to_float(n.get('nav_per_unit', 0)) for n in nav_history if money_to_float(n.get('nav_per_unit', 0)) > 0]
         if len(nav_values) < 2:

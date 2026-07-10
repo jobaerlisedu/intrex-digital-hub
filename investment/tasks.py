@@ -14,11 +14,11 @@ from investment.services import FirestoreService as fs, money_add, money_to_floa
 @shared_task
 def check_overdue_schedules():
     """Mark unpaid schedules past due_date as Overdue."""
-    schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
+    schedules = fs.get_collection(COLL_LOAN_SCHEDULES, [('payment_status', '==', 'Unpaid')])
     today = date.today().isoformat()
     count = 0
     for sch in schedules:
-        if sch.get('payment_status') == 'Unpaid' and sch.get('due_date', '') < today:
+        if sch.get('due_date', '') < today:
             fs.update_document(COLL_LOAN_SCHEDULES, sch['id'], {
                 'payment_status': 'Overdue',
             })
@@ -35,10 +35,14 @@ def send_investment_installment_reminders():
     investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
 
     target = (date.today() + timedelta(days=3)).isoformat()
+    schedules = fs.get_collection(COLL_LOAN_SCHEDULES, [('due_date', '==', target)])
+    loans = {l['id']: l for l in fs.get_collection(COLL_LOANS)}
+    investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
+
     count = 0
 
     for sch in schedules:
-        if sch.get('payment_status') not in ('Unpaid', 'Overdue') or sch.get('due_date', '') != target:
+        if sch.get('payment_status') not in ('Unpaid', 'Overdue'):
             continue
 
         loan = loans.get(sch.get('loan_id', ''))
@@ -63,7 +67,7 @@ def send_investment_installment_reminders():
 @shared_task
 def notify_overdue_schedules():
     """Create in-app notifications for newly overdue schedules."""
-    schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
+    schedules = fs.get_collection(COLL_LOAN_SCHEDULES, [('payment_status', '==', 'Overdue')])
     loans = {l['id']: l for l in fs.get_collection(COLL_LOANS)}
     investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
 
@@ -198,11 +202,10 @@ def dispatch_monthly_statements():
 
     today = date.today()
     period = today.strftime('%Y-%m')
-    investors = fs.get_collection(COLL_INVESTORS)
-    active = [inv for inv in investors if inv.get('is_active', True)]
+    investors = fs.get_collection(COLL_INVESTORS, [('is_active', '==', True)])
 
     count = 0
-    for inv in active:
+    for inv in investors:
         inv_id = inv.get('id', '')
         if not inv_id:
             continue

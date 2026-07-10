@@ -50,21 +50,16 @@ def portal_login(request):
             except (ValueError, TypeError):
                 pass
 
-        investors = fs.get_collection(COLL_INVESTORS)
-        match = None
-        for inv in investors:
-            if inv.get('investor_code') == code:
-                stored_hash = inv.get('password_hash', '')
-                if stored_hash and check_password(password, stored_hash):
-                    match = inv
-                    break
-
+        investors = fs.get_collection(COLL_INVESTORS, [('investor_code', '==', code)])
+        match = investors[0] if investors else None
         if match:
-            request.session.pop('portal_login_attempts', None)
-            request.session.pop('portal_login_blocked_until', None)
-            request.session['portal_investor_id'] = match['id']
-            request.session['portal_investor_name'] = match.get('name', 'Investor')
-            return redirect('investment:portal_dashboard')
+            stored_hash = match.get('password_hash', '')
+            if stored_hash and check_password(password, stored_hash):
+                request.session.pop('portal_login_attempts', None)
+                request.session.pop('portal_login_blocked_until', None)
+                request.session['portal_investor_id'] = match['id']
+                request.session['portal_investor_name'] = match.get('name', 'Investor')
+                return redirect('investment:portal_dashboard')
 
         request.session['portal_login_attempts'] = attempts + 1
         if attempts + 1 >= 5:
@@ -97,11 +92,8 @@ def portal_dashboard(request):
         return redirect('investment:portal_login')
 
     inv_id = inv['id']
-    holdings = [h for h in fs.get_collection(COLL_INVESTOR_HOLDINGS) if h.get('investor_id') == inv_id]
-    transactions = [
-        t for t in fs.get_collection(COLL_TRANSACTIONS)
-        if t.get('investor_id') == inv_id and t.get('status') == 'Cleared'
-    ]
+    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', inv_id)])
+    transactions = fs.get_collection(COLL_TRANSACTIONS, [('investor_id', '==', inv_id), ('status', '==', 'Cleared')])
     transactions.sort(key=lambda t: t.get('value_date', ''), reverse=True)
 
     nav_history = fs.get_collection(COLL_NAV_HISTORY)
@@ -134,10 +126,7 @@ def portal_statements(request):
     if not inv:
         return redirect('investment:portal_login')
 
-    transactions = [
-        t for t in fs.get_collection(COLL_TRANSACTIONS)
-        if t.get('investor_id') == inv['id'] and t.get('status') == 'Cleared'
-    ]
+    transactions = fs.get_collection(COLL_TRANSACTIONS, [('investor_id', '==', inv['id']), ('status', '==', 'Cleared')])
     fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
 
     periods = set()

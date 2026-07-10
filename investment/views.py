@@ -283,7 +283,7 @@ def inbound_list(request):
 
         return redirect('investment:inbound_list')
 
-    transactions = [t for t in fs.get_collection(COLL_TRANSACTIONS) if t.get('transaction_type') == 'Capital Influx']
+    transactions = fs.get_collection(COLL_TRANSACTIONS, [('transaction_type', '==', 'Capital Influx')])
     investors = fs.get_collection(COLL_INVESTORS)
     return render(request, 'investment/inbound.html', {'transactions': transactions, 'investors': investors})
 

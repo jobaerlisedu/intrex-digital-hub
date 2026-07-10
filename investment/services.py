@@ -132,10 +132,20 @@ class FirestoreService:
     """Thin wrapper over Firestore CRUD operations."""
 
     @staticmethod
-    def get_collection(collection_name: str) -> list[dict]:
-        """Fetch all documents from a collection. Each doc includes its 'id'."""
+    def get_collection(collection_name: str,
+                       where_filters: Optional[list[tuple[str, str, object]]] = None
+                       ) -> list[dict]:
+        """Fetch documents from a collection with optional server-side .where() filters.
+
+        Each filter is (field, operator, value), e.g. ('status', '==', 'Active').
+        Passing no filters returns all documents (backward-compatible).
+        """
         try:
-            docs = db.collection(collection_name).stream()
+            ref = db.collection(collection_name)
+            if where_filters:
+                for field, op, value in where_filters:
+                    ref = ref.where(field, op, value)
+            docs = ref.stream()
             return [{**doc.to_dict(), 'id': doc.id} for doc in docs]
         except Exception as e:
             investment_logger.error(f"Firestore fetch error [{collection_name}]: {e}")
@@ -471,10 +481,11 @@ class NavService:
         units = round(amount_float / nav_float, 4) if nav_float > 0 else 0.0
 
         existing = None
-        for h in FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS):
-            if h.get('investor_id') == investor_id and h.get('is_active', True):
-                existing = h
-                break
+        for h in FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS,
+                                                  [('investor_id', '==', investor_id),
+                                                   ('is_active', '==', True)]):
+            existing = h
+            break
 
         if existing:
             old_units = money_to_float(existing['units_held'])
@@ -526,8 +537,9 @@ class NavService:
         nav_float = money_to_float(nav_per_unit)
         proceeds = round(units_float * nav_float, 2)
 
-        for h in FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS):
-            if h.get('investor_id') == investor_id and h.get('is_active', True):
+        for h in FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS,
+                                                  [('investor_id', '==', investor_id),
+                                                   ('is_active', '==', True)]):
                 old_units = money_to_float(h['units_held'])
                 new_units = round(max(old_units - units_float, 0.0), 4)
                 old_invested = money_to_float(h['total_invested'])
@@ -562,10 +574,9 @@ class FeeService:
     @staticmethod
     def get_fee_structure() -> dict:
         """Return current fee structure (first active doc)."""
-        structures = FirestoreService.get_collection(COLL_FEE_STRUCTURES)
-        for s in structures:
-            if s.get('is_active', True):
-                return s
+        structures = FirestoreService.get_collection(COLL_FEE_STRUCTURES, [('is_active', '==', True)])
+        if structures:
+            return structures[0]
         return {
             'management_fee_annual_pct': '2.00',
             'performance_fee_pct': '20.00',
@@ -648,14 +659,12 @@ class FeeService:
     @staticmethod
     def _get_previous_nav(nav_date: date) -> dict | None:
         """Return the NAV record immediately before nav_date."""
-        records = FirestoreService.get_collection(COLL_NAV_HISTORY)
-        prev = None
-        for r in records:
-            r_date = r.get('nav_date', '')
-            if r_date < nav_date.isoformat():
-                if prev is None or r_date > prev['nav_date']:
-                    prev = r
-        return prev
+        records = FirestoreService.get_collection(
+            COLL_NAV_HISTORY,
+            [('nav_date', '<', nav_date.isoformat())],
+        )
+        records.sort(key=lambda r: r.get('nav_date', ''), reverse=True)
+        return records[0] if records else None
 
 
 # ══════════════════════════════════════════════
@@ -673,13 +682,12 @@ class ComplianceService:
 
         Concentration = Holding Current Value / Total AUM
         """
-        holdings = FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS)
         nav_history = FirestoreService.get_collection(COLL_NAV_HISTORY)
         nav_history.sort(key=lambda r: r.get('nav_date', ''))
         latest_nav = nav_history[-1] if nav_history else {}
         total_aum = money_to_float(latest_nav.get('total_aum', '0.00'))
 
-        investor_holdings = [h for h in holdings if h.get('investor_id') == investor_id]
+        investor_holdings = FirestoreService.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', investor_id)])
         total_holding = sum(money_to_float(h.get('current_value', '0.00')) for h in investor_holdings)
 
         concentration = (total_holding / total_aum * 100) if total_aum > 0 else 0.0
@@ -1085,8 +1093,7 @@ class CashFlowForecastService:
         """
         from datetime import date
         today = date.today()
-        outbounds = FirestoreService.get_collection(COLL_OUTBOUND)
-        active = [o for o in outbounds if o.get('status') == 'Active']
+        outbounds = FirestoreService.get_collection(COLL_OUTBOUND, [('status', '==', 'Active')])
 
         monthly = {}
         for i in range(months_ahead):
@@ -1094,7 +1101,7 @@ class CashFlowForecastService:
             key = dt.strftime('%Y-%m')
             monthly[key] = {'month': key, 'projected_outflow': 0.0, 'call_count': 0}
 
-        for ob in active:
+        for ob in outbounds:
             allocated = money_to_float(ob.get('allocated_capital', '0.00'))
             roi = money_to_float(ob.get('roi_expected_annual', '0.00'))
             placement_date = ob.get('placement_date', '')
@@ -1209,8 +1216,7 @@ class CashFlowForecastService:
 
         Stress test AUM impact, cash flow shortfall.
         """
-        loans = FirestoreService.get_collection(COLL_LOANS)
-        active_loans = [l for l in loans if l.get('status') == 'Active']
+        active_loans = FirestoreService.get_collection(COLL_LOANS, [('status', '==', 'Active')])
         total_outstanding = sum(money_to_float(l.get('outstanding_balance', '0.00')) for l in active_loans)
         total_principal = sum(money_to_float(l.get('principal_amount', '0.00')) for l in active_loans)
 

@@ -587,7 +587,7 @@ class PortalHoldingViewSet(viewsets.ViewSet):
         investor_id = request.query_params.get('investor_id')
         if not investor_id:
             return Response({'error': 'investor_id required'}, status=400)
-        data = [h for h in fs.get_collection(COLL_INVESTOR_HOLDINGS) if h.get('investor_id') == investor_id]
+        data = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', investor_id)])
         serializer = PortalHoldingSerializer(data, many=True)
         return Response(serializer.data)
 
@@ -600,10 +600,7 @@ class PortalTransactionViewSet(viewsets.ViewSet):
         investor_id = request.query_params.get('investor_id')
         if not investor_id:
             return Response({'error': 'investor_id required'}, status=400)
-        data = [
-            t for t in fs.get_collection(COLL_TRANSACTIONS)
-            if t.get('investor_id') == investor_id and t.get('status') == 'Cleared'
-        ]
+        data = fs.get_collection(COLL_TRANSACTIONS, [('investor_id', '==', investor_id), ('status', '==', 'Cleared')])
         data.sort(key=lambda t: t.get('value_date', ''), reverse=True)
         serializer = PortalTransactionSerializer(data, many=True)
         return Response(serializer.data)
