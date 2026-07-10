@@ -43,8 +43,8 @@
                 <select name="entity_type" id="entity_type" class="form-control" required>
                     <option value="Subsidiary">Subsidiary</option>
                     <option value="Joint Venture">Joint Venture</option>
-                    <option value="External Venture">External Venture</option>
-                    <option value="Bond">Bond / Fixed Income</option>
+                    <option value="Investment Fund">Investment Fund</option>
+                    <option value="Other">Other</option>
                 </select>
             </div>
             
@@ -72,8 +72,8 @@
                 <label>Status <span class="asterisk">*</span></label>
                 <select name="status" id="status" class="form-control" required>
                     <option value="Active">Active</option>
-                    <option value="Liquidated">Liquidated</option>
-                    <option value="Written Off">Written Off</option>
+                    <option value="Divested">Divested</option>
+                    <option value="Suspended">Suspended</option>
                 </select>
             </div>
         </div>
@@ -119,7 +119,7 @@
                 <td style="font-weight: 600; color: #10b981;">BDT {{ out.current_valuation|floatformat:2 }}</td>
                 <td>{{ out.roi_expected_annual }}%</td>
                 <td>
-                    <span class="badge {% if out.status == 'Active' %}success{% elif out.status == 'Liquidated' %}warning{% else %}danger{% endif %}">
+                    <span class="badge {% if out.status == 'Active' %}success{% elif out.status == 'Divested' %}warning{% else %}danger{% endif %}">
                         {{ out.status }}
                     </span>
                 </td>

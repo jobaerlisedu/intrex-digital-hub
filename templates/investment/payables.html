@@ -241,14 +241,9 @@
                 <td><span class="cleared-date">{{ s.actual_payment_date }}</span></td>
                 <td>
                     {% if s.payment_status == 'Unpaid' %}
-                    <form method="POST" action="{% url 'investment:payables_list' %}" style="margin: 0;" onsubmit="return confirm('Mark this installment payment as cleared/disbursed?');">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="clear_payment">
-                        <input type="hidden" name="schedule_id" value="{{ s.id }}">
-                        <button type="submit" class="btn-submit" style="padding: 6px 12px; font-size: 0.78rem; background-color: #10b981; display: inline-flex; align-items: center; gap: 4px;">
-                            <i class="fa-solid fa-circle-check"></i> Pay
-                        </button>
-                    </form>
+                    <button type="button" class="btn-submit" onclick="showPaymentModal('{{ s.id }}')" style="padding: 6px 12px; font-size: 0.78rem; background-color: #10b981; display: inline-flex; align-items: center; gap: 4px; border: none; cursor: pointer;">
+                        <i class="fa-solid fa-circle-check"></i> Pay
+                    </button>
                     {% else %}
                     <span style="color: #10b981; font-weight: 600; font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> Cleared</span>
                     {% endif %}
@@ -407,6 +402,65 @@
         });
     }
 
+    // Payment modal with amount input for partial/full payment
+    function showPaymentModal(scheduleId) {
+        const s = schedulesDb.find(item => item.id === scheduleId);
+        if (!s) return;
+
+        const csrfToken = document.querySelector('#csrf-helper-form [name=csrfmiddlewaretoken]').value;
+        const actionUrl = "{% url 'investment:payables_list' %}";
+        const remaining = Math.max(0, s.total_due - (s.paid_amount || 0));
+
+        const modalHtml = `
+            <div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div>
+                        <strong style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;">Investor:</strong>
+                        <div style="font-weight: 600;">${s.investor_name}</div>
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;">Installment:</strong>
+                        <div style="font-weight: 600;">#${s.installment_number} — Due ${s.due_date}</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <div style="border: 1px solid var(--sidebar-border); padding: 10px; border-radius: 6px;">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">Principal</label>
+                        <div style="font-weight: 600;">BDT ${s.scheduled_principal.toFixed(2)}</div>
+                    </div>
+                    <div style="border: 1px solid var(--sidebar-border); padding: 10px; border-radius: 6px;">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">Interest</label>
+                        <div style="font-weight: 600;">BDT ${s.scheduled_interest.toFixed(2)}</div>
+                    </div>
+                    <div style="border: 1px solid var(--sidebar-border); padding: 10px; border-radius: 6px; background: var(--accent-color); color: #fff;">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: rgba(255,255,255,0.7); display: block; margin-bottom: 4px;">Total Due</label>
+                        <div style="font-weight: 700; font-size: 1.05rem;">BDT ${remaining.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <form method="POST" action="${actionUrl}">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                    <input type="hidden" name="action" value="partial_payment">
+                    <input type="hidden" name="schedule_id" value="${s.id}">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 6px;">Payment Amount (BDT) <span style="color: #ef4444;">*</span></label>
+                        <input type="number" name="amount" step="0.01" min="0.01" max="${remaining}" value="${remaining.toFixed(2)}" class="form-control" required style="font-size: 1.1rem; font-weight: 600; padding: 10px 14px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Enter full amount to clear, or a partial amount.</div>
+                    </div>
+                    <div style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" onclick="closeGlobalModal()" class="btn-submit" style="background: transparent; border: 1px solid var(--sidebar-border); color: var(--text-primary);">Cancel</button>
+                        <button type="submit" class="btn-submit" style="background-color: #10b981; display: inline-flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-circle-check"></i> Submit Payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        openGlobalModal(`MAKE PAYMENT — Installment #${s.installment_number}`, modalHtml, s.investor_name, `Remaining: BDT ${remaining.toFixed(2)}`);
+    }
+
     // Modal popup helper (matching general detail profile style)
     function showScheduleDetails(scheduleId) {
         const s = schedulesDb.find(item => item.id === scheduleId);
@@ -418,17 +472,12 @@
         let actionHtml = '';
         if (s.payment_status === 'Unpaid') {
             actionHtml = `
-                <form method="POST" action="${actionUrl}" style="margin: 0;" onsubmit="return confirm('Mark this installment payment as cleared/disbursed?');">
-                    <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
-                    <input type="hidden" name="action" value="clear_payment">
-                    <input type="hidden" name="schedule_id" value="${s.id}">
-                    <button type="submit" class="btn-submit" style="background-color: #10b981; display: inline-flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-circle-check"></i> Disburse & Clear Payment
-                    </button>
-                </form>
+                <button onclick="closeGlobalModal(); showPaymentModal('${s.id}');" class="btn-submit" style="background-color: #10b981; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer;">
+                    <i class="fa-solid fa-circle-check"></i> Make Payment
+                </button>
             `;
         } else {
-            actionHtml = `<span style="color: #10b981; font-weight: 700; font-size: 1.1rem;"><i class="fa-solid fa-circle-check"></i> Cleared on ${s.actual_payment_date}</span>`;
+            actionHtml = `<span style="color: #10b981; font-weight: 700; font-size: 1.1rem;"><i class="fa-solid fa-circle-check"></i> Cleared on ${s.actual_payment_date || '--'}</span>`;
         }
 
         const modalHtml = `

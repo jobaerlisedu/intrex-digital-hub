@@ -4,8 +4,9 @@
 {% block extra_css %}
 <style>
     .badge.individual { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge.corporate { background: rgba(99, 102, 241, 0.1); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.2); }
     .badge.institutional { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
-    .badge.vc { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
+    .badge.venture-capital { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.2); }
     .badge.angel { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
 </style>
 {% endblock %}
@@ -48,8 +49,9 @@
                 <label>Category <span class="asterisk">*</span></label>
                 <select name="category" id="category" class="form-control" required>
                     <option value="Individual">Individual</option>
+                    <option value="Corporate">Corporate</option>
                     <option value="Institutional">Institutional</option>
-                    <option value="Venture Capital">Venture Capital (VC)</option>
+                    <option value="Venture Capital">Venture Capital</option>
                     <option value="Angel">Angel</option>
                 </select>
             </div>
@@ -138,7 +140,7 @@
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">{{ inv.email }}</div>
                 </td>
                 <td>
-                    <span class="badge {{ inv.category|lower }}">{{ inv.category }}</span>
+                    <span class="badge {{ inv.category|slugify }}">{{ inv.category }}</span>
                 </td>
                 <td>
                     <span class="badge {% if inv.kyc_status == 'Verified' %}success{% elif inv.kyc_status == 'Pending' %}warning{% else %}danger{% endif %}">
@@ -211,6 +213,9 @@
             saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Profile'
         });
     }
+
+    // CSRF token helper
+    const csrfToken = document.querySelector('#csrf-helper-form [name=csrfmiddlewaretoken]')?.value || '';
 
     function viewDetails(id) {
         const data = JSON.parse(document.getElementById(id).textContent);
@@ -293,6 +298,26 @@
                     </div>
                 </div>
 
+                <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin: 16px 0 12px 0; color: var(--accent-color); font-size: 0.95rem; font-weight: 700;">KYC DOCUMENTS</h4>
+                <div style="margin-bottom: 20px;">
+                    ${data.kyc_document_url ? `
+                        <div style="margin-bottom: 10px;">
+                            <a href="${data.kyc_document_url}" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; color: var(--accent-color); font-weight: 600;">
+                                <i class="fa-solid fa-file"></i> View Uploaded KYC Document
+                            </a>
+                        </div>
+                    ` : `<div style="color: var(--text-secondary); margin-bottom: 10px; font-style: italic;">No KYC document uploaded yet.</div>`}
+                    <form method="POST" action="{% url 'investment:investor_list' %}" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                        <input type="hidden" name="action" value="upload_kyc">
+                        <input type="hidden" name="doc_id" value="${data.id}">
+                        <input type="file" name="kyc_document" class="form-control" required accept=".pdf,.jpg,.jpeg,.png" style="width: auto; flex: 1; min-width: 180px;">
+                        <button type="submit" class="btn-submit" style="padding: 6px 14px; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-upload"></i> Upload
+                        </button>
+                    </form>
+                </div>
+
                 <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin: 16px 0 12px 0; color: var(--accent-color); font-size: 0.95rem; font-weight: 700;">CAPITAL TRANSACTIONS</h4>
                 <div style="overflow-x: auto; margin-bottom: 20px;">
                     <table class="data-table" style="margin-top: 0; width: 100%; border-collapse: collapse; font-size: 0.85rem;">
@@ -334,4 +359,10 @@
         openGlobalModal(`INVESTOR DETAIL PROFILE (${data.investor_code})`, modalHtml, data.name);
     }
 </script>
+<!-- CSRF helper form -->
+<div style="display: none;">
+    <form id="csrf-helper-form">
+        {% csrf_token %}
+    </form>
+</div>
 {% endblock %}

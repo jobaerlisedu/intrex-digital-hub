@@ -323,6 +323,18 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'config.tasks.auto_post_due_journals',
         'schedule': 43200,
     },
+    'check-overdue-schedules': {
+        'task': 'investment.tasks.check_overdue_schedules',
+        'schedule': 86400,
+    },
+    'send-investment-installment-reminders': {
+        'task': 'investment.tasks.send_investment_installment_reminders',
+        'schedule': 86400,
+    },
+    'notify-overdue-schedules': {
+        'task': 'investment.tasks.notify_overdue_schedules',
+        'schedule': 43200,
+    },
 }
 
 # Detect Render Environment

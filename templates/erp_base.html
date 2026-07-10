@@ -28,6 +28,10 @@
             --module-users: #4f46e5;
             --module-docs: #0d9488;
             --color-success: #10b981;
+            --toast-success: #10b981;
+            --toast-error: #ef4444;
+            --toast-warning: #f59e0b;
+            --toast-info: #3b82f6;
             --color-warning: #f59e0b;
             --color-danger: #ef4444;
             --color-info: #3b82f6;
@@ -50,6 +54,32 @@
         .sidebar { width: 280px; min-width: 280px; flex-shrink: 0; }
         .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; height: 100vh; }
         .mobile-menu-btn { display: none; }
+
+        /* Toast Notification System */
+        #toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 100000;
+            display: flex; flex-direction: column; gap: 10px;
+            pointer-events: none; max-width: 400px;
+        }
+        .toast {
+            pointer-events: auto; padding: 14px 18px; border-radius: 10px;
+            color: #fff; font-weight: 500; font-size: 0.9rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            display: flex; align-items: center; gap: 12px;
+            animation: toastSlideIn 0.3s ease-out;
+            transition: opacity 0.3s, transform 0.3s; cursor: pointer;
+        }
+        .toast.toast-hiding { opacity: 0; transform: translateX(100%); }
+        .toast-success { background: var(--toast-success); }
+        .toast-error { background: var(--toast-error); }
+        .toast-warning { background: var(--toast-warning); }
+        .toast-info { background: var(--toast-info); }
+        .toast i { font-size: 1.2rem; flex-shrink: 0; }
+        .toast span { flex: 1; }
+        @keyframes toastSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
     <link rel="preload" href="{{ vite_css_url }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{{ vite_css_url }}"></noscript>
@@ -1196,5 +1226,39 @@
     {% load static %}
     <script src="{% static 'js/crud-tabs.js' %}"></script>
     {% block extra_js %}{% endblock %}
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+    <script>
+        function showToast(message, type) {
+            type = type || 'info';
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${message}</span>`;
+            toast.addEventListener('click', function() {
+                toast.classList.add('toast-hiding');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            });
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.classList.add('toast-hiding');
+                    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+                }
+            }, 4500);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.global-msg').forEach(function(msg) {
+                var text = msg.querySelector('span')?.innerText || msg.innerText;
+                var cls = msg.classList.contains('success') ? 'success' :
+                          msg.classList.contains('error') || msg.classList.contains('danger') ? 'error' :
+                          msg.classList.contains('warning') ? 'warning' : 'info';
+                showToast(text, cls);
+                msg.style.display = 'none';
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import reports
 
 app_name = 'investment'
 
@@ -12,4 +13,7 @@ urlpatterns = [
     path('instruments/', views.instruments_list, name='instruments_list'),
     path('pl/', views.pl_list, name='pl_list'),
     path('payables/', views.payables_list, name='payables_list'),
+    path('reports/', reports.reports_dashboard, name='reports_dashboard'),
+    path('reports/data/<str:report_name>/', reports.report_data_json, name='report_data_json'),
+    path('reports/export/<str:report_name>/', reports.export_csv, name='export_csv'),
 ]

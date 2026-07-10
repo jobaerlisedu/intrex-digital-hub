@@ -1,0 +1,390 @@
+{% extends 'erp_base.html' %}
+{% block title %}Analytics & Reports - Intrex ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .kpi-card {
+        padding: 18px 20px;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+    .kpi-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 8px 0 2px 0;
+    }
+    .kpi-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    .chart-container-sm {
+        position: relative;
+        height: 260px;
+        width: 100%;
+    }
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .tab-btn.active {
+        background: var(--accent-color);
+        color: #fff;
+    }
+    .tab-btn:not(.active) {
+        background: transparent;
+        color: #64748b;
+        border: 1px solid var(--sidebar-border);
+    }
+    .tab-btn:not(.active):hover {
+        background: rgba(255,255,255,0.03);
+        border-color: var(--accent-color);
+    }
+    .report-tab { display: none; }
+    .report-tab.active { display: block; }
+    .export-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+    <h2 style="margin: 0;"><i class="fa-solid fa-chart-simple" style="color: var(--accent-color);"></i> Analytics & Reports</h2>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="tab-buttons">
+        <button class="tab-btn active" onclick="switchReportTab('capital')"><i class="fa-solid fa-coins"></i> Capital</button>
+        <button class="tab-btn" onclick="switchReportTab('loans')"><i class="fa-solid fa-hand-holding-dollar"></i> Loans</button>
+        <button class="tab-btn" onclick="switchReportTab('pl')"><i class="fa-solid fa-file-invoice"></i> P&L</button>
+        <button class="tab-btn" onclick="switchReportTab('investors')"><i class="fa-solid fa-users"></i> Activity</button>
+        <button class="tab-btn" onclick="switchReportTab('instruments')"><i class="fa-solid fa-gem"></i> Instruments</button>
+    </div>
+</div>
+
+{# ─── CAPITAL OVERVIEW TAB ─── #}
+<div id="tab-capital" class="report-tab active">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Capital Managed</div><div class="kpi-value">BDT {{ overview.total_capital_managed|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Inflow</div><div class="kpi-value" style="color:#10b981;">BDT {{ overview.total_inflow|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Outflow</div><div class="kpi-value" style="color:#ef4444;">BDT {{ overview.total_outflow|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Outstanding Loans</div><div class="kpi-value">BDT {{ overview.total_outstanding|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Interest Due</div><div class="kpi-value" style="color:#f59e0b;">BDT {{ overview.interest_due|floatformat:2 }}</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> Monthly Capital Flow</h4>
+            <div class="chart-container-sm"><canvas id="capitalTrendChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-pie" style="color:var(--accent-color);"></i> Capital Source Breakdown</h4>
+            <div class="chart-container-sm"><canvas id="capitalSourceChart"></canvas></div>
+        </div>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'capital_overview' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── LOAN PORTFOLIO TAB ─── #}
+<div id="tab-loans" class="report-tab">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Loans</div><div class="kpi-value">{{ loan_portfolio.total_loans }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Principal</div><div class="kpi-value">BDT {{ loan_portfolio.total_principal|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Outstanding</div><div class="kpi-value">BDT {{ loan_portfolio.total_outstanding|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Active</div><div class="kpi-value" style="color:#10b981;">{{ loan_portfolio.active_count }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Paid / Defaulted</div><div class="kpi-value"><span style="color:#10b981;">{{ loan_portfolio.paid_count }}</span> / <span style="color:#ef4444;">{{ loan_portfolio.defaulted_count }}</span></div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-pie" style="color:var(--accent-color);"></i> Loan Status Distribution</h4>
+            <div class="chart-container-sm"><canvas id="loanStatusChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> By Investor Category</h4>
+            <div class="chart-container-sm"><canvas id="loanCategoryChart"></canvas></div>
+        </div>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'loan_portfolio' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── P&L STATEMENT TAB ─── #}
+<div id="tab-pl" class="report-tab">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value" style="color:#10b981;">BDT {{ pl_summary.total_revenue|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total OPEX</div><div class="kpi-value" style="color:#ef4444;">BDT {{ pl_summary.total_opex|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Interest Expense</div><div class="kpi-value" style="color:#f59e0b;">BDT {{ pl_summary.total_interest_expense|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Net Profit</div><div class="kpi-value" style="color:{% if pl_summary.total_net_profit >= 0 %}#10b981{% else %}#ef4444{% endif %};">BDT {{ pl_summary.total_net_profit|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Months Covered</div><div class="kpi-value">{{ pl_summary.months_covered }}</div></div>
+    </div>
+    <div class="glass-card">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Monthly Revenue vs Expenses</h4>
+        <div class="chart-container"><canvas id="plChart"></canvas></div>
+    </div>
+    <div style="margin-top:20px;">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-table" style="color:var(--accent-color);"></i> Monthly Breakdown</h4>
+        <table class="data-table">
+            <thead><tr><th>Month</th><th>Revenue</th><th>OPEX</th><th>Interest</th><th>Net Profit</th></tr></thead>
+            <tbody>
+                {% for m in pl_summary.monthly_data %}
+                <tr>
+                    <td>{{ m.month }}</td>
+                    <td>BDT {{ m.revenue|floatformat:2 }}</td>
+                    <td>BDT {{ m.opex|floatformat:2 }}</td>
+                    <td>BDT {{ m.interest_expense|floatformat:2 }}</td>
+                    <td style="font-weight:600;color:{% if m.net_profit >= 0 %}#10b981{% else %}#ef4444{% endif %};">BDT {{ m.net_profit|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);">No P&L entries recorded.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'pl_summary' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── INVESTOR ACTIVITY TAB ─── #}
+<div id="tab-investors" class="report-tab">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Investors</div><div class="kpi-value">{{ investor_activity.total_investors }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Active</div><div class="kpi-value" style="color:#10b981;">{{ investor_activity.active_investor_count }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Inflow</div><div class="kpi-value" style="color:#10b981;">BDT {{ investor_activity.total_inflow|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Outflow</div><div class="kpi-value" style="color:#ef4444;">BDT {{ investor_activity.total_outflow|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Net Flow</div><div class="kpi-value">BDT {{ investor_activity.net_flow|floatformat:2 }}</div></div>
+    </div>
+    <div class="glass-card">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Top Investors by Volume</h4>
+        <div class="chart-container"><canvas id="investorActivityChart"></canvas></div>
+    </div>
+    <div style="margin-top:20px;">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-ranking-star" style="color:var(--accent-color);"></i> Top Investors Detail</h4>
+        <table class="data-table">
+            <thead><tr><th>#</th><th>Investor</th><th>Inflow</th><th>Outflow</th><th>Net</th><th>Transactions</th></tr></thead>
+            <tbody>
+                {% for inv in investor_activity.top_investors %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td style="font-weight:600;">{{ inv.investor_name }}</td>
+                    <td style="color:#10b981;">BDT {{ inv.inflow|floatformat:2 }}</td>
+                    <td style="color:#ef4444;">BDT {{ inv.outflow|floatformat:2 }}</td>
+                    <td style="font-weight:600;color:{% if inv.net >= 0 %}#10b981{% else %}#ef4444{% endif %};">BDT {{ inv.net|floatformat:2 }}</td>
+                    <td>{{ inv.transaction_count }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-secondary);">No investor activity data.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'investor_activity' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── INSTRUMENT PERFORMANCE TAB ─── #}
+<div id="tab-instruments" class="report-tab">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Instruments</div><div class="kpi-value">{{ instrument_performance.total_instruments }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Face Value</div><div class="kpi-value">BDT {{ instrument_performance.total_face_value|floatformat:2 }}</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Units</div><div class="kpi-value">{{ instrument_performance.total_units_issued }}</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-pie" style="color:var(--accent-color);"></i> By Instrument Type</h4>
+            <div class="chart-container-sm"><canvas id="instrumentTypeChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Face Value by Type</h4>
+            <div class="chart-container-sm"><canvas id="instrumentValueChart"></canvas></div>
+        </div>
+    </div>
+    <div style="margin-top:20px;">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-table" style="color:var(--accent-color);"></i> Securities Register</h4>
+        <table class="data-table">
+            <thead><tr><th>Code</th><th>Type</th><th>Face Value</th><th>Issued</th><th>Outstanding</th><th>Issue Date</th><th>Sector</th><th>ISIN</th></tr></thead>
+            <tbody>
+                {% for inst in instrument_performance.instruments %}
+                <tr>
+                    <td style="font-weight:700;color:var(--accent-color);">{{ inst.code }}</td>
+                    <td>{{ inst.type }}</td>
+                    <td>BDT {{ inst.face_value|floatformat:2 }}</td>
+                    <td>{{ inst.units_issued }}</td>
+                    <td>{{ inst.units_outstanding }}</td>
+                    <td>{{ inst.issue_date }}</td>
+                    <td>{{ inst.sector|default:'--' }}</td>
+                    <td>{{ inst.isin|default:'--' }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary);">No instruments registered.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'instrument_performance' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const overview = {{ overview_json|safe }};
+    const loanPortfolio = {{ loan_portfolio_json|safe }};
+    const plSummary = {{ pl_summary_json|safe }};
+    const investorActivity = {{ investor_activity_json|safe }};
+    const instrumentPerformance = {{ instrument_performance_json|safe }};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderCapitalCharts();
+        renderLoanCharts();
+        renderPLChart();
+        renderInvestorChart();
+        renderInstrumentCharts();
+    });
+
+    function switchReportTab(tab) {
+        document.querySelectorAll('.report-tab').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${tab}`)?.classList.add('active');
+        document.querySelector(`.tab-btn[onclick*="'${tab}'"]`)?.classList.add('active');
+    }
+
+    function renderCapitalCharts() {
+        const trend = overview.monthly_trend;
+        if (trend && trend.labels) {
+            new Chart(document.getElementById('capitalTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: trend.labels,
+                    datasets: [
+                        { label: 'Inflow', data: trend.inflow, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 },
+                        { label: 'Outflow', data: trend.outflow, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.05)', fill: true, tension: 0.4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#64748b' } } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, x: { ticks: { color: '#64748b' }, grid: { display: false } } } }
+            });
+        }
+        const source = overview.source_breakdown;
+        if (source) {
+            new Chart(document.getElementById('capitalSourceChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(source),
+                    datasets: [{ data: Object.values(source), backgroundColor: ['#0f766e', '#6366f1', '#f59e0b'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b' } } } }
+            });
+        }
+    }
+
+    function renderLoanCharts() {
+        const byStatus = loanPortfolio.by_status || {};
+        const statusLabels = Object.keys(byStatus);
+        const statusCounts = statusLabels.map(k => byStatus[k].count);
+        const statusColors = { Active: '#10b981', 'Fully Paid': '#6366f1', Defaulted: '#ef4444' };
+        if (statusLabels.length) {
+            new Chart(document.getElementById('loanStatusChart'), {
+                type: 'doughnut',
+                data: { labels: statusLabels, datasets: [{ data: statusCounts, backgroundColor: statusLabels.map(k => statusColors[k] || '#94a3b8') }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b' } } } }
+            });
+        }
+        const byCategory = loanPortfolio.by_category || {};
+        const catLabels = Object.keys(byCategory);
+        const catPrincipals = catLabels.map(k => byCategory[k].principal);
+        if (catLabels.length) {
+            new Chart(document.getElementById('loanCategoryChart'), {
+                type: 'bar',
+                data: { labels: catLabels, datasets: [{ label: 'Principal (BDT)', data: catPrincipals, backgroundColor: '#0f766e', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, y: { ticks: { color: '#64748b' }, grid: { display: false } } } }
+            });
+        }
+    }
+
+    function renderPLChart() {
+        const pl = plSummary.monthly_data || [];
+        const labels = pl.map(m => m.month);
+        if (labels.length) {
+            new Chart(document.getElementById('plChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Revenue', data: pl.map(m => m.revenue), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 3 },
+                        { label: 'OPEX', data: pl.map(m => m.opex), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 3 },
+                        { label: 'Net Profit', data: pl.map(m => m.net_profit), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#64748b' } } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, x: { ticks: { color: '#64748b' }, grid: { display: false } } } }
+            });
+        }
+    }
+
+    function renderInvestorChart() {
+        const top = investorActivity.top_investors || [];
+        if (top.length) {
+            const names = top.map(i => i.investor_name.length > 15 ? i.investor_name.substring(0, 15) + '...' : i.investor_name);
+            new Chart(document.getElementById('investorActivityChart'), {
+                type: 'bar',
+                data: {
+                    labels: names,
+                    datasets: [
+                        { label: 'Inflow', data: top.map(i => i.inflow), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 3 },
+                        { label: 'Outflow', data: top.map(i => i.outflow), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 3 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#64748b' } } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, x: { ticks: { color: '#64748b' }, grid: { display: false } } } }
+            });
+        }
+    }
+
+    function renderInstrumentCharts() {
+        const byType = instrumentPerformance.by_type || {};
+        const typeLabels = Object.keys(byType);
+        const typeCounts = typeLabels.map(k => byType[k].count);
+        const typeValues = typeLabels.map(k => byType[k].face_value_total);
+        const colors = ['#0f766e', '#6366f1', '#f59e0b', '#ef4444', '#10b981', '#94a3b8'];
+        if (typeLabels.length) {
+            new Chart(document.getElementById('instrumentTypeChart'), {
+                type: 'pie',
+                data: { labels: typeLabels, datasets: [{ data: typeCounts, backgroundColor: colors.slice(0, typeLabels.length) }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b' } } } }
+            });
+            new Chart(document.getElementById('instrumentValueChart'), {
+                type: 'bar',
+                data: { labels: typeLabels, datasets: [{ label: 'Face Value (BDT)', data: typeValues, backgroundColor: '#0f766e', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, x: { ticks: { color: '#64748b' }, grid: { display: false } } } }
+            });
+        }
+    }
+</script>
+{% endblock %}

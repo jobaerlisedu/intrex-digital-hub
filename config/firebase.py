@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -52,6 +52,7 @@ if not firebase_admin._apps:
         raise
 
 db = firestore.client()
+bucket = storage.bucket()
 
 
 # Tenant-scoped Firestore accessor.
