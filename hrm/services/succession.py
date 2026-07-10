@@ -1,72 +1,103 @@
-import json
-from django.http import JsonResponse
-from django.contrib import messages
-from django.shortcuts import redirect
-from ..models import KeyPosition, SuccessorCandidate, SuccessionPlan
+from datetime import datetime
+from config.firebase import db
 
 
 class SuccessionService:
+    KEY_POSITIONS = 'hrm_key_positions'
+    SUCCESSORS = 'hrm_successor_candidates'
+    PLANS = 'hrm_succession_plans'
+
+    @staticmethod
+    def _payload(data, extra=None):
+        now = datetime.now().isoformat()
+        p = {
+            'position_title': data.get('position_title'),
+            'risk_of_vacancy': data.get('risk_of_vacancy'),
+            'readiness_gap': data.get('readiness_gap'),
+            'status': data.get('status', 'Active'),
+            'updated_at': now,
+        }
+        if extra:
+            p.update(extra)
+        return p
+
     @staticmethod
     def add_key_position(data):
         doc_id = data.get('doc_id')
+        now = datetime.now().isoformat()
         if doc_id:
-            kp = KeyPosition.objects.get(id=doc_id)
-            kp.position_title = data.get('position_title')
-            kp.risk_of_vacancy = data.get('risk_of_vacancy')
-            kp.readiness_gap = data.get('readiness_gap')
-            kp.status = data.get('status', 'Active')
-            kp.save()
+            db.collection(SuccessionService.KEY_POSITIONS).document(doc_id).update({
+                'position_title': data.get('position_title'),
+                'risk_of_vacancy': data.get('risk_of_vacancy'),
+                'readiness_gap': data.get('readiness_gap'),
+                'status': data.get('status', 'Active'),
+                'updated_at': now,
+            })
             return 'updated'
         else:
-            KeyPosition.objects.create(
-                position_title=data.get('position_title'),
-                risk_of_vacancy=data.get('risk_of_vacancy'),
-                readiness_gap=data.get('readiness_gap'),
-                status=data.get('status', 'Active'),
-            )
+            db.collection(SuccessionService.KEY_POSITIONS).add({
+                'position_title': data.get('position_title'),
+                'risk_of_vacancy': data.get('risk_of_vacancy'),
+                'readiness_gap': data.get('readiness_gap'),
+                'status': data.get('status', 'Active'),
+                'is_active': True,
+                'created_at': now,
+                'updated_at': now,
+            })
             return 'created'
 
     @staticmethod
     def add_successor(data):
         succ_id = data.get('id')
+        now = datetime.now().isoformat()
         if succ_id:
-            sc = SuccessorCandidate.objects.get(id=succ_id)
-            sc.readiness = data.get('readiness')
-            sc.strengths = data.get('strengths', '')
-            sc.development_needs = data.get('development_needs', '')
-            sc.is_primary = data.get('is_primary') == 'on'
-            sc.save()
+            db.collection(SuccessionService.SUCCESSORS).document(succ_id).update({
+                'readiness': data.get('readiness'),
+                'strengths': data.get('strengths', ''),
+                'development_needs': data.get('development_needs', ''),
+                'is_primary': data.get('is_primary') == 'on',
+                'updated_at': now,
+            })
             return 'updated'
         else:
             kp_id = data.get('key_position_id')
             emp_id = data.get('employee_id')
             if kp_id and emp_id:
-                SuccessorCandidate.objects.create(
-                    key_position_id=kp_id, employee_id=emp_id,
-                    readiness=data.get('readiness'),
-                    strengths=data.get('strengths', ''),
-                    development_needs=data.get('development_needs', ''),
-                    is_primary=data.get('is_primary') == 'on',
-                )
+                db.collection(SuccessionService.SUCCESSORS).add({
+                    'key_position': f'hrm_key_positions/{kp_id}',
+                    'employee': f'hrm_employees/{emp_id}',
+                    'readiness': data.get('readiness'),
+                    'strengths': data.get('strengths', ''),
+                    'development_needs': data.get('development_needs', ''),
+                    'is_primary': data.get('is_primary') == 'on',
+                    'is_active': True,
+                    'created_at': now,
+                    'updated_at': now,
+                })
                 return 'created'
         return None
 
     @staticmethod
     def add_plan(data):
         doc_id = data.get('doc_id')
+        now = datetime.now().isoformat()
         if doc_id:
-            sp = SuccessionPlan.objects.get(id=doc_id)
-            sp.title = data.get('title')
-            sp.description = data.get('description', '')
-            sp.review_date = data.get('review_date')
-            sp.status = data.get('status', 'Draft')
-            sp.save()
+            db.collection(SuccessionService.PLANS).document(doc_id).update({
+                'title': data.get('title'),
+                'description': data.get('description', ''),
+                'review_date': data.get('review_date'),
+                'status': data.get('status', 'Draft'),
+                'updated_at': now,
+            })
             return 'updated'
         else:
-            SuccessionPlan.objects.create(
-                title=data.get('title'),
-                description=data.get('description', ''),
-                review_date=data.get('review_date'),
-                status=data.get('status', 'Draft'),
-            )
+            db.collection(SuccessionService.PLANS).add({
+                'title': data.get('title'),
+                'description': data.get('description', ''),
+                'review_date': data.get('review_date'),
+                'status': data.get('status', 'Draft'),
+                'is_active': True,
+                'created_at': now,
+                'updated_at': now,
+            })
             return 'created'

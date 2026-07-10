@@ -284,6 +284,7 @@ class CandidateDocument(models.Model):
         ordering = ['-uploaded_at']
         verbose_name = 'Candidate Document'
         verbose_name_plural = 'Candidate Documents'
+        managed = False
 
     def __str__(self):
         return f'{self.candidate.name} - {self.get_document_type_display()}'
@@ -456,6 +457,7 @@ class PayrollEmployee(models.Model):
         ordering = ['employee']
         verbose_name = 'Payroll Employee'
         verbose_name_plural = 'Payroll Employees'
+        managed = False
         unique_together = ['payroll', 'employee']
 
     def __str__(self):
@@ -627,6 +629,7 @@ class HRMSetting(models.Model):
         ordering = ['key']
         verbose_name = 'HRM Setting'
         verbose_name_plural = 'HRM Settings'
+        managed = False
 
     def __str__(self):
         return self.key
@@ -1020,6 +1023,7 @@ class NotificationPreference(models.Model):
     class Meta:
         verbose_name = 'Notification Preference'
         verbose_name_plural = 'Notification Preferences'
+        managed = False
 
     def __str__(self):
         return f'{self.user.username} prefs'
@@ -1037,6 +1041,7 @@ class DeviceToken(models.Model):
     class Meta:
         verbose_name = 'Device Token'
         verbose_name_plural = 'Device Tokens'
+        managed = False
         unique_together = ['user', 'fcm_token']
 
     def __str__(self):
@@ -1150,6 +1155,7 @@ class EmployeeEducation(models.Model):
         ordering = ['-end_year', 'degree']
         verbose_name = 'Education History'
         verbose_name_plural = 'Education Histories'
+        managed = False
 
     def __str__(self):
         return f'{self.employee.name} - {self.degree} ({self.institution})'
@@ -1172,6 +1178,7 @@ class EmployeeExperience(models.Model):
         ordering = ['-start_date']
         verbose_name = 'Work Experience'
         verbose_name_plural = 'Work Experiences'
+        managed = False
 
     def __str__(self):
         return f'{self.employee.name} - {self.job_title} @ {self.company}'
@@ -1195,6 +1202,7 @@ class EmployeeSkill(models.Model):
         ordering = ['employee', '-proficiency']
         verbose_name = 'Employee Skill'
         verbose_name_plural = 'Employee Skills'
+        managed = False
         unique_together = ['employee', 'skill_name']
 
     def __str__(self):
@@ -1218,6 +1226,7 @@ class Competency(models.Model):
         ordering = ['category', 'name']
         verbose_name = 'Competency'
         verbose_name_plural = 'Competencies'
+        managed = False
 
     def __str__(self):
         return f'{self.name} ({self.category})'
@@ -1240,6 +1249,7 @@ class CompetencyRating(models.Model):
         ordering = ['-assessment_date']
         verbose_name = 'Competency Rating'
         verbose_name_plural = 'Competency Ratings'
+        managed = False
         unique_together = ['employee', 'competency', 'assessment_date']
 
     def __str__(self):
@@ -1267,6 +1277,7 @@ class FeedbackQuestion(models.Model):
         ordering = ['category', 'order']
         verbose_name = 'Feedback Question'
         verbose_name_plural = 'Feedback Questions'
+        managed = False
 
     def __str__(self):
         return f'[{self.category}] {self.question_text[:60]}'
@@ -1292,6 +1303,7 @@ class FeedbackRequest(models.Model):
         ordering = ['-created_at']
         verbose_name = '360 Feedback Request'
         verbose_name_plural = '360 Feedback Requests'
+        managed = False
         unique_together = ['reviewer', 'reviewee', 'review_cycle']
 
     def __str__(self):
@@ -1310,6 +1322,7 @@ class FeedbackResponse(models.Model):
         ordering = ['request', 'question__order']
         verbose_name = 'Feedback Response'
         verbose_name_plural = 'Feedback Responses'
+        managed = False
         unique_together = ['request', 'question']
 
     def __str__(self):
@@ -1336,6 +1349,7 @@ class EngagementSurvey(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Engagement Survey'
         verbose_name_plural = 'Engagement Surveys'
+        managed = False
 
     def __str__(self):
         return self.title
@@ -1359,6 +1373,7 @@ class SurveyQuestion(models.Model):
         ordering = ['survey', 'order']
         verbose_name = 'Survey Question'
         verbose_name_plural = 'Survey Questions'
+        managed = False
 
     def __str__(self):
         return f'{self.survey.title} - Q{self.order}'
@@ -1377,6 +1392,7 @@ class SurveyResponse(models.Model):
         ordering = ['survey', 'question']
         verbose_name = 'Survey Response'
         verbose_name_plural = 'Survey Responses'
+        managed = False
         unique_together = [['survey', 'question', 'employee']]
 
     def __str__(self):
@@ -1410,6 +1426,7 @@ class ComplianceReminder(models.Model):
         ordering = ['due_date']
         verbose_name = 'Compliance Reminder'
         verbose_name_plural = 'Compliance Reminders'
+        managed = False
 
     def __str__(self):
         return f'{self.employee.name} - {self.title} ({self.due_date})'
@@ -1461,6 +1478,7 @@ class TalentReviewMeeting(models.Model):
         ordering = ['-meeting_date']
         verbose_name = 'Talent Review Meeting'
         verbose_name_plural = 'Talent Review Meetings'
+        managed = False
 
     def __str__(self):
         return f'{self.title} ({self.meeting_date})'
@@ -1483,6 +1501,7 @@ class NineBoxCell(models.Model):
         ordering = ['talent_review', 'employee']
         verbose_name = '9-Box Cell'
         verbose_name_plural = '9-Box Cells'
+        managed = False
         unique_together = ['talent_review', 'employee']
 
     def __str__(self):
@@ -1526,6 +1545,7 @@ class DisciplinaryCase(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Disciplinary Case'
         verbose_name_plural = 'Disciplinary Cases'
+        managed = False
 
     def __str__(self):
         return f'{self.case_number} - {self.employee}'
@@ -1565,6 +1585,7 @@ class DisciplinaryHearing(models.Model):
         ordering = ['-hearing_date']
         verbose_name = 'Disciplinary Hearing'
         verbose_name_plural = 'Disciplinary Hearings'
+        managed = False
 
     def __str__(self):
         return f'Hearing for {self.case.case_number} on {self.hearing_date.date()}'
@@ -1607,6 +1628,7 @@ class DisciplinaryAction(models.Model):
         ordering = ['-issued_date']
         verbose_name = 'Disciplinary Action'
         verbose_name_plural = 'Disciplinary Actions'
+        managed = False
 
     def __str__(self):
         return f'{self.action_type} - {self.case.case_number}'
@@ -1638,6 +1660,7 @@ class DisciplinaryAppeal(models.Model):
         ordering = ['-appeal_date']
         verbose_name = 'Disciplinary Appeal'
         verbose_name_plural = 'Disciplinary Appeals'
+        managed = False
 
     def __str__(self):
         return f'Appeal against {self.action} on {self.appeal_date}'

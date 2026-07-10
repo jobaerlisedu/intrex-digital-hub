@@ -1,4 +1,5 @@
-from ..models import ComplianceReminder
+from datetime import datetime
+from config.firebase import db
 
 
 class ComplianceCalendarService:
@@ -8,22 +9,20 @@ class ComplianceCalendarService:
         if not emp_id:
             return None
         doc_id = data.get('doc_id')
+        payload = {
+            'employee': emp_id,
+            'reminder_type': data.get('reminder_type'),
+            'title': data.get('title'),
+            'description': data.get('description', ''),
+            'due_date': data.get('due_date'),
+            'status': data.get('status', 'Pending'),
+            'completed_date': None,
+            'is_active': True,
+            'updated_at': datetime.now().isoformat(),
+        }
         if doc_id:
-            reminder = ComplianceReminder.objects.get(id=doc_id)
-            reminder.reminder_type = data.get('reminder_type')
-            reminder.title = data.get('title')
-            reminder.description = data.get('description', '')
-            reminder.due_date = data.get('due_date')
-            reminder.status = data.get('status', 'Pending')
-            reminder.save()
+            db.collection('hrm_compliance_reminders').document(doc_id).update(payload)
             return 'updated'
-        else:
-            ComplianceReminder.objects.create(
-                employee_id=emp_id,
-                reminder_type=data.get('reminder_type'),
-                title=data.get('title'),
-                description=data.get('description', ''),
-                due_date=data.get('due_date'),
-                status=data.get('status', 'Pending'),
-            )
-            return 'created'
+        payload['created_at'] = datetime.now().isoformat()
+        db.collection('hrm_compliance_reminders').add(payload)
+        return 'created'

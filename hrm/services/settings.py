@@ -1,43 +1,50 @@
-from ..models import HRMSetting, LeavePolicy, RatingTemplate, RatingScale
+from config.firebase import db
+from datetime import datetime
 
 
 class HRMSettingsService:
     @staticmethod
     def save_setting(key, value):
-        HRMSetting.objects.update_or_create(key=key, defaults={'value': value})
+        docs = list(db.collection('hrm_settings').where('key', '==', key).limit(1).stream())
+        payload = {'value': value, 'is_active': True, 'updated_at': datetime.now().isoformat()}
+        if docs:
+            db.collection('hrm_settings').document(docs[0].id).update(payload)
+        else:
+            payload['key'] = key
+            payload['created_at'] = datetime.now().isoformat()
+            db.collection('hrm_settings').add(payload)
 
     @staticmethod
     def add_leave_policy(data):
         doc_id = data.get('doc_id')
+        payload = {
+            'employee_type': data.get('employee_type'),
+            'leave_type': data.get('leave_type'),
+            'entitled_days': float(data.get('entitled_days', 0)),
+            'carry_forward_days': float(data.get('carry_forward_days', 0)),
+            'is_active': True,
+            'updated_at': datetime.now().isoformat(),
+        }
         if doc_id:
-            lp = LeavePolicy.objects.get(id=doc_id)
-            lp.employee_type = data.get('employee_type')
-            lp.leave_type = data.get('leave_type')
-            lp.entitled_days = data.get('entitled_days')
-            lp.carry_forward_days = data.get('carry_forward_days', 0)
-            lp.save()
+            db.collection('hrm_leave_policies').document(doc_id).update(payload)
             return 'updated'
-        else:
-            LeavePolicy.objects.create(
-                employee_type=data.get('employee_type'),
-                leave_type=data.get('leave_type'),
-                entitled_days=data.get('entitled_days'),
-                carry_forward_days=data.get('carry_forward_days', 0),
-            )
-            return 'created'
+        payload['created_at'] = datetime.now().isoformat()
+        db.collection('hrm_leave_policies').add(payload)
+        return 'created'
 
     @staticmethod
     def add_rating_template(data):
         doc_id = data.get('doc_id')
+        payload = {
+            'name': data.get('name'),
+            'description': data.get('description', ''),
+            'is_active': True,
+            'updated_at': datetime.now().isoformat(),
+        }
         if doc_id:
-            rt = RatingTemplate.objects.get(id=doc_id)
-            rt.name = data.get('name')
-            rt.description = data.get('description', '')
-            rt.save()
+            db.collection('hrm_rating_templates').document(doc_id).update(payload)
             return 'updated'
-        else:
-            RatingTemplate.objects.create(
-                name=data.get('name'),
-                description=data.get('description', ''),
-            )
-            return 'created'
+        payload['scales'] = []
+        payload['created_at'] = datetime.now().isoformat()
+        db.collection('hrm_rating_templates').add(payload)
+        return 'created'

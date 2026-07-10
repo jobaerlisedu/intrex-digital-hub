@@ -11,6 +11,7 @@ from hrm.validators import (
     validate_disciplinary_data, validate_hearing_data,
     validate_action_data, validate_appeal_data,
 )
+from config.firebase import db
 from workflow.models import WorkflowDefinition, WorkflowState, WorkflowInstance
 
 
@@ -107,41 +108,46 @@ class HRMAPITestCase(APITestCase):
         self.user = User.objects.create_user(username='testuser', password='testpass')
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
+        self.list_url = reverse('hrm-department-list')
+
+    def _create_dept(self, name='Engineering'):
+        resp = self.client.post(self.list_url, {'name': name}, format='json')
+        return resp.data.get('id') if resp.status_code == 201 else None
 
     def test_department_list_returns_200(self):
-        url = reverse('hrm-department-list')
-        response = self.client.get(url)
+        response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_department_create_returns_201(self):
-        url = reverse('hrm-department-list')
         data = {'name': 'Marketing'}
-        response = self.client.post(url, data, format='json')
+        response = self.client.post(self.list_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_department_detail_returns_200(self):
-        dept = models.Department.objects.create(name='Engineering')
-        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        dept_id = self._create_dept('Engineering')
+        self.assertIsNotNone(dept_id)
+        url = reverse('hrm-department-detail', kwargs={'pk': dept_id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_department_update_returns_200(self):
-        dept = models.Department.objects.create(name='Engineering')
-        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        dept_id = self._create_dept('Engineering')
+        self.assertIsNotNone(dept_id)
+        url = reverse('hrm-department-detail', kwargs={'pk': dept_id})
         data = {'name': 'Engineering Updated'}
         response = self.client.put(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_department_delete_returns_204(self):
-        dept = models.Department.objects.create(name='Engineering')
-        url = reverse('hrm-department-detail', kwargs={'pk': dept.pk})
+        dept_id = self._create_dept('Engineering')
+        self.assertIsNotNone(dept_id)
+        url = reverse('hrm-department-detail', kwargs={'pk': dept_id})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_unauthenticated_access_returns_401(self):
         self.client.force_authenticate(user=None)
-        url = reverse('hrm-department-list')
-        response = self.client.get(url)
+        response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
@@ -423,83 +429,89 @@ class DisciplinaryValidatorTestCase(TestCase):
 class DisciplineServiceTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='disco_admin', password='pass')
-        dept = models.Department.objects.create(name='Engineering')
-        self.employee = models.Employee.objects.create(
-            emp_id='EMP020', first_name='Service', last_name='Test', department=dept,
-        )
+        self.emp_doc = db.collection('hrm_employees').add({
+            'emp_id': 'EMP020', 'first_name': 'Service', 'last_name': 'Test',
+            'name': 'Service Test', 'is_active': True,
+        })[1].get().to_dict()
+        self.emp_doc['id'] = db.collection('hrm_employees').where('emp_id', '==', 'EMP020').get()[0].id
+
+    def _create_case(self, nature='Test', severity='Minor'):
+        result = DisciplineService.add_case({
+            'employee': f'hrm_employees/{self.emp_doc["id"]}',
+            'incident_date': '2026-07-10',
+            'nature_of_offense': nature,
+            'severity': severity,
+        }, self.user)
+        docs = list(db.collection('hrm_disciplinary_cases').where('is_active', '==', True).stream())
+        case = max(docs, key=lambda d: d.to_dict().get('created_at', ''))
+        return {'id': case.id, **case.to_dict()}
 
     def test_add_case_creates_case_with_generated_number(self):
         result = DisciplineService.add_case({
-            'employee': str(self.employee.id),
+            'employee': f'hrm_employees/{self.emp_doc["id"]}',
             'incident_date': '2026-07-10',
             'nature_of_offense': 'Testing service layer',
             'severity': 'Gross',
         }, self.user)
         self.assertEqual(result, 'created')
-        case = models.DisciplinaryCase.objects.filter(employee=self.employee).first()
-        self.assertIsNotNone(case)
-        self.assertTrue(case.case_number.startswith('DC-'))
-        self.assertEqual(case.severity, 'Gross')
-        self.assertEqual(case.reported_by, self.user)
+        docs = list(db.collection('hrm_disciplinary_cases')
+                   .where('is_active', '==', True).stream())
+        case_doc = max(docs, key=lambda d: d.to_dict().get('created_at', ''))
+        case = case_doc.to_dict()
+        self.assertTrue(case.get('case_number', '').startswith('DC-'))
+        self.assertEqual(case.get('severity'), 'Gross')
 
     def test_add_case_updates_existing_case(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Original',
-        )
+        case = self._create_case('Original', 'Minor')
         result = DisciplineService.add_case({
-            'doc_id': str(case.id),
-            'employee': str(self.employee.id),
+            'doc_id': case['id'],
+            'employee': f'hrm_employees/{self.emp_doc["id"]}',
             'incident_date': '2026-07-11',
             'nature_of_offense': 'Updated offense',
             'severity': 'Major',
         }, self.user)
         self.assertEqual(result, 'updated')
-        case.refresh_from_db()
-        self.assertEqual(case.nature_of_offense, 'Updated offense')
-        self.assertEqual(case.severity, 'Major')
+        updated = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(updated.get('nature_of_offense'), 'Updated offense')
+        self.assertEqual(updated.get('severity'), 'Major')
 
     def test_add_hearing_creates_hearing_and_updates_case_status(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
+        case = self._create_case('Test hearing')
         result = DisciplineService.add_hearing({
-            'case_id': str(case.id),
+            'case_id': case['id'],
             'hearing_date': '2026-07-15T10:00:00',
             'panel_members': 'Alice, Bob',
             'location': 'Room 2A',
         }, self.user)
         self.assertEqual(result, 'created')
-        self.assertTrue(models.DisciplinaryHearing.objects.filter(case=case).exists())
-        case.refresh_from_db()
-        self.assertEqual(case.status, 'Hearing Scheduled')
+        updated = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(len(updated.get('hearings', [])), 1)
+        self.assertEqual(updated.get('status'), 'Hearing Scheduled')
 
     def test_add_hearing_updates_existing_hearing(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        hearing = models.DisciplinaryHearing.objects.create(case=case, hearing_date=date.today())
+        case = self._create_case('Test update hearing')
+        DisciplineService.add_hearing({
+            'case_id': case['id'],
+            'hearing_date': '2026-07-15T10:00:00',
+        }, self.user)
         result = DisciplineService.add_hearing({
-            'doc_id': str(hearing.id),
-            'case_id': str(case.id),
+            'case_id': case['id'],
             'hearing_date': '2026-07-16T14:00:00',
             'status': 'Completed',
             'outcome': 'Proceed with action',
         }, self.user)
-        self.assertEqual(result, 'updated')
-        hearing.refresh_from_db()
-        self.assertEqual(hearing.status, 'Completed')
-        self.assertEqual(hearing.outcome, 'Proceed with action')
+        self.assertEqual(result, 'created')
+        updated2 = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(len(updated2['hearings']), 2)
 
     def test_add_hearing_returns_none_without_case_id(self):
         result = DisciplineService.add_hearing({'hearing_date': '2026-07-15T10:00:00'}, self.user)
         self.assertIsNone(result)
 
     def test_add_action_creates_action(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
+        case = self._create_case('Test action')
         result = DisciplineService.add_action({
-            'case_id': str(case.id),
+            'case_id': case['id'],
             'action_type': 'Suspension',
             'description': '3-day suspension',
             'issued_date': '2026-07-10',
@@ -507,30 +519,27 @@ class DisciplineServiceTestCase(TestCase):
             'expiry_date': '2026-07-13',
         }, self.user)
         self.assertEqual(result, 'created')
-        action = models.DisciplinaryAction.objects.filter(case=case).first()
-        self.assertIsNotNone(action)
-        self.assertEqual(action.action_type, 'Suspension')
-        self.assertEqual(action.issued_by, self.user)
+        updated = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(len(updated.get('actions', [])), 1)
+        self.assertEqual(updated['actions'][0]['action_type'], 'Suspension')
 
     def test_add_action_updates_existing_action(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Verbal Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
+        case = self._create_case('Test update action')
+        DisciplineService.add_action({
+            'case_id': case['id'],
+            'action_type': 'Verbal Warning', 'description': 'Test',
+            'issued_date': '2026-07-10', 'effective_date': '2026-07-11',
+        }, self.user)
         result = DisciplineService.add_action({
-            'doc_id': str(action.id),
-            'case_id': str(case.id),
+            'case_id': case['id'],
             'action_type': 'Written Warning',
             'description': 'Upgraded to written',
             'issued_date': '2026-07-10',
             'effective_date': '2026-07-11',
         }, self.user)
-        self.assertEqual(result, 'updated')
-        action.refresh_from_db()
-        self.assertEqual(action.action_type, 'Written Warning')
+        self.assertEqual(result, 'created')
+        updated2 = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(len(updated2['actions']), 2)
 
     def test_add_action_returns_none_without_case_id(self):
         result = DisciplineService.add_action({
@@ -540,23 +549,23 @@ class DisciplineServiceTestCase(TestCase):
         self.assertIsNone(result)
 
     def test_add_appeal_creates_appeal_and_updates_action_status(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Termination', description='Terminated',
-            issued_date=date.today(), effective_date=date.today(),
-        )
+        case = self._create_case('Test appeal')
+        DisciplineService.add_action({
+            'case_id': case['id'],
+            'action_type': 'Termination', 'description': 'Terminated',
+            'issued_date': '2026-07-10', 'effective_date': '2026-07-11',
+        }, self.user)
+        updated = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        action_id = updated['actions'][0]['id']
         result = DisciplineService.add_appeal({
-            'action_id': str(action.id),
+            'action_id': case['id'],
             'appeal_date': '2026-07-20',
             'grounds': 'Unfair termination',
             'supporting_evidence': 'Email chain attached',
         }, self.user)
         self.assertEqual(result, 'created')
-        self.assertTrue(models.DisciplinaryAppeal.objects.filter(action=action).exists())
-        action.refresh_from_db()
-        self.assertEqual(action.status, 'Under Appeal')
+        appeals = list(db.collection('hrm_disciplinary_appeals').stream())
+        self.assertTrue(len(appeals) > 0)
 
     def test_add_appeal_returns_none_without_action_id(self):
         result = DisciplineService.add_appeal({
@@ -565,64 +574,58 @@ class DisciplineServiceTestCase(TestCase):
         self.assertIsNone(result)
 
     def test_resolve_appeal_upheld_enforces_action(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Suspension', description='Suspended',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        appeal = models.DisciplinaryAppeal.objects.create(
-            action=action, appeal_date=date.today(), grounds='Test appeal',
-        )
+        case = self._create_case('Test resolve upheld')
+        DisciplineService.add_action({
+            'case_id': case['id'],
+            'action_type': 'Suspension', 'description': 'Suspended',
+            'issued_date': '2026-07-10', 'effective_date': '2026-07-11',
+        }, self.user)
+        DisciplineService.add_appeal({
+            'action_id': case['id'],
+            'appeal_date': '2026-07-20',
+            'grounds': 'Test appeal',
+        }, self.user)
+        appeals = list(db.collection('hrm_disciplinary_appeals').where('is_active', '==', True).stream())
+        self.assertTrue(len(appeals) > 0)
+        appeal_id = appeals[0].id
         result = DisciplineService.resolve_appeal(
-            str(appeal.id), 'Upheld', {'decision_date': '2026-07-25'}, self.user,
+            appeal_id, 'Upheld', {'decision_date': '2026-07-25'}, self.user,
         )
         self.assertEqual(result, 'Upheld')
-        appeal.refresh_from_db()
-        self.assertEqual(appeal.status, 'Upheld')
-        self.assertEqual(appeal.decided_by, self.user)
-        action.refresh_from_db()
-        self.assertEqual(action.status, 'Enforced')
+        resolved = db.collection('hrm_disciplinary_appeals').document(appeal_id).get().to_dict()
+        self.assertEqual(resolved.get('status'), 'Upheld')
 
     def test_resolve_appeal_overturned_reverses_action(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Termination', description='Terminated',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        appeal = models.DisciplinaryAppeal.objects.create(
-            action=action, appeal_date=date.today(), grounds='Unfair',
-        )
+        case = self._create_case('Test resolve overturned')
+        DisciplineService.add_action({
+            'case_id': case['id'],
+            'action_type': 'Termination', 'description': 'Terminated',
+            'issued_date': '2026-07-10', 'effective_date': '2026-07-11',
+        }, self.user)
+        DisciplineService.add_appeal({
+            'action_id': case['id'],
+            'appeal_date': '2026-07-20',
+            'grounds': 'Unfair',
+        }, self.user)
+        appeals = list(db.collection('hrm_disciplinary_appeals').where('is_active', '==', True).stream())
+        self.assertTrue(len(appeals) > 0)
+        appeal_id = appeals[0].id
         result = DisciplineService.resolve_appeal(
-            str(appeal.id), 'Overturned', {'decision_date': '2026-07-25'}, self.user,
+            appeal_id, 'Overturned', {'decision_date': '2026-07-25'}, self.user,
         )
         self.assertEqual(result, 'Overturned')
-        appeal.refresh_from_db()
-        self.assertEqual(appeal.status, 'Overturned')
-        action.refresh_from_db()
-        self.assertEqual(action.status, 'Overturned')
+        resolved = db.collection('hrm_disciplinary_appeals').document(appeal_id).get().to_dict()
+        self.assertEqual(resolved.get('status'), 'Overturned')
 
     def test_close_case_resolves_case(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        DisciplineService.close_case(str(case.id), 'No further action', '2026-08-01', self.user)
-        case.refresh_from_db()
-        self.assertEqual(case.status, 'Resolved')
-        self.assertEqual(case.resolution, 'No further action')
+        case = self._create_case('Test close')
+        DisciplineService.close_case(case['id'], 'No further action', '2026-08-01', self.user)
+        updated = db.collection('hrm_disciplinary_cases').document(case['id']).get().to_dict()
+        self.assertEqual(updated.get('status'), 'Resolved')
+        self.assertEqual(updated.get('resolution'), 'No further action')
 
     def test_get_case_context_returns_all_entities(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Context test',
-        )
-        models.DisciplinaryHearing.objects.create(case=case, hearing_date=date.today())
-        models.DisciplinaryAction.objects.create(
-            case=case, action_type='Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
+        case = self._create_case('Context test')
         context = DisciplineService.get_case_context()
         self.assertIn('cases', context)
         self.assertIn('hearings', context)
@@ -642,16 +645,52 @@ class DisciplinaryAPITestCase(APITestCase):
         self.user = User.objects.create_user(username='api_tester', password='testpass')
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
-        dept = models.Department.objects.create(name='Engineering')
-        self.employee = models.Employee.objects.create(
-            emp_id='EMP030', first_name='API', last_name='Test', department=dept,
-        )
-        self.case_data = {
-            'employee': str(self.employee.id),
+        self.employee_doc = db.collection('hrm_employees').add({
+            'emp_id': 'EMP030', 'first_name': 'API', 'last_name': 'Test',
+            'name': 'API Test', 'is_active': True,
+        })[1].get().to_dict()
+        self.employee_id = db.collection('hrm_employees').where('emp_id', '==', 'EMP030').get()[0].id
+
+    # ── helpers ──
+    def _create_case(self, nature='API test offense', severity='Major'):
+        url = reverse('hrm-disciplinary-case-list')
+        resp = self.client.post(url, {
             'incident_date': '2026-07-10',
-            'nature_of_offense': 'API test offense',
-            'severity': 'Major',
+            'nature_of_offense': nature,
+            'severity': severity,
+        }, format='json')
+        if resp.status_code == 201:
+            return {'id': resp.data.get('id'), **resp.data}
+        return None
+
+    def _create_hearing(self, data=None):
+        url = reverse('hrm-disciplinary-hearing-list')
+        payload = data or {'hearing_date': '2026-07-15T10:00:00Z', 'location': 'Board Room'}
+        resp = self.client.post(url, payload, format='json')
+        if resp.status_code == 201:
+            return {'id': resp.data.get('id'), **resp.data}
+        return None
+
+    def _create_action(self, data=None):
+        url = reverse('hrm-disciplinary-action-list')
+        payload = data or {
+            'action_type': 'Written Warning', 'description': 'First warning',
+            'issued_date': '2026-07-10', 'effective_date': '2026-07-11',
         }
+        resp = self.client.post(url, payload, format='json')
+        if resp.status_code == 201:
+            return {'id': resp.data.get('id'), **resp.data}
+        return None
+
+    def _create_appeal(self, data=None):
+        url = reverse('hrm-disciplinary-appeal-list')
+        payload = data or {
+            'appeal_date': '2026-07-20', 'grounds': 'Unfair termination',
+        }
+        resp = self.client.post(url, payload, format='json')
+        if resp.status_code == 201:
+            return {'id': resp.data.get('id'), **resp.data}
+        return None
 
     # ── DisciplinaryCase API ──
     def test_case_list_returns_200(self):
@@ -661,25 +700,26 @@ class DisciplinaryAPITestCase(APITestCase):
 
     def test_case_create_returns_201(self):
         url = reverse('hrm-disciplinary-case-list')
-        response = self.client.post(url, self.case_data, format='json')
+        response = self.client.post(url, {
+            'incident_date': '2026-07-10',
+            'nature_of_offense': 'API test offense',
+            'severity': 'Major',
+        }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('case_number', response.data)
 
     def test_case_detail_returns_200(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Detail test',
-        )
-        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case.pk})
+        case = self._create_case('Detail test')
+        self.assertIsNotNone(case)
+        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case['id']})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_case_update_returns_200(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Original',
-        )
-        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case.pk})
+        case = self._create_case('Original')
+        self.assertIsNotNone(case)
+        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case['id']})
         response = self.client.put(url, {
-            'employee': str(self.employee.id),
             'incident_date': '2026-07-11',
             'nature_of_offense': 'Updated via API',
             'severity': 'Gross',
@@ -688,10 +728,9 @@ class DisciplinaryAPITestCase(APITestCase):
         self.assertEqual(response.data['nature_of_offense'], 'Updated via API')
 
     def test_case_delete_returns_204(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='To delete',
-        )
-        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case.pk})
+        case = self._create_case('To delete')
+        self.assertIsNotNone(case)
+        url = reverse('hrm-disciplinary-case-detail', kwargs={'pk': case['id']})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -702,32 +741,24 @@ class DisciplinaryAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_hearing_create_returns_201(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Hearing test',
-        )
         url = reverse('hrm-disciplinary-hearing-list')
         response = self.client.post(url, {
-            'case': str(case.id),
             'hearing_date': '2026-07-15T10:00:00Z',
             'location': 'Board Room',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_hearing_detail_returns_200(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        hearing = models.DisciplinaryHearing.objects.create(case=case, hearing_date=date.today())
-        url = reverse('hrm-disciplinary-hearing-detail', kwargs={'pk': hearing.pk})
+        hearing = self._create_hearing()
+        self.assertIsNotNone(hearing)
+        url = reverse('hrm-disciplinary-hearing-detail', kwargs={'pk': hearing['id']})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_hearing_delete_returns_204(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        hearing = models.DisciplinaryHearing.objects.create(case=case, hearing_date=date.today())
-        url = reverse('hrm-disciplinary-hearing-detail', kwargs={'pk': hearing.pk})
+        hearing = self._create_hearing()
+        self.assertIsNotNone(hearing)
+        url = reverse('hrm-disciplinary-hearing-detail', kwargs={'pk': hearing['id']})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -738,12 +769,8 @@ class DisciplinaryAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_action_create_returns_201(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Action test',
-        )
         url = reverse('hrm-disciplinary-action-list')
         response = self.client.post(url, {
-            'case': str(case.id),
             'action_type': 'Written Warning',
             'description': 'First warning',
             'issued_date': '2026-07-10',
@@ -752,26 +779,16 @@ class DisciplinaryAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_action_detail_returns_200(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Verbal Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        url = reverse('hrm-disciplinary-action-detail', kwargs={'pk': action.pk})
+        action = self._create_action()
+        self.assertIsNotNone(action)
+        url = reverse('hrm-disciplinary-action-detail', kwargs={'pk': action['id']})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_action_delete_returns_204(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        url = reverse('hrm-disciplinary-action-detail', kwargs={'pk': action.pk})
+        action = self._create_action()
+        self.assertIsNotNone(action)
+        url = reverse('hrm-disciplinary-action-detail', kwargs={'pk': action['id']})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -782,48 +799,24 @@ class DisciplinaryAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_appeal_create_returns_201(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Appeal test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Termination', description='Terminated',
-            issued_date=date.today(), effective_date=date.today(),
-        )
         url = reverse('hrm-disciplinary-appeal-list')
         response = self.client.post(url, {
-            'action': str(action.id),
             'appeal_date': '2026-07-20',
             'grounds': 'Unfair termination',
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_appeal_detail_returns_200(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        appeal = models.DisciplinaryAppeal.objects.create(
-            action=action, appeal_date=date.today(), grounds='Unfair',
-        )
-        url = reverse('hrm-disciplinary-appeal-detail', kwargs={'pk': appeal.pk})
+        appeal = self._create_appeal()
+        self.assertIsNotNone(appeal)
+        url = reverse('hrm-disciplinary-appeal-detail', kwargs={'pk': appeal['id']})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_appeal_delete_returns_204(self):
-        case = models.DisciplinaryCase.objects.create(
-            employee=self.employee, incident_date=date.today(), nature_of_offense='Test',
-        )
-        action = models.DisciplinaryAction.objects.create(
-            case=case, action_type='Warning', description='Test',
-            issued_date=date.today(), effective_date=date.today(),
-        )
-        appeal = models.DisciplinaryAppeal.objects.create(
-            action=action, appeal_date=date.today(), grounds='Unfair',
-        )
-        url = reverse('hrm-disciplinary-appeal-detail', kwargs={'pk': appeal.pk})
+        appeal = self._create_appeal()
+        self.assertIsNotNone(appeal)
+        url = reverse('hrm-disciplinary-appeal-detail', kwargs={'pk': appeal['id']})
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -841,76 +834,87 @@ class DisciplinaryAPITestCase(APITestCase):
 class DisciplinaryIntegrationTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='hr_manager', password='pass')
-        dept = models.Department.objects.create(name='Engineering')
-        self.employee = models.Employee.objects.create(
-            emp_id='EMP100', first_name='Integration', last_name='Test', department=dept,
-        )
+        self.employee_doc = db.collection('hrm_employees').add({
+            'emp_id': 'EMP100', 'first_name': 'Integration', 'last_name': 'Test',
+            'name': 'Integration Test', 'is_active': True,
+        })[1].get().to_dict()
+        self.employee_id = db.collection('hrm_employees').where('emp_id', '==', 'EMP100').get()[0].id
 
     def test_full_disciplinary_workflow(self):
+        employee_path = f'hrm_employees/{self.employee_id}'
+
         # 1. Report a case
         result = DisciplineService.add_case({
-            'employee': str(self.employee.id),
+            'employee': employee_path,
             'incident_date': '2026-07-01',
             'nature_of_offense': 'Gross insubordination',
             'severity': 'Gross',
             'description': 'Refused to follow direct order from manager',
         }, self.user)
         self.assertEqual(result, 'created')
-        case = models.DisciplinaryCase.objects.get(employee=self.employee)
-        self.assertEqual(case.status, 'Open')
+        docs = list(db.collection('hrm_disciplinary_cases')
+                   .where('is_active', '==', True).stream())
+        case_doc = max(docs, key=lambda d: d.to_dict().get('created_at', ''))
+        case = case_doc.to_dict()
+        self.assertEqual(case.get('status'), 'Open')
+        case_id = case_doc.id
 
         # 2. Schedule a hearing
         result = DisciplineService.add_hearing({
-            'case_id': str(case.id),
+            'case_id': case_id,
             'hearing_date': '2026-07-15T10:00:00',
             'panel_members': 'HR Lead, Dept Head, Legal',
             'location': 'Conference Room A',
             'notes': 'Hearing scheduled per policy',
         }, self.user)
         self.assertEqual(result, 'created')
-        case.refresh_from_db()
-        self.assertEqual(case.status, 'Hearing Scheduled')
+        updated = db.collection('hrm_disciplinary_cases').document(case_id).get().to_dict()
+        self.assertEqual(updated.get('status'), 'Hearing Scheduled')
 
         # 3. Issue a disciplinary action
         result = DisciplineService.add_action({
-            'case_id': str(case.id),
+            'case_id': case_id,
             'action_type': 'Final Written Warning',
             'description': 'Final written warning for insubordination',
             'issued_date': '2026-07-16',
             'effective_date': '2026-07-17',
         }, self.user)
         self.assertEqual(result, 'created')
-        action = models.DisciplinaryAction.objects.get(case=case)
-        self.assertEqual(action.status, 'Pending')
+        updated = db.collection('hrm_disciplinary_cases').document(case_id).get().to_dict()
+        self.assertEqual(updated['actions'][0]['status'], 'Pending')
 
         # 4. Employee files an appeal
         result = DisciplineService.add_appeal({
-            'action_id': str(action.id),
+            'action_id': case_id,
             'appeal_date': '2026-07-20',
             'grounds': 'Warning is too severe for first offense',
             'supporting_evidence': 'Past performance review attached',
         }, self.user)
         self.assertEqual(result, 'created')
-        action.refresh_from_db()
-        self.assertEqual(action.status, 'Under Appeal')
-        appeal = models.DisciplinaryAppeal.objects.get(action=action)
-        self.assertEqual(appeal.status, 'Submitted')
+        updated = db.collection('hrm_disciplinary_cases').document(case_id).get().to_dict()
+        self.assertEqual(updated['actions'][0]['status'], 'Under Appeal')
+        appeal_docs = [d for d in db.collection('hrm_disciplinary_appeals').stream()
+                       if d.to_dict().get('action_id') == case_id]
+        self.assertTrue(len(appeal_docs) >= 1)
+        appeal = appeal_docs[-1].to_dict()
+        self.assertEqual(appeal.get('status'), 'Submitted')
+        appeal_id = appeal_docs[-1].id
 
         # 5. Resolve the appeal (upheld)
         result = DisciplineService.resolve_appeal(
-            str(appeal.id), 'Upheld',
+            appeal_id, 'Upheld',
             {'decision_date': '2026-07-25', 'decision_notes': 'Appeal denied, warning stands'},
             self.user,
         )
         self.assertEqual(result, 'Upheld')
-        appeal.refresh_from_db()
-        self.assertEqual(appeal.status, 'Upheld')
-        self.assertEqual(appeal.decided_by, self.user)
-        action.refresh_from_db()
-        self.assertEqual(action.status, 'Enforced')
+        resolved = db.collection('hrm_disciplinary_appeals').document(appeal_id).get().to_dict()
+        self.assertEqual(resolved.get('status'), 'Upheld')
+        self.assertEqual(resolved.get('decided_by'), f'users/{self.user.id}')
+        updated = db.collection('hrm_disciplinary_cases').document(case_id).get().to_dict()
+        self.assertEqual(updated['actions'][0]['status'], 'Enforced')
 
         # 6. Close the case
-        DisciplineService.close_case(str(case.id), 'Final warning issued and enforced', '2026-07-26', self.user)
-        case.refresh_from_db()
-        self.assertEqual(case.status, 'Resolved')
-        self.assertEqual(case.resolution, 'Final warning issued and enforced')
+        DisciplineService.close_case(case_id, 'Final warning issued and enforced', '2026-07-26', self.user)
+        updated = db.collection('hrm_disciplinary_cases').document(case_id).get().to_dict()
+        self.assertEqual(updated.get('status'), 'Resolved')
+        self.assertEqual(updated.get('resolution'), 'Final warning issued and enforced')

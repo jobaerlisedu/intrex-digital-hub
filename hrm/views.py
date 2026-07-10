@@ -58,18 +58,24 @@ def index(request):
         
         # Disciplinary KPIs
         try:
-            from .models import DisciplinaryCase, DisciplinaryHearing
-            open_cases = DisciplinaryCase.objects.filter(is_active=True).exclude(status__in=['Resolved', 'Dismissed']).count()
-            now = timezone.now()
-            upcoming_hearings = DisciplinaryHearing.objects.filter(
-                is_active=True, status='Scheduled', hearing_date__gte=now
-            ).count()
-            recent_cases = list(
-                DisciplinaryCase.objects.filter(is_active=True)
-                .select_related('employee')
-                .order_by('-created_at')[:5]
-                .values('case_number', 'employee__name', 'nature_of_offense', 'severity', 'status')
+            all_cases = [d.to_dict() for d in db.collection('hrm_disciplinary_cases').where('is_active', '==', True).stream()]
+            open_cases = sum(1 for c in all_cases if c.get('status') not in ('Resolved', 'Dismissed'))
+            upcoming_hearings = sum(
+                1 for c in all_cases
+                for h in c.get('hearings', [])
+                if h.get('status') == 'Scheduled'
             )
+            all_cases.sort(key=lambda c: c.get('created_at', ''), reverse=True)
+            recent_cases = [
+                {
+                    'case_number': c.get('case_number', ''),
+                    'employee__name': c.get('employee_name', c.get('employee', '')),
+                    'nature_of_offense': c.get('nature_of_offense', ''),
+                    'severity': c.get('severity', ''),
+                    'status': c.get('status', ''),
+                }
+                for c in all_cases[:5]
+            ]
         except Exception:
             open_cases = 0
             upcoming_hearings = 0
@@ -1023,7 +1029,6 @@ def performance(request):
 @login_required
 @module_access('hrm')
 def disciplinary(request):
-    from hrm.models import Employee as SQLEmployee
     from .validators import validate_disciplinary_data, validate_hearing_data, validate_action_data, validate_appeal_data
 
     if request.method == 'POST':
@@ -1046,8 +1051,7 @@ def disciplinary(request):
             doc_id = request.POST.get('doc_id')
             if doc_id:
                 try:
-                    from hrm.models import DisciplinaryCase
-                    DisciplinaryCase.objects.filter(id=doc_id).update(is_active=False)
+                    db.collection('hrm_disciplinary_cases').document(doc_id).update({'is_active': False})
                     messages.success(request, "Disciplinary case removed.")
                 except Exception as e:
                     hrm_logger.error(f"Error deleting case: {e}")
@@ -1066,11 +1070,21 @@ def disciplinary(request):
                 hrm_logger.error(f"Error saving hearing: {e}")
 
         elif action == 'delete_hearing':
-            doc_id = request.POST.get('doc_id')
-            if doc_id:
+            hearing_id = request.POST.get('doc_id')
+            if hearing_id:
                 try:
-                    from hrm.models import DisciplinaryHearing
-                    DisciplinaryHearing.objects.filter(id=doc_id).update(is_active=False)
+                    docs = db.collection('hrm_disciplinary_cases').where('is_active', '==', True).stream()
+                    now = datetime.now().isoformat()
+                    for case_doc in docs:
+                        hearings = case_doc.to_dict().get('hearings', [])
+                        for i, h in enumerate(hearings):
+                            if str(h.get('id', '')) == str(hearing_id):
+                                hearings.pop(i)
+                                db.collection('hrm_disciplinary_cases').document(case_doc.id).update({
+                                    'hearings': hearings,
+                                    'updated_at': now,
+                                })
+                                break
                     messages.success(request, "Hearing removed.")
                 except Exception as e:
                     hrm_logger.error(f"Error deleting hearing: {e}")
@@ -1131,13 +1145,7 @@ def disciplinary(request):
     except Exception:
         employees = []
 
-    try:
-        sql_employees = SQLEmployee.objects.filter(is_active=True).values('id', 'name', 'emp_id')
-    except Exception:
-        sql_employees = []
-
     context['employees'] = employees
-    context['sql_employees'] = sql_employees
     return render(request, 'hrm/discipline.html', context)
 
 
@@ -1146,8 +1154,6 @@ def disciplinary(request):
 @login_required
 @module_access('hrm')
 def notification_center(request):
-    from hrm.models import Notification
-
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'mark_read':
@@ -1165,8 +1171,25 @@ def notification_center(request):
 
     notifications = NotifService.get_notifications(request.user)
     unread_count = NotifService.get_unread_count(request.user)
-    from hrm.models import NotificationPreference
-    pref, _ = NotificationPreference.objects.get_or_create(user=request.user)
+    pref_docs = list(db.collection('hrm_notification_preferences')
+                    .where('user', '==', f'users/{request.user.id}')
+                    .limit(1).stream())
+    if pref_docs:
+        pref = pref_docs[0].to_dict()
+        pref['id'] = pref_docs[0].id
+    else:
+        now = datetime.now().isoformat()
+        _, pref_ref = db.collection('hrm_notification_preferences').add({
+            'user': f'users/{request.user.id}',
+            'notify_in_app': True,
+            'notify_email': True,
+            'notify_push': False,
+            'digest_frequency': 'instant',
+            'created_at': now,
+            'updated_at': now,
+        })
+        pref = pref_ref.get().to_dict()
+        pref['id'] = pref_ref.id
 
     return render(request, 'hrm/notifications.html', {
         'notifications': notifications,
@@ -1180,8 +1203,6 @@ def notification_center(request):
 @login_required
 @module_access('hrm')
 def succession_planning(request):
-    from hrm.models import KeyPosition, SuccessorCandidate, SuccessionPlan
-
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -1218,7 +1239,7 @@ def succession_planning(request):
         elif action == 'delete_successor':
             doc_id = request.POST.get('doc_id')
             if doc_id:
-                SuccessorCandidate.objects.filter(id=doc_id).update(is_active=False)
+                db.collection('hrm_successor_candidates').document(doc_id).update({'is_active': False})
                 messages.success(request, "Successor candidate removed.")
 
         elif action == 'create_plan':
@@ -1231,14 +1252,14 @@ def succession_planning(request):
         elif action == 'delete_position':
             doc_id = request.POST.get('doc_id')
             if doc_id:
-                KeyPosition.objects.filter(id=doc_id).update(is_active=False)
+                db.collection('hrm_key_positions').document(doc_id).update({'is_active': False})
                 messages.success(request, "Key position removed.")
 
         return redirect('hrm:succession_planning')
 
-    key_positions = KeyPosition.objects.filter(is_active=True).select_related('position')
-    successors = SuccessorCandidate.objects.filter(is_active=True).select_related('key_position', 'employee')
-    plans = SuccessionPlan.objects.filter(is_active=True)
+    key_positions = get_collection_data('hrm_key_positions', [])
+    successors = get_collection_data('hrm_successor_candidates', [])
+    plans = get_collection_data('hrm_succession_plans', [])
 
     try:
         emp_docs = db.collection('hrm_employees').stream()
@@ -1260,8 +1281,7 @@ def succession_planning(request):
 
 @login_required
 def get_unread_notification_count(request):
-    from hrm.models import Notification
-    count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    count = NotifService.get_unread_count(request.user)
     return JsonResponse({'count': count})
 
 
@@ -1270,11 +1290,6 @@ def get_unread_notification_count(request):
 @login_required
 @module_access('hrm')
 def skills_inventory(request):
-    from hrm.models import (
-        Employee as SQLEmployee, EmployeeEducation, EmployeeExperience,
-        EmployeeSkill, Competency, CompetencyRating,
-    )
-
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
@@ -1295,12 +1310,12 @@ def skills_inventory(request):
             messages.error(request, f"Error: {e}")
         return redirect('hrm:skills_inventory')
 
-    employees = SQLEmployee.objects.filter(is_active=True)
-    education = EmployeeEducation.objects.filter(is_active=True).select_related('employee')
-    experiences = EmployeeExperience.objects.filter(is_active=True).select_related('employee')
-    skills = EmployeeSkill.objects.filter(is_active=True).select_related('employee')
-    competencies = Competency.objects.filter(is_active=True)
-    competency_ratings = CompetencyRating.objects.filter(is_active=True).select_related('employee', 'competency', 'assessed_by')
+    employees = get_collection_data('hrm_employees', [])
+    education = get_collection_data('hrm_employee_education', [])
+    experiences = get_collection_data('hrm_employee_experience', [])
+    skills = get_collection_data('hrm_employee_skills', [])
+    competencies = get_collection_data('hrm_competencies', [])
+    competency_ratings = get_collection_data('hrm_competency_ratings', [])
 
     return render(request, 'hrm/skills_inventory.html', {
         'employees': employees, 'education': education, 'experiences': experiences,
@@ -1313,11 +1328,6 @@ def skills_inventory(request):
 @login_required
 @module_access('hrm')
 def feedback_360(request):
-    from hrm.models import (
-        Employee as SQLEmployee, ReviewCycle,
-        FeedbackQuestion, FeedbackRequest, FeedbackResponse,
-    )
-
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
@@ -1332,11 +1342,11 @@ def feedback_360(request):
             messages.error(request, f"Error: {e}")
         return redirect('hrm:feedback_360')
 
-    questions = FeedbackQuestion.objects.filter(is_active=True)
-    requests = FeedbackRequest.objects.filter(is_active=True).select_related('reviewer', 'reviewee', 'review_cycle')
-    responses = FeedbackResponse.objects.select_related('request', 'question')
-    employees = SQLEmployee.objects.filter(is_active=True)
-    cycles = ReviewCycle.objects.filter(is_active=True)
+    questions = get_collection_data('hrm_feedback_questions', [])
+    requests = get_collection_data('hrm_feedback_requests', [])
+    responses = get_collection_data('hrm_feedback_responses', [])
+    employees = get_collection_data('hrm_employees', [])
+    cycles = get_collection_data('hrm_review_cycles', [])
 
     return render(request, 'hrm/feedback_360.html', {
         'questions': questions, 'requests': requests, 'responses': responses,
@@ -1349,11 +1359,6 @@ def feedback_360(request):
 @login_required
 @module_access('hrm')
 def engagement_surveys(request):
-    from hrm.models import (
-        EngagementSurvey, SurveyQuestion, SurveyResponse,
-        Employee as SQLEmployee,
-    )
-
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
@@ -1361,23 +1366,27 @@ def engagement_surveys(request):
                 SurveyService.add_survey(request.POST)
                 messages.success(request, "Survey created successfully.")
             elif action == 'add_question':
-                survey = EngagementSurvey.objects.get(id=request.POST.get('survey_id'))
-                SurveyQuestion.objects.create(
-                    survey=survey,
-                    question_text=request.POST['question_text'],
-                    question_type=request.POST.get('question_type', 'text'),
-                    is_required=request.POST.get('is_required') == 'on',
-                    order=int(request.POST.get('order', 0)),
-                )
+                survey_id = request.POST.get('survey_id')
+                now = datetime.now().isoformat()
+                db.collection('hrm_survey_questions').add({
+                    'survey': f'hrm_engagement_surveys/{survey_id}',
+                    'question_text': request.POST['question_text'],
+                    'question_type': request.POST.get('question_type', 'text'),
+                    'is_required': request.POST.get('is_required') == 'on',
+                    'order': int(request.POST.get('order', 0)),
+                    'is_active': True,
+                    'created_at': now,
+                    'updated_at': now,
+                })
                 messages.success(request, "Survey question added.")
         except Exception as e:
             hrm_logger.error(f"Survey error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:engagement_surveys')
 
-    surveys = EngagementSurvey.objects.filter(is_active=True)
-    survey_questions = SurveyQuestion.objects.filter(is_active=True).select_related('survey')
-    survey_responses = SurveyResponse.objects.select_related('survey', 'question', 'employee')
+    surveys = get_collection_data('hrm_engagement_surveys', [])
+    survey_questions = get_collection_data('hrm_survey_questions', [])
+    survey_responses = get_collection_data('hrm_survey_responses', [])
 
     return render(request, 'hrm/engagement_surveys.html', {
         'surveys': surveys, 'survey_questions': survey_questions,
@@ -1390,7 +1399,6 @@ def engagement_surveys(request):
 @login_required
 @module_access('hrm')
 def compliance_calendar(request):
-    from hrm.models import Employee as SQLEmployee, ComplianceReminder
     from hrm.services import sync_document_compliance_reminders, check_compliance_overdue_reminders
 
     sync_document_compliance_reminders()
@@ -1403,20 +1411,27 @@ def compliance_calendar(request):
                 ComplianceCalendarService.add_reminder(request.POST)
                 messages.success(request, "Compliance reminder added.")
             elif action == 'complete_reminder':
-                reminder = ComplianceReminder.objects.get(id=request.POST.get('reminder_id'))
-                reminder.mark_completed()
-                messages.success(request, f"Reminder '{reminder.title}' marked complete.")
+                reminder_id = request.POST.get('reminder_id')
+                now = datetime.now().isoformat()
+                db.collection('hrm_compliance_reminders').document(reminder_id).update({
+                    'status': 'Completed',
+                    'completed_at': now,
+                    'updated_at': now,
+                })
+                messages.success(request, "Reminder marked complete.")
             elif action == 'dismiss_reminder':
-                ComplianceReminder.objects.filter(id=request.POST.get('reminder_id')).update(is_active=False)
+                db.collection('hrm_compliance_reminders').document(
+                    request.POST.get('reminder_id')
+                ).update({'is_active': False})
                 messages.success(request, "Reminder dismissed.")
         except Exception as e:
             hrm_logger.error(f"Compliance calendar error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:compliance_calendar')
 
-    reminders = ComplianceReminder.objects.filter(is_active=True).select_related('employee')
-    employees = SQLEmployee.objects.filter(is_active=True)
-    upcoming = reminders.filter(status__in=['Pending', 'Overdue']).order_by('due_date')
+    reminders = get_collection_data('hrm_compliance_reminders', [])
+    employees = get_collection_data('hrm_employees', [])
+    upcoming = [r for r in reminders if r.get('status') in ('Pending', 'Overdue')]
 
     return render(request, 'hrm/compliance_calendar.html', {
         'reminders': reminders, 'employees': employees, 'upcoming': upcoming,
@@ -1428,8 +1443,6 @@ def compliance_calendar(request):
 @login_required
 @module_access('hrm')
 def talent_review(request):
-    from hrm.models import Employee as SQLEmployee, TalentReviewMeeting, NineBoxCell
-
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
@@ -1440,16 +1453,20 @@ def talent_review(request):
                 TalentReviewService.set_nine_box(request.POST)
                 messages.success(request, "9-Box cell added.")
             elif action == 'complete_meeting':
-                TalentReviewMeeting.objects.filter(id=request.POST.get('meeting_id')).update(status='Completed')
+                meeting_id = request.POST.get('meeting_id')
+                db.collection('hrm_talent_review_meetings').document(meeting_id).update({
+                    'status': 'Completed',
+                    'updated_at': datetime.now().isoformat(),
+                })
                 messages.success(request, "Meeting marked as completed.")
         except Exception as e:
             hrm_logger.error(f"Talent review error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:talent_review')
 
-    meetings = TalentReviewMeeting.objects.filter(is_active=True)
-    cells = NineBoxCell.objects.filter(is_active=True).select_related('employee', 'talent_review')
-    employees = SQLEmployee.objects.filter(is_active=True)
+    meetings = get_collection_data('hrm_talent_review_meetings', [])
+    cells = get_collection_data('hrm_nine_box_cells', [])
+    employees = get_collection_data('hrm_employees', [])
 
     return render(request, 'hrm/talent_review.html', {
         'meetings': meetings, 'cells': cells, 'employees': employees,
@@ -1461,8 +1478,6 @@ def talent_review(request):
 @login_required
 @module_access('hrm')
 def hrm_settings(request):
-    from hrm.models import HRMSetting, LeavePolicy, RatingTemplate, RatingScale
-
     if request.method == 'POST':
         action = request.POST.get('action')
         try:
@@ -1473,35 +1488,38 @@ def hrm_settings(request):
                 HRMSettingsService.save_setting(request.POST.get('key'), request.POST.get('value', ''))
                 messages.success(request, "Setting created.")
             elif action == 'delete_setting':
-                HRMSetting.objects.filter(id=request.POST.get('setting_id')).update(is_active=False)
+                db.collection('hrm_settings').document(request.POST.get('setting_id')).update({'is_active': False})
                 messages.success(request, "Setting removed.")
             elif action == 'add_leave_policy':
                 HRMSettingsService.add_leave_policy(request.POST)
                 messages.success(request, "Leave policy added.")
             elif action == 'delete_leave_policy':
-                LeavePolicy.objects.filter(id=request.POST.get('policy_id')).update(is_active=False)
+                db.collection('hrm_leave_policies').document(request.POST.get('policy_id')).update({'is_active': False})
                 messages.success(request, "Leave policy removed.")
             elif action == 'add_rating_template':
                 HRMSettingsService.add_rating_template(request.POST)
                 messages.success(request, "Rating template created.")
             elif action == 'add_rating_scale':
-                template = RatingTemplate.objects.get(id=request.POST.get('template_id'))
-                RatingScale.objects.create(
-                    template=template,
-                    label=request.POST['label'],
-                    value=request.POST['value'],
-                    definition=request.POST.get('definition', ''),
-                    order=int(request.POST.get('order', 0)),
-                )
+                now = datetime.now().isoformat()
+                db.collection('hrm_rating_scales').add({
+                    'template': f'hrm_rating_templates/{request.POST.get("template_id")}',
+                    'label': request.POST['label'],
+                    'value': request.POST['value'],
+                    'definition': request.POST.get('definition', ''),
+                    'order': int(request.POST.get('order', 0)),
+                    'is_active': True,
+                    'created_at': now,
+                    'updated_at': now,
+                })
                 messages.success(request, "Rating scale value added.")
         except Exception as e:
             hrm_logger.error(f"Settings error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:hrm_settings')
 
-    settings = HRMSetting.objects.filter(is_active=True)
-    leave_policies = LeavePolicy.objects.filter(is_active=True)
-    templates = RatingTemplate.objects.filter(is_active=True).prefetch_related('scales')
+    settings = get_collection_data('hrm_settings', [])
+    leave_policies = get_collection_data('hrm_leave_policies', [])
+    templates = get_collection_data('hrm_rating_templates', [])
 
     return render(request, 'hrm/hrm_settings.html', {
         'settings': settings,
@@ -1510,36 +1528,39 @@ def hrm_settings(request):
     })
 
 def employee_cases_json(request, emp_id):
-    from .models import Employee as SQLEmployee
-    from .models import DisciplinaryCase, DisciplinaryHearing, DisciplinaryAction
     try:
-        employee = SQLEmployee.objects.filter(emp_id=emp_id, is_active=True).first()
-        if not employee:
+        employee_docs = list(db.collection('hrm_employees')
+                            .where('emp_id', '==', emp_id)
+                            .where('is_active', '==', True)
+                            .limit(1).stream())
+        if not employee_docs:
             return JsonResponse({'cases': [], 'error': None})
-        cases = DisciplinaryCase.objects.filter(
-            employee=employee, is_active=True
-        ).select_related('reported_by').order_by('-created_at')
+        employee_ref = f'hrm_employees/{employee_docs[0].id}'
+        cases = [
+            {'id': d.id, **d.to_dict()}
+            for d in db.collection('hrm_disciplinary_cases')
+            .where('employee', '==', employee_ref)
+            .where('is_active', '==', True)
+            .order_by('created_at', direction='DESCENDING')
+            .stream()
+        ]
         data = []
         for c in cases:
-            hearings = list(
-                DisciplinaryHearing.objects.filter(case=c, is_active=True).values(
-                    'hearing_date', 'status', 'outcome'
-                )
-            )
-            actions = list(
-                DisciplinaryAction.objects.filter(case=c, is_active=True).values(
-                    'action_type', 'issued_date', 'status'
-                )
-            )
             data.append({
-                'case_number': c.case_number,
-                'nature_of_offense': c.nature_of_offense,
-                'severity': c.severity,
-                'status': c.status,
-                'incident_date': str(c.incident_date) if c.incident_date else None,
-                'resolution': c.resolution,
-                'hearings': hearings,
-                'actions': actions,
+                'case_number': c.get('case_number', ''),
+                'nature_of_offense': c.get('nature_of_offense', ''),
+                'severity': c.get('severity', ''),
+                'status': c.get('status', ''),
+                'incident_date': c.get('incident_date'),
+                'resolution': c.get('resolution', ''),
+                'hearings': [
+                    {'hearing_date': h.get('hearing_date'), 'status': h.get('status'), 'outcome': h.get('outcome')}
+                    for h in c.get('hearings', [])
+                ],
+                'actions': [
+                    {'action_type': a.get('action_type'), 'issued_date': a.get('issued_date'), 'status': a.get('status')}
+                    for a in c.get('actions', [])
+                ],
             })
         return JsonResponse({'cases': data, 'error': None})
     except Exception as e:

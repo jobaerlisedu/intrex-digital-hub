@@ -1,519 +1,593 @@
 from rest_framework import serializers
+from .base import FirestoreModelSerializer
 from .. import models
 
 
-class DepartmentSerializer(serializers.ModelSerializer):
+class DepartmentSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Department
+        collection_name = 'org_departments'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class PositionSerializer(serializers.ModelSerializer):
+class PositionSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Position
+        collection_name = 'org_positions'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class EmployeeSerializer(serializers.ModelSerializer):
+class EmployeeSerializer(FirestoreModelSerializer):
     name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.Employee
+        collection_name = 'hrm_employees'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RecruitmentCandidateSerializer(serializers.ModelSerializer):
+class RecruitmentCandidateSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.RecruitmentCandidate
+        collection_name = 'hrm_recruitment_candidates'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RecruitmentShortlistSerializer(serializers.ModelSerializer):
+class RecruitmentShortlistSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.RecruitmentShortlist
+        collection_name = 'hrm_recruitment_shortlists'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RecruitmentInterviewSerializer(serializers.ModelSerializer):
+class RecruitmentInterviewSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.RecruitmentInterview
+        collection_name = 'hrm_recruitment_interviews'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RecruitmentSelectionSerializer(serializers.ModelSerializer):
+class RecruitmentSelectionSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.RecruitmentSelection
+        collection_name = 'hrm_recruitment_selections'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class AttendanceSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class AttendanceSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Attendance
+        collection_name = 'hrm_attendances'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class LeaveSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class LeaveSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Leave
+        collection_name = 'hrm_leaves'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class HolidaySerializer(serializers.ModelSerializer):
+class HolidaySerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Holiday
+        collection_name = 'hrm_holidays'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class AdvanceSalarySerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class AdvanceSalarySerializer(FirestoreModelSerializer):
     class Meta:
         model = models.AdvanceSalary
+        collection_name = 'hrm_advances'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate_amount(self, value):
-        employee = self.instance.employee if self.instance else None
-        if not employee and self.initial_data.get('employee'):
-            from hrm.models import Employee
+        from config.firebase import db
+        employee_ref = (self.instance.get('employee') if isinstance(self.instance, dict) else
+                       getattr(self.instance, 'employee', None) if self.instance else None)
+        if not employee_ref and self.initial_data.get('employee'):
+            employee_ref = self.initial_data['employee']
+        if employee_ref:
             try:
-                employee = Employee.objects.get(id=self.initial_data['employee'])
-            except (Employee.DoesNotExist, ValueError):
+                employee_id = employee_ref.split('/')[-1] if '/' in str(employee_ref) else str(employee_ref)
+                emp_doc = db.collection('hrm_employees').document(employee_id).get()
+                if emp_doc.exists:
+                    emp_data = emp_doc.to_dict() or {}
+                    if emp_data.get('basic_salary'):
+                        import decimal
+                        max_allowed = decimal.Decimal(str(emp_data['basic_salary'])) * 2
+            except Exception:
                 pass
-        if employee and employee.basic_salary:
-            max_allowed = employee.basic_salary * 2  # 50% is applied in view; API allows 200% as admin override
         return value
 
     def validate(self, data):
-        employee = self.instance.employee if self.instance else data.get('employee')
-        if employee:
-            pending_exists = models.AdvanceSalary.objects.filter(
-                employee=employee, status='Pending', is_active=True
-            ).exclude(id=self.instance.id if self.instance else None).exists()
-            if pending_exists:
-                raise serializers.ValidationError(
-                    "This employee already has a pending advance request."
-                )
+        from config.firebase import db as firestore_db
+        employee_ref = (self.instance.get('employee') if isinstance(self.instance, dict) else
+                       getattr(self.instance, 'employee', None) if self.instance else data.get('employee'))
+        if employee_ref:
+            try:
+                existing = list(firestore_db.collection('hrm_advances')
+                               .where('employee', '==', employee_ref)
+                               .where('status', '==', 'Pending')
+                               .where('is_active', '==', True)
+                               .stream())
+                instance_id = (self.instance.get('id') if isinstance(self.instance, dict)
+                              else getattr(self.instance, 'id', None) if self.instance else None)
+                if instance_id:
+                    existing = [e for e in existing if e.id != instance_id]
+                if existing:
+                    raise serializers.ValidationError(
+                        "This employee already has a pending advance request."
+                    )
+            except serializers.ValidationError:
+                raise
+            except Exception:
+                pass
         return data
 
 
-class PayrollSerializer(serializers.ModelSerializer):
+class PayrollSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Payroll
+        collection_name = 'hrm_payrolls'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class PayrollEmployeeSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class PayrollEmployeeSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.PayrollEmployee
+        collection_name = 'hrm_payroll_employees'
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
 
 
-class EmployeeShiftSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class EmployeeShiftSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.EmployeeShift
+        collection_name = 'hrm_employee_shifts'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class OnboardingTaskSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class OnboardingTaskSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.OnboardingTask
+        collection_name = 'hrm_onboarding_tasks'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class ExitClearanceSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class ExitClearanceSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.ExitClearance
+        collection_name = 'hrm_exit_clearances'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class ExpenseClaimSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class ExpenseClaimSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.ExpenseClaim
+        collection_name = 'hrm_expense_claims'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class DocumentSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class DocumentSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Document
+        collection_name = 'hrm_documents'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class AssetSerializer(serializers.ModelSerializer):
-    employee = EmployeeSerializer(read_only=True)
-
+class AssetSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Asset
+        collection_name = 'hrm_assets'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class HRMSettingSerializer(serializers.ModelSerializer):
+class HRMSettingSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.HRMSetting
+        collection_name = 'hrm_settings'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Performance Management ─────────────────────────────────────────────
 
-class ReviewCycleSerializer(serializers.ModelSerializer):
+class ReviewCycleSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.ReviewCycle
+        collection_name = 'hrm_review_cycles'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class RatingTemplateSerializer(serializers.ModelSerializer):
+class RatingTemplateSerializer(FirestoreModelSerializer):
     scales = serializers.SerializerMethodField()
 
     class Meta:
         model = models.RatingTemplate
+        collection_name = 'hrm_rating_templates'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_scales(self, obj):
-        return RatingScaleSerializer(obj.scales.filter(is_active=True), many=True).data
+        from config.firebase import db as firestore_db
+        template_ref = f'hrm_rating_templates/{obj.get("id")}'
+        scale_docs = firestore_db.collection('hrm_rating_scales')\
+            .where('template', '==', template_ref)\
+            .where('is_active', '==', True)\
+            .order_by('order')\
+            .stream()
+        scales = [{'id': d.id, **d.to_dict()} for d in scale_docs]
+        return RatingScaleSerializer(scales, many=True).data
 
 
-class RatingScaleSerializer(serializers.ModelSerializer):
+class RatingScaleSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.RatingScale
+        collection_name = 'hrm_rating_scales'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class KPISerializer(serializers.ModelSerializer):
+class KPISerializer(FirestoreModelSerializer):
     class Meta:
         model = models.KPI
+        collection_name = 'hrm_kpis'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class EmployeeKPISerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
-    kpi_name = serializers.ReadOnlyField(source='kpi.name')
-    cycle_name = serializers.ReadOnlyField(source='review_cycle.name')
+class EmployeeKPISerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
+    kpi_name = serializers.ReadOnlyField()
+    cycle_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.EmployeeKPI
+        collection_name = 'hrm_employee_kpis'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class PerformanceReviewSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
-    reviewer_name = serializers.ReadOnlyField(source='reviewer.name')
-    cycle_name = serializers.ReadOnlyField(source='review_cycle.name')
+class PerformanceReviewSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
+    reviewer_name = serializers.ReadOnlyField()
+    cycle_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.PerformanceReview
+        collection_name = 'hrm_performance_reviews'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class PIPMilestoneSerializer(serializers.ModelSerializer):
+class PIPMilestoneSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.PIPMilestone
+        collection_name = 'hrm_pip_milestones'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class PerformanceImprovementPlanSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
-    milestones = PIPMilestoneSerializer(many=True, read_only=True)
+class PerformanceImprovementPlanSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
+    milestones = serializers.SerializerMethodField()
+
+    def get_milestones(self, obj):
+        milestones_data = obj.get('milestones', []) if isinstance(obj, dict) else []
+        if milestones_data:
+            if isinstance(milestones_data[0], dict):
+                return PIPMilestoneSerializer(milestones_data, many=True).data
+        return milestones_data
 
     class Meta:
         model = models.PerformanceImprovementPlan
+        collection_name = 'hrm_pips'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Leave Balance ──────────────────────────────────────────────────────
 
-class LeavePolicySerializer(serializers.ModelSerializer):
+class LeavePolicySerializer(FirestoreModelSerializer):
     class Meta:
         model = models.LeavePolicy
+        collection_name = 'hrm_leave_policies'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class LeaveBalanceSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
+class LeaveBalanceSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.LeaveBalance
+        collection_name = 'hrm_leave_balances'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at', 'available']
 
 
 # ── Training & Development ─────────────────────────────────────────────
 
-class TrainingNeedSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
+class TrainingNeedSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.TrainingNeed
+        collection_name = 'hrm_training_needs'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class DevelopmentPlanSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
+class DevelopmentPlanSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.DevelopmentPlan
+        collection_name = 'hrm_development_plans'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class TrainingNominationSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
+class TrainingNominationSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.TrainingNomination
+        collection_name = 'hrm_training_nominations'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Notifications ─────────────────────────────────────────────────────
 
-class NotificationSerializer(serializers.ModelSerializer):
+class NotificationSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Notification
+        collection_name = 'hrm_notifications'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at', 'read_at']
 
 
-class NotificationPreferenceSerializer(serializers.ModelSerializer):
+class NotificationPreferenceSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.NotificationPreference
+        collection_name = 'hrm_notification_preferences'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class DeviceTokenSerializer(serializers.ModelSerializer):
+class DeviceTokenSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.DeviceToken
+        collection_name = 'hrm_device_tokens'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Succession Planning ────────────────────────────────────────────────
 
-class KeyPositionSerializer(serializers.ModelSerializer):
-    position_title_display = serializers.ReadOnlyField(source='position.title')
-    department_name = serializers.ReadOnlyField(source='department.name')
-    incumbent_name = serializers.ReadOnlyField(source='incumbent.name')
+class KeyPositionSerializer(FirestoreModelSerializer):
+    position_title_display = serializers.ReadOnlyField()
+    department_name = serializers.ReadOnlyField()
+    incumbent_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.KeyPosition
+        collection_name = 'hrm_key_positions'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class SuccessorCandidateSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
+class SuccessorCandidateSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.SuccessorCandidate
+        collection_name = 'hrm_successor_candidates'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class SuccessionPlanSerializer(serializers.ModelSerializer):
-    department_name = serializers.ReadOnlyField(source='department.name')
+class SuccessionPlanSerializer(FirestoreModelSerializer):
+    department_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.SuccessionPlan
+        collection_name = 'hrm_succession_plans'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Employee Skills & Education ──────────────────────────────────────────
 
-class EmployeeEducationSerializer(serializers.ModelSerializer):
+class EmployeeEducationSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.EmployeeEducation
+        collection_name = 'hrm_employee_education'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class EmployeeExperienceSerializer(serializers.ModelSerializer):
+class EmployeeExperienceSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.EmployeeExperience
+        collection_name = 'hrm_employee_experience'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class EmployeeSkillSerializer(serializers.ModelSerializer):
+class EmployeeSkillSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.EmployeeSkill
+        collection_name = 'hrm_employee_skills'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class CompetencySerializer(serializers.ModelSerializer):
+class CompetencySerializer(FirestoreModelSerializer):
     class Meta:
         model = models.Competency
+        collection_name = 'hrm_competencies'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class CompetencyRatingSerializer(serializers.ModelSerializer):
+class CompetencyRatingSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.CompetencyRating
+        collection_name = 'hrm_competency_ratings'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class CandidateDocumentSerializer(serializers.ModelSerializer):
+class CandidateDocumentSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.CandidateDocument
+        collection_name = 'hrm_candidate_documents'
         fields = '__all__'
         read_only_fields = ['id', 'uploaded_at']
 
 
 # ── 360 Feedback ─────────────────────────────────────────────────────────
 
-class FeedbackQuestionSerializer(serializers.ModelSerializer):
+class FeedbackQuestionSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.FeedbackQuestion
+        collection_name = 'hrm_feedback_questions'
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
 
 
-class FeedbackRequestSerializer(serializers.ModelSerializer):
+class FeedbackRequestSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.FeedbackRequest
+        collection_name = 'hrm_feedback_requests'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class FeedbackResponseSerializer(serializers.ModelSerializer):
+class FeedbackResponseSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.FeedbackResponse
+        collection_name = 'hrm_feedback_responses'
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
 
 
 # ── Engagement Surveys ───────────────────────────────────────────────────
 
-class EngagementSurveySerializer(serializers.ModelSerializer):
+class EngagementSurveySerializer(FirestoreModelSerializer):
     class Meta:
         model = models.EngagementSurvey
+        collection_name = 'hrm_engagement_surveys'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class SurveyQuestionSerializer(serializers.ModelSerializer):
+class SurveyQuestionSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.SurveyQuestion
+        collection_name = 'hrm_survey_questions'
         fields = '__all__'
         read_only_fields = ['id']
 
 
-class SurveyResponseSerializer(serializers.ModelSerializer):
+class SurveyResponseSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.SurveyResponse
+        collection_name = 'hrm_survey_responses'
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
 
 
 # ── Compliance Calendar ──────────────────────────────────────────────────
 
-class ComplianceReminderSerializer(serializers.ModelSerializer):
+class ComplianceReminderSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.ComplianceReminder
+        collection_name = 'hrm_compliance_reminders'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Talent Review & 9-Box ────────────────────────────────────────────────
 
-class TalentReviewMeetingSerializer(serializers.ModelSerializer):
+class TalentReviewMeetingSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.TalentReviewMeeting
+        collection_name = 'hrm_talent_review_meetings'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class NineBoxCellSerializer(serializers.ModelSerializer):
+class NineBoxCellSerializer(FirestoreModelSerializer):
     class Meta:
         model = models.NineBoxCell
+        collection_name = 'hrm_nine_box_cells'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 # ── Disciplinary Management ────────────────────────────────────────────
 
-class DisciplinaryCaseSerializer(serializers.ModelSerializer):
-    employee_name = serializers.ReadOnlyField(source='employee.name')
-    employee_emp_id = serializers.ReadOnlyField(source='employee.emp_id')
+class DisciplinaryCaseSerializer(FirestoreModelSerializer):
+    employee_name = serializers.ReadOnlyField()
+    employee_emp_id = serializers.ReadOnlyField()
 
     class Meta:
         model = models.DisciplinaryCase
+        collection_name = 'hrm_disciplinary_cases'
         fields = '__all__'
         read_only_fields = ['id', 'case_number', 'created_at', 'updated_at']
 
 
-class DisciplinaryHearingSerializer(serializers.ModelSerializer):
-    case_number = serializers.ReadOnlyField(source='case.case_number')
+class DisciplinaryHearingSerializer(FirestoreModelSerializer):
+    case_number = serializers.ReadOnlyField()
 
     class Meta:
         model = models.DisciplinaryHearing
+        collection_name = 'hrm_disciplinary_hearings'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class DisciplinaryActionSerializer(serializers.ModelSerializer):
-    case_number = serializers.ReadOnlyField(source='case.case_number')
-    employee_name = serializers.ReadOnlyField(source='case.employee.name')
+class DisciplinaryActionSerializer(FirestoreModelSerializer):
+    case_number = serializers.ReadOnlyField()
+    employee_name = serializers.ReadOnlyField()
 
     class Meta:
         model = models.DisciplinaryAction
+        collection_name = 'hrm_disciplinary_actions'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class DisciplinaryAppealSerializer(serializers.ModelSerializer):
-    action_type = serializers.ReadOnlyField(source='action.action_type')
-    case_number = serializers.ReadOnlyField(source='action.case.case_number')
+class DisciplinaryAppealSerializer(FirestoreModelSerializer):
+    action_type = serializers.ReadOnlyField()
+    case_number = serializers.ReadOnlyField()
 
     class Meta:
         model = models.DisciplinaryAppeal
+        collection_name = 'hrm_disciplinary_appeals'
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']

@@ -101,19 +101,25 @@ class LeaveService(FirestoreService):
             weekend_days = ['Saturday', 'Sunday']
 
         try:
-            from ..models import LeaveBalance, Employee
             emp_balances = []
             for emp in employees:
-                emp_obj = Employee.objects.filter(name=emp['name']).first()
-                if emp_obj:
-                    balances = LeaveBalance.objects.filter(employee=emp_obj, is_active=True)
-                    emp_balances.append({
-                        'name': emp['name'],
-                        'balances': [
-                            {'leave_type': b.leave_type, 'entitled': b.entitled, 'used': b.used, 'pending': b.pending, 'available': b.available}
-                            for b in balances
-                        ]
-                    })
+                balances = list(db.collection('hrm_leave_balances')
+                              .where('employee', '==', f'hrm_employees/{emp.get("id")}')
+                              .where('is_active', '==', True)
+                              .stream())
+                emp_balances.append({
+                    'name': emp['name'],
+                    'balances': [
+                        {
+                            'leave_type': b.to_dict().get('leave_type', ''),
+                            'entitled': b.to_dict().get('entitled', 0),
+                            'used': b.to_dict().get('used', 0),
+                            'pending': b.to_dict().get('pending', 0),
+                            'available': max(0, b.to_dict().get('entitled', 0) - b.to_dict().get('used', 0) - b.to_dict().get('pending', 0)),
+                        }
+                        for b in balances
+                    ]
+                })
         except Exception:
             emp_balances = []
 
