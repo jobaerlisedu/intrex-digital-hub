@@ -145,6 +145,32 @@ class Payment(models.Model):
         return f'{self.student_id} - {self.status}'
 
 
+class PaymentInstallment(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Paid', 'Paid'),
+        ('Overdue', 'Overdue'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='installment_records')
+    installment_number = models.IntegerField()
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    paid_date = models.DateField(blank=True, null=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['payment', 'installment_number']
+        verbose_name = 'Payment Installment'
+        verbose_name_plural = 'Payment Installments'
+        unique_together = ['payment', 'installment_number']
+
+    def __str__(self):
+        return f'{self.payment.student_id} - Installment #{self.installment_number}'
+
+
 class Expense(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)

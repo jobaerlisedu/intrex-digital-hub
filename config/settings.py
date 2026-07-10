@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'investment',
     'solutions',
     'training',
+    'portal',
     'accounts',
 
     # Cross-Module Linking
@@ -153,10 +154,24 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
+# To switch to MySQL, set these env vars:
+#   DB_ENGINE=django.db.backends.mysql
+#   DB_NAME=intrex_digital_hub
+#   DB_USER=intrex_app
+#   DB_PASSWORD=<password>
+#   DB_HOST=<host>
+#   DB_PORT=3306
+# To create the MySQL database:
+#   CREATE DATABASE intrex_digital_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': os.environ.get('DB_NAME', BASE_DIR / 'db.sqlite3'),
+        'USER': os.environ.get('DB_USER', ''),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', ''),
+        'PORT': os.environ.get('DB_PORT', ''),
+        'OPTIONS': {'charset': 'utf8mb4'} if os.environ.get('DB_ENGINE', '').endswith('mysql') else {},
     }
 }
 

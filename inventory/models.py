@@ -249,6 +249,99 @@ class InventoryLedger(models.Model):
         return f'{self.product_name} ({self.transaction_type})'
 
 
+class RequisitionItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE, related_name='line_items')
+    item_name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    unit = models.CharField(max_length=50, blank=True, default='')
+    unit_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_name']
+        verbose_name = 'Requisition Item'
+        verbose_name_plural = 'Requisition Items'
+
+    def __str__(self):
+        return f'{self.requisition.requisition_code} - {self.item_name} x{self.quantity}'
+
+
+class RFQItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    rfq = models.ForeignKey(RFQ, on_delete=models.CASCADE, related_name='line_items')
+    item_name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    unit = models.CharField(max_length=50, blank=True, default='')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_name']
+        verbose_name = 'RFQ Item'
+        verbose_name_plural = 'RFQ Items'
+
+    def __str__(self):
+        return f'{self.rfq.rfq_code} - {self.item_name}'
+
+
+class QuotationLineItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE, related_name='line_items')
+    item_name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    line_total = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_name']
+        verbose_name = 'Quotation Line Item'
+        verbose_name_plural = 'Quotation Line Items'
+
+    def __str__(self):
+        return f'{self.quotation.quotation_reference} - {self.item_name}'
+
+
+class PurchaseOrderItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='line_items')
+    item_name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=14, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    line_total = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    received_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_name']
+        verbose_name = 'Purchase Order Item'
+        verbose_name_plural = 'Purchase Order Items'
+
+    def __str__(self):
+        return f'{self.purchase_order.po_code} - {self.item_name}'
+
+
+class GoodsReceiptItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    goods_receipt = models.ForeignKey(GoodsReceipt, on_delete=models.CASCADE, related_name='line_items')
+    item_name = models.CharField(max_length=255)
+    ordered_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    received_qty = models.DecimalField(max_digits=14, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    line_total = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item_name']
+        verbose_name = 'Goods Receipt Item'
+        verbose_name_plural = 'Goods Receipt Items'
+
+    def __str__(self):
+        return f'{self.goods_receipt.grn_code} - {self.item_name}'
+
+
 class Delivery(models.Model):
     DELIVERY_STATUS_CHOICES = [
         ('Dispatched', 'Dispatched'),
