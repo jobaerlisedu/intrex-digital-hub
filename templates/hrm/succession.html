@@ -2,11 +2,40 @@
 {% block title %}Succession Planning - Intrex ERP{% endblock %}
 {% block extra_css %}
 <style>
-.tab-nav { display:flex; gap:4px; margin-bottom:24px; background:var(--bg-color); padding:4px; border-radius:10px; width:fit-content; }
-.tab-nav .tab-btn { padding:10px 22px; border:none; border-radius:8px; background:transparent; cursor:pointer; font-size:.88rem; font-weight:600; color:var(--text-secondary); transition:all .2s; }
-.tab-nav .tab-btn.active { background:#fff; color:var(--text-primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
-.tab-content { display:none; }
-.tab-content.active { display:block; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: block;
+}
 .position-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:18px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .position-card .pos-info h4 { margin:0; font-size:.95rem; }
 .position-card .pos-info p { margin:4px 0 0; font-size:.82rem; color:var(--text-secondary); }
@@ -19,143 +48,157 @@
 {% endblock %}
 {% block content %}
 <div class="flex-between" style="margin-bottom:24px;">
-  <h2>Succession Planning</h2>
-  <button class="btn btn-primary" onclick="openModal('addPositionModal')"><i class="fa-solid fa-plus"></i> Add Key Position</button>
+    <h2 style="margin:0;font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-sitemap" style="color:var(--accent-color);"></i> Succession Planning</h2>
+    <button class="btn-submit" onclick="document.getElementById('addPositionModal').style.display='flex'" style="padding:10px 20px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-plus"></i> Add Key Position</button>
 </div>
 
-<div class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('key-positions',this)">Key Positions</button>
-  <button class="tab-btn" onclick="switchTab('successors',this)">Successor Candidates</button>
-  <button class="tab-btn" onclick="switchTab('plans',this)">Succession Plans</button>
+<div class="tabs-container">
+    <button class="tab-btn active" id="btn-key-positions" onclick="switchTab('key-positions')">Key Positions</button>
+    <button class="tab-btn" id="btn-successors" onclick="switchTab('successors')">Successor Candidates</button>
+    <button class="tab-btn" id="btn-plans" onclick="switchTab('plans')">Succession Plans</button>
 </div>
 
-<div id="tab-key-positions" class="tab-content active">
-  {% for kp in key_positions %}
-  <div class="position-card">
-    <div class="pos-info">
-      <h4>{{ kp.position_title }}</h4>
-      <p>{{ kp.department }} &middot; {{ kp.position.title|default:'' }}</p>
+<div id="stage-key-positions" class="department-stage active">
+    <div class="glass-card" style="margin-bottom: 0;">
+        {% for kp in key_positions %}
+        <div class="position-card">
+            <div class="pos-info">
+                <h4>{{ kp.position_title }}</h4>
+                <p>{{ kp.department }} &middot; {{ kp.position.title|default:'' }}</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <span class="risk-badge" style="background:{% if kp.risk_of_vacancy == 'High' %}rgba(239,68,68,.1);color:#dc2626{% elif kp.risk_of_vacancy == 'Medium' %}rgba(245,158,11,.1);color:#d97706{% else %}rgba(16,185,129,.1);color:#059669{% endif %}">{{ kp.risk_of_vacancy }} Risk</span>
+                <span class="badge {% if kp.status == 'Active' %}badge-active{% else %}badge-closed{% endif %}">{{ kp.status }}</span>
+                <form method="POST" style="margin:0;" onsubmit="return confirm('Remove this key position?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_position">
+                    <input type="hidden" name="doc_id" value="{{ kp.id }}">
+                    <button type="submit" class="btn-action delete" title="Remove"><i class="fa-regular fa-trash-can"></i></button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:60px 20px;">
+            <i class="fa-solid fa-sitemap" style="font-size:2.5rem;color:var(--text-secondary);margin-bottom:12px;display:block;"></i>
+            <p style="color:var(--text-secondary);">No key positions defined yet.</p>
+        </div>
+        {% endfor %}
     </div>
-    <div style="display:flex;align-items:center;gap:16px;">
-      <span class="risk-badge" style="background:{% if kp.risk_of_vacancy == 'High' %}rgba(239,68,68,.1);color:#dc2626{% elif kp.risk_of_vacancy == 'Medium' %}rgba(245,158,11,.1);color:#d97706{% else %}rgba(16,185,129,.1);color:#059669{% endif %}">{{ kp.risk_of_vacancy }} Risk</span>
-      <span class="badge badge-{{ kp.status|lower }}">{{ kp.status }}</span>
-      <form method="POST" style="display:inline;" onsubmit="return confirm('Remove this key position?')">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="delete_position">
-        <input type="hidden" name="doc_id" value="{{ kp.id }}">
-        <button type="submit" class="btn btn-sm btn-ghost" title="Remove"><i class="fa-regular fa-trash-can"></i></button>
-      </form>
-    </div>
-  </div>
-  {% empty %}
-  <div class="glass-card" style="text-align:center;padding:60px 20px;">
-    <i class="fa-solid fa-sitemap" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
-    <p style="color:var(--text-secondary);">No key positions defined yet.</p>
-  </div>
-  {% endfor %}
 </div>
 
-<div id="tab-successors" class="tab-content">
-  {% for sc in successors %}
-  <div class="successor-row">
-    <div style="flex:1;">
-      <strong>{{ sc.employee.name|default:sc.employee }}</strong>
-      <div style="font-size:.82rem;color:var(--text-secondary);">Candidate for: {{ sc.key_position.position_title }}</div>
+<div id="stage-successors" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        {% for sc in successors %}
+        <div class="successor-row">
+            <div style="flex:1;">
+                <strong>{{ sc.employee.name|default:sc.employee }}</strong>
+                <div style="font-size:.82rem;color:var(--text-secondary);">Candidate for: {{ sc.key_position.position_title }}</div>
+            </div>
+            <div class="readiness-bar" title="{{ sc.readiness }}">
+                <div class="fill" style="width:{% if sc.readiness == 'Ready Now' %}100{% elif sc.readiness == 'Ready in 1-2 Years' %}70{% elif sc.readiness == 'Developing' %}40{% else %}20{% endif %}%;background:{% if sc.readiness == 'Ready Now' %}var(--accent-color){% elif sc.readiness == 'Ready in 1-2 Years' %}rgba(245,158,11,.8){% else %}rgba(107,114,128,.6){% endif %}"></div>
+            </div>
+            <span style="font-size:.82rem;color:var(--text-secondary);">{{ sc.readiness }}</span>
+            {% if sc.is_primary %}<span class="badge badge-active" style="font-size:.72rem;">Primary</span>{% endif %}
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:60px 20px;">
+            <i class="fa-solid fa-user-plus" style="font-size:2.5rem;color:var(--text-secondary);margin-bottom:12px;display:block;"></i>
+            <p style="color:var(--text-secondary);">No successor candidates identified yet.</p>
+        </div>
+        {% endfor %}
     </div>
-    <div class="readiness-bar" title="{{ sc.readiness }}">
-      <div class="fill" style="width:{% if sc.readiness == 'Ready Now' %}100{% elif sc.readiness == 'Ready in 1-2 Years' %}70{% elif sc.readiness == 'Developing' %}40{% else %}20{% endif %}%;background:{% if sc.readiness == 'Ready Now' %}var(--accent-color){% elif sc.readiness == 'Ready in 1-2 Years' %}rgba(245,158,11,.8){% else %}rgba(107,114,128,.6){% endif %}"></div>
-    </div>
-    <span style="font-size:.82rem;color:var(--text-secondary);">{{ sc.readiness }}</span>
-    {% if sc.is_primary %}<span class="badge badge-primary" style="font-size:.72rem;">Primary</span>{% endif %}
-  </div>
-  {% empty %}
-  <div class="glass-card" style="text-align:center;padding:60px 20px;">
-    <i class="fa-solid fa-user-plus" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
-    <p style="color:var(--text-secondary);">No successor candidates identified yet.</p>
-  </div>
-  {% endfor %}
 </div>
 
-<div id="tab-plans" class="tab-content">
-  {% for plan in plans %}
-  <div class="position-card">
-    <div class="pos-info">
-      <h4>{{ plan.title }}</h4>
-      <p>{{ plan.description|truncatewords:30 }}</p>
-      <div style="font-size:.82rem;color:var(--text-secondary);margin-top:6px;">
-        Department: {{ plan.department|default:'All' }} &middot; Review: {{ plan.review_date|default:'Not set' }}
-      </div>
+<div id="stage-plans" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        {% for plan in plans %}
+        <div class="position-card">
+            <div class="pos-info">
+                <h4>{{ plan.title }}</h4>
+                <p>{{ plan.description|truncatewords:30 }}</p>
+                <div style="font-size:.82rem;color:var(--text-secondary);margin-top:6px;">
+                    Department: {{ plan.department|default:'All' }} &middot; Review: {{ plan.review_date|default:'Not set' }}
+                </div>
+            </div>
+            <span class="badge {% if plan.status == 'Active' %}badge-active{% else %}badge-closed{% endif %}">{{ plan.status }}</span>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:60px 20px;">
+            <i class="fa-solid fa-clipboard-list" style="font-size:2.5rem;color:var(--text-secondary);margin-bottom:12px;display:block;"></i>
+            <p style="color:var(--text-secondary);">No succession plans created yet.</p>
+        </div>
+        {% endfor %}
     </div>
-    <span class="badge badge-{{ plan.status|lower }}">{{ plan.status }}</span>
-  </div>
-  {% empty %}
-  <div class="glass-card" style="text-align:center;padding:60px 20px;">
-    <i class="fa-solid fa-clipboard-list" style="font-size:2.5rem;color:var(--text-muted);margin-bottom:12px;"></i>
-    <p style="color:var(--text-secondary);">No succession plans created yet.</p>
-  </div>
-  {% endfor %}
 </div>
 
-<div id="addPositionModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content" style="max-width:520px;">
-    <div class="modal-header"><h3>Add Key Position</h3><span class="modal-close" onclick="closeModal('addPositionModal')">&times;</span></div>
-    <form method="POST">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="add_key_position">
-      <div class="form-group">
-        <label>Position Title *</label>
-        <input type="text" name="position_title" class="form-control" required>
-      </div>
-      <div class="form-group">
-        <label>Position (reference)</label>
-        <select name="position" class="form-control">
-          <option value="">-- Select --</option>
-          {% for p in positions %}
-          <option value="{{ p.title }}">{{ p.title }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Department</label>
-        <select name="department" class="form-control">
-          <option value="">-- Select --</option>
-          {% for d in departments %}
-          <option value="{{ d.name }}">{{ d.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Risk of Vacancy</label>
-        <select name="risk_of_vacancy" class="form-control">
-          <option value="Low">Low</option>
-          <option value="Medium" selected>Medium</option>
-          <option value="High">High</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Readiness Gap</label>
-        <textarea name="readiness_gap" class="form-control" rows="2" placeholder="What skills/training are needed?"></textarea>
-      </div>
-      <div class="form-group">
-        <label>Status</label>
-        <select name="status" class="form-control">
-          <option value="Active" selected>Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary"><i class="fa-regular fa-floppy-disk"></i> Save Key Position</button>
-    </form>
-  </div>
+<div class="modal-overlay" id="addPositionModal" style="display:none;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header"><h3>Add Key Position</h3><span class="modal-close" onclick="this.closest('.modal-overlay').style.display='none'">&times;</span></div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_key_position">
+            <div class="form-group">
+                <label>Position Title <span class="asterisk">*</span></label>
+                <input type="text" name="position_title" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Position (reference)</label>
+                <select name="position" class="form-control">
+                    <option value="">-- Select --</option>
+                    {% for p in positions %}
+                    <option value="{{ p.title }}">{{ p.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Department</label>
+                <select name="department" class="form-control">
+                    <option value="">-- Select --</option>
+                    {% for d in departments %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Risk of Vacancy</label>
+                <select name="risk_of_vacancy" class="form-control">
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Readiness Gap</label>
+                <textarea name="readiness_gap" class="form-control" rows="2" placeholder="What skills/training are needed?"></textarea>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="Active" selected>Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-submit" style="width:100%;margin-top:24px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;font-size:1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save Key Position
+            </button>
+        </form>
+    </div>
 </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
-function switchTab(tab, el) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
+function switchTab(tabId) {
+    localStorage.setItem('succession_active_tab', tabId);
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.querySelectorAll('.department-stage').forEach(stage => stage.classList.remove('active'));
+    const activeStage = document.getElementById('stage-' + tabId);
+    if (activeStage) activeStage.classList.add('active');
 }
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+(function initPage() {
+    const activeTab = localStorage.getItem('succession_active_tab') || 'key-positions';
+    switchTab(activeTab);
+})();
 </script>
 {% endblock %}

@@ -2,12 +2,43 @@
 {% block title %}Compliance Calendar - Intrex ERP{% endblock %}
 {% block extra_css %}
 <style>
-.cc-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
-.cc-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.cc-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.cc-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.cc-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.cc-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    align-items: start;
+}
 .reminder-card { background:#fff; border:1px solid var(--sidebar-border); border-left:4px solid; border-radius:8px; padding:16px; margin-bottom:12px; }
 .reminder-card.overdue { border-left-color:#dc2626; }
 .reminder-card.pending { border-left-color:#f59e0b; }
@@ -16,64 +47,103 @@
 {% endblock %}
 {% block content %}
 <div class="flex-between" style="margin-bottom:24px;">
-  <h2 style="margin:0;font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="fa-regular fa-calendar" style="color:var(--accent-color);"></i> Compliance Calendar</h2>
+    <h2 style="margin:0;font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="fa-regular fa-calendar" style="color:var(--accent-color);"></i> Compliance Calendar</h2>
 </div>
 
-<div class="cc-layout">
-  <div class="cc-form-card">
-    <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add Reminder</h4>
-    <form method="POST">
-      {% csrf_token %}<input type="hidden" name="action" value="add_reminder">
-      <div class="mb-3"><label class="form-label">Employee</label>
-        <select name="employee" class="form-control" required>{% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }} {{ e.last_name|default:'' }}</option>{% endfor %}</select></div>
-      <div class="mb-3"><label class="form-label">Type</label>
-        <select name="reminder_type" class="form-control">
-          <option value="Visa">Visa</option><option value="Passport">Passport</option>
-          <option value="License">License</option><option value="Certification">Certification</option>
-          <option value="Medical">Medical</option><option value="Contract">Contract</option>
-          <option value="Training">Training</option><option value="Other">Other</option>
-        </select></div>
-      <div class="mb-3"><label class="form-label">Title</label><input name="title" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
-      <div class="mb-3"><label class="form-label">Due Date</label><input name="due_date" type="date" class="form-control" required></div>
-      <button class="btn btn-primary w-100"><i class="fa-regular fa-floppy-disk"></i> Save</button>
-    </form>
-  </div>
-  <div>
-    <div class="mb-3"><h4 style="font-size:1rem;font-weight:700;">Upcoming</h4></div>
-    {% for rm in upcoming %}
-    <div class="reminder-card {{ rm.status|lower }}">
-      <div class="flex-between" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div>
-          <strong>{{ rm.title }}</strong>
-          <p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ rm.employee.name|default:rm.employee.first_name }} &middot; {{ rm.reminder_type }}</p>
-          {% if rm.description %}<p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ rm.description }}</p>{% endif %}
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="badge bg-{% if rm.status == 'Overdue' %}danger{% elif rm.status == 'Pending' %}warning{% else %}success{% endif %}">{{ rm.status }}</span>
-          <small class="text-muted">Due: {{ rm.due_date|date:'M d, Y' }}</small>
-          {% if rm.status != 'Completed' %}
-          <form method="POST" style="display:inline;">{% csrf_token %}<input type="hidden" name="action" value="complete_reminder"><input type="hidden" name="reminder_id" value="{{ rm.id }}"><button class="btn btn-sm btn-success" title="Mark Complete"><i class="fa-regular fa-check"></i></button></form>
-          {% endif %}
-          <form method="POST" style="display:inline;" onsubmit="return confirm('Dismiss this reminder?')">{% csrf_token %}<input type="hidden" name="action" value="dismiss_reminder"><input type="hidden" name="reminder_id" value="{{ rm.id }}"><button class="btn btn-sm btn-ghost" title="Dismiss"><i class="fa-regular fa-trash-can"></i></button></form>
-        </div>
-      </div>
+<div class="department-stage active" style="display:grid;">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-color);"></i> Add Reminder
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST">
+            {% csrf_token %}<input type="hidden" name="action" value="add_reminder">
+            <div class="form-group">
+                <label>Employee <span class="asterisk">*</span></label>
+                <select name="employee" class="form-control" required>
+                    {% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }} {{ e.last_name|default:'' }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Type <span class="asterisk">*</span></label>
+                <select name="reminder_type" class="form-control">
+                    <option value="Visa">Visa</option><option value="Passport">Passport</option>
+                    <option value="License">License</option><option value="Certification">Certification</option>
+                    <option value="Medical">Medical</option><option value="Contract">Contract</option>
+                    <option value="Training">Training</option><option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Title <span class="asterisk">*</span></label>
+                <input name="title" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Due Date <span class="asterisk">*</span></label>
+                <input name="due_date" type="date" class="form-control" required>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save
+            </button>
+        </form>
     </div>
-    {% empty %}<p class="text-muted">No upcoming reminders.</p>{% endfor %}
+    <div>
+        <h4 style="font-size:1rem;font-weight:700;margin:0 0 16px;">Upcoming</h4>
+        {% for rm in upcoming %}
+        <div class="reminder-card {{ rm.status|lower }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div>
+                    <strong>{{ rm.title }}</strong>
+                    <p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ rm.employee.name|default:rm.employee.first_name }} &middot; {{ rm.reminder_type }}</p>
+                    {% if rm.description %}<p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ rm.description }}</p>{% endif %}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="badge {% if rm.status == 'Overdue' %}badge-draft{% elif rm.status == 'Completed' %}badge-closed{% else %}badge-active{% endif %}">{{ rm.status }}</span>
+                    <small style="color:var(--text-secondary);font-size:.82rem;">Due: {{ rm.due_date|date:'M d, Y' }}</small>
+                    {% if rm.status != 'Completed' %}
+                    <form method="POST" style="display:inline;">
+                        {% csrf_token %}<input type="hidden" name="action" value="complete_reminder"><input type="hidden" name="reminder_id" value="{{ rm.id }}">
+                        <button type="submit" class="btn-action edit" title="Mark Complete"><i class="fa-regular fa-check"></i></button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" style="display:inline;" onsubmit="return confirm('Dismiss this reminder?')">
+                        {% csrf_token %}<input type="hidden" name="action" value="dismiss_reminder"><input type="hidden" name="reminder_id" value="{{ rm.id }}">
+                        <button type="submit" class="btn-action delete" title="Dismiss"><i class="fa-regular fa-trash-can"></i></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% empty %}<p style="color:var(--text-secondary);font-size:.9rem;">No upcoming reminders.</p>{% endfor %}
 
-    <div class="cc-table-card mt-3">
-      <div class="cc-table-header"><h4><i class="fa-regular fa-clock" style="color:var(--accent-color);"></i> All Reminders</h4></div>
-      <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Employee</th><th>Title</th><th>Type</th><th>Due</th><th>Status</th><th>Completed</th></tr></thead>
-        <tbody>{% for rm in reminders %}<tr>
-          <td>{{ rm.employee.name|default:rm.employee.first_name }}</td>
-          <td>{{ rm.title }}</td><td>{{ rm.reminder_type }}</td>
-          <td>{{ rm.due_date|date:'M d, Y' }}</td>
-          <td><span class="badge bg-{% if rm.status == 'Completed' %}success{% elif rm.status == 'Overdue' %}danger{% else %}warning{% endif %}">{{ rm.status }}</span></td>
-          <td>{{ rm.completed_date|date:'M d, Y'|default:'-' }}</td>
-        </tr>{% empty %}<tr><td colspan="6" class="text-center text-muted">No reminders</td></tr>{% endfor %}</tbody>
-      </table></div>
+        <div class="glass-card" style="margin-bottom:0;margin-top:24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                    <i class="fa-regular fa-clock" style="color: var(--accent-color);"></i> All Reminders
+                </h3>
+                <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                </button>
+            </div>
+            <table class="data-table" style="margin-top: 24px;">
+                <thead>
+                    <tr><th>Employee</th><th>Title</th><th>Type</th><th>Due</th><th>Status</th><th>Completed</th></tr>
+                </thead>
+                <tbody>
+                    {% for rm in reminders %}<tr>
+                        <td>{{ rm.employee.name|default:rm.employee.first_name }}</td>
+                        <td>{{ rm.title }}</td><td>{{ rm.reminder_type }}</td>
+                        <td>{{ rm.due_date|date:'M d, Y' }}</td>
+                        <td><span class="badge {% if rm.status == 'Completed' %}badge-closed{% elif rm.status == 'Overdue' %}badge-draft{% else %}badge-active{% endif %}">{{ rm.status }}</span></td>
+                        <td>{{ rm.completed_date|date:'M d, Y'|default:'-' }}</td>
+                    </tr>{% empty %}
+                    <tr><td colspan="6" style="text-align:center;padding:48px;color:var(--text-secondary);">No reminders</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}

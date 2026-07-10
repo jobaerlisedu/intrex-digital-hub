@@ -3,18 +3,51 @@
 
 {% block extra_css %}
 <style>
-.dc-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
-.dc-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
-.dc-tab-btn:hover { color:var(--accent-color); }
-.dc-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
-.dc-panel { display:none; }
-.dc-panel.active { display:block; }
-.dc-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
-.dc-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.dc-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.dc-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.dc-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.dc-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    align-items: start;
+}
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
 .badge-minor { background:#fef3c7;color:#92400e; }
 .badge-major { background:#fde68a;color:#b45309; }
 .badge-gross { background:#fecaca;color:#dc2626; }
@@ -23,363 +56,394 @@
 .badge-hearing { background:#fef3c7;color:#b45309; }
 .badge-resolved { background:#d1fae5;color:#065f46; }
 .badge-dismissed { background:#e2e8f0;color:#475569; }
-.btn-dc { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
-.btn-dc:hover { opacity:.88; }
-.btn-dc-danger { background:#dc2626; }
-.btn-dc-sm { width:auto; padding:6px 14px; font-size:.8rem; margin:0; display:inline-flex; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dc-tabs">
-  <button class="dc-tab-btn active" onclick="switchDcTab('cases')"><i class="fa-solid fa-gavel"></i> Cases ({{ cases|length }})</button>
-  <button class="dc-tab-btn" onclick="switchDcTab('hearings')"><i class="fa-solid fa-gavel"></i> Hearings</button>
-  <button class="dc-tab-btn" onclick="switchDcTab('actions')"><i class="fa-solid fa-scale-balanced"></i> Actions</button>
-  <button class="dc-tab-btn" onclick="switchDcTab('appeals')"><i class="fa-solid fa-circle-notch"></i> Appeals</button>
+<div class="tabs-container">
+    <button class="tab-btn active" id="btn-cases" onclick="switchTab('cases')"><i class="fa-solid fa-gavel"></i> Cases ({{ cases|length }})</button>
+    <button class="tab-btn" id="btn-hearings" onclick="switchTab('hearings')"><i class="fa-solid fa-gavel"></i> Hearings</button>
+    <button class="tab-btn" id="btn-actions" onclick="switchTab('actions')"><i class="fa-solid fa-scale-balanced"></i> Actions</button>
+    <button class="tab-btn" id="btn-appeals" onclick="switchTab('appeals')"><i class="fa-solid fa-circle-notch"></i> Appeals</button>
 </div>
 
 {# ═══════════════════ CASES ═══════════════════ #}
-<div id="dc-panel-cases" class="dc-panel active">
-  <div class="dc-layout">
-    <div class="dc-form-card">
-      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> New / Edit Case</h4>
-      <form method="POST" action="{% url 'hrm:disciplinary' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_case">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Employee <span>*</span></label>
-          <select name="employee" class="form-control" required>
-            <option value="">Select Employee</option>
-            {% for e in sql_employees %}
-            <option value="{{ e.id }}">{{ e.name }} ({{ e.emp_id }})</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Incident Date <span>*</span></label>
-          <input type="date" name="incident_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Nature of Offense <span>*</span></label>
-          <input type="text" name="nature_of_offense" class="form-control" placeholder="e.g. Unexcused absence" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Severity <span>*</span></label>
-          <select name="severity" class="form-control">
-            {% for s in severity_choices %}
-            <option value="{{ s }}">{{ s }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Description</label>
-          <textarea name="description" class="form-control" rows="3" placeholder="Details of the incident"></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Status</label>
-          <select name="status" class="form-control">
-            {% for s in case_status_choices %}
-            <option value="{{ s }}" {% if s == 'Open' %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <button type="submit" class="btn-dc"><i class="fa-solid fa-floppy-disk"></i> Save Case</button>
-      </form>
+<div id="stage-cases" class="department-stage active">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-color);"></i> New / Edit Case
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:disciplinary' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_case">
+            <div class="form-group">
+                <label>Employee <span class="asterisk">*</span></label>
+                <select name="employee" class="form-control" required>
+                    <option value="">Select Employee</option>
+                    {% for e in sql_employees %}
+                    <option value="{{ e.id }}">{{ e.name }} ({{ e.emp_id }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Incident Date <span class="asterisk">*</span></label>
+                <input type="date" name="incident_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Nature of Offense <span class="asterisk">*</span></label>
+                <input type="text" name="nature_of_offense" class="form-control" placeholder="e.g. Unexcused absence" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Severity <span class="asterisk">*</span></label>
+                <select name="severity" class="form-control">
+                    {% for s in severity_choices %}
+                    <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Details of the incident"></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    {% for s in case_status_choices %}
+                    <option value="{{ s }}" {% if s == 'Open' %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-solid fa-floppy-disk"></i> Save Case
+            </button>
+        </form>
     </div>
-    <div class="dc-table-card">
-      <div class="dc-table-header">
-        <h4><i class="fa-solid fa-list"></i> All Cases</h4>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Case #</th>
-              <th>Employee</th>
-              <th>Offense</th>
-              <th>Severity</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th style="width:90px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for case in cases %}
-            <tr>
-              <td><strong>{{ case.case_number }}</strong></td>
-              <td>{{ case.employee.name }}</td>
-              <td>{{ case.nature_of_offense|truncatewords:8 }}</td>
-              <td><span class="pf-status-pill badge-{{ case.severity|lower }}">{{ case.severity }}</span></td>
-              <td><span class="pf-status-pill badge-{{ case.status|lower|cut:' ' }}">{{ case.status }}</span></td>
-              <td>{{ case.incident_date|date:"d M Y" }}</td>
-              <td>
-                <form method="POST" action="{% url 'hrm:disciplinary' %}" style="display:inline;">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="delete_case">
-                  <input type="hidden" name="doc_id" value="{{ case.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this case?')"><i class="fa-regular fa-trash-can"></i></button>
-                </form>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7" style="text-align:center;padding:48px;color:var(--text-secondary);">No disciplinary cases recorded.</td></tr>
-            {% endfor %}
-          </tbody>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-list" style="color: var(--accent-color);"></i> All Cases
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr>
+                    <th>Case #</th>
+                    <th>Employee</th>
+                    <th>Offense</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th style="width:90px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for case in cases %}
+                <tr>
+                    <td><strong>{{ case.case_number }}</strong></td>
+                    <td>{{ case.employee.name }}</td>
+                    <td>{{ case.nature_of_offense|truncatewords:8 }}</td>
+                    <td><span class="badge badge-{{ case.severity|lower }}">{{ case.severity }}</span></td>
+                    <td><span class="badge badge-{{ case.status|lower|cut:' ' }}">{{ case.status }}</span></td>
+                    <td>{{ case.incident_date|date:"d M Y" }}</td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:disciplinary' %}" style="margin: 0;" onsubmit="return confirm('Remove this case?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_case">
+                                <input type="hidden" name="doc_id" value="{{ case.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-regular fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" style="text-align: center; padding: 48px; color: var(--text-secondary);">No disciplinary cases recorded.</td></tr>
+                {% endfor %}
+            </tbody>
         </table>
-      </div>
     </div>
-  </div>
 </div>
 
 {# ═══════════════════ HEARINGS ═══════════════════ #}
-<div id="dc-panel-hearings" class="dc-panel">
-  <div class="dc-layout">
-    <div class="dc-form-card">
-      <h4><i class="fa-solid fa-calendar-plus" style="color:var(--accent-color);"></i> Schedule Hearing</h4>
-      <form method="POST" action="{% url 'hrm:disciplinary' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_hearing">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Case <span>*</span></label>
-          <select name="case_id" class="form-control" required>
-            <option value="">Select Case</option>
-            {% for case in cases %}
-            <option value="{{ case.id }}">{{ case.case_number }} - {{ case.employee.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Hearing Date & Time <span>*</span></label>
-          <input type="datetime-local" name="hearing_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Panel Members</label>
-          <input type="text" name="panel_members" class="form-control" placeholder="Comma-separated names">
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Location</label>
-          <input type="text" name="location" class="form-control" placeholder="e.g. Meeting Room A">
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Notes</label>
-          <textarea name="notes" class="form-control" rows="3"></textarea>
-        </div>
-        <button type="submit" class="btn-dc"><i class="fa-regular fa-calendar-check"></i> Schedule</button>
-      </form>
+<div id="stage-hearings" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-calendar-plus" style="color: var(--accent-color);"></i> Schedule Hearing
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:disciplinary' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_hearing">
+            <div class="form-group">
+                <label>Case <span class="asterisk">*</span></label>
+                <select name="case_id" class="form-control" required>
+                    <option value="">Select Case</option>
+                    {% for case in cases %}
+                    <option value="{{ case.id }}">{{ case.case_number }} - {{ case.employee.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Hearing Date & Time <span class="asterisk">*</span></label>
+                <input type="datetime-local" name="hearing_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Panel Members</label>
+                <input type="text" name="panel_members" class="form-control" placeholder="Comma-separated names">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Location</label>
+                <input type="text" name="location" class="form-control" placeholder="e.g. Meeting Room A">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Notes</label>
+                <textarea name="notes" class="form-control" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-calendar-check"></i> Schedule
+            </button>
+        </form>
     </div>
-    <div class="dc-table-card">
-      <div class="dc-table-header">
-        <h4><i class="fa-solid fa-list"></i> All Hearings</h4>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Case</th>
-              <th>Date</th>
-              <th>Panel</th>
-              <th>Status</th>
-              <th style="width:90px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for h in hearings %}
-            <tr>
-              <td>{{ h.case.case_number }}</td>
-              <td>{{ h.hearing_date|date:"d M Y H:i" }}</td>
-              <td>{{ h.panel_members|truncatewords:5 }}</td>
-              <td><span class="pf-status-pill badge-{{ h.status|lower }}">{{ h.status }}</span></td>
-              <td>
-                <form method="POST" action="{% url 'hrm:disciplinary' %}" style="display:inline;">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="delete_hearing">
-                  <input type="hidden" name="doc_id" value="{{ h.id }}">
-                  <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this hearing?')"><i class="fa-regular fa-trash-can"></i></button>
-                </form>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" style="text-align:center;padding:48px;color:var(--text-secondary);">No hearings scheduled.</td></tr>
-            {% endfor %}
-          </tbody>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-list" style="color: var(--accent-color);"></i> All Hearings
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr>
+                    <th>Case</th>
+                    <th>Date</th>
+                    <th>Panel</th>
+                    <th>Status</th>
+                    <th style="width:90px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in hearings %}
+                <tr>
+                    <td>{{ h.case.case_number }}</td>
+                    <td>{{ h.hearing_date|date:"d M Y H:i" }}</td>
+                    <td>{{ h.panel_members|truncatewords:5 }}</td>
+                    <td><span class="badge badge-{{ h.status|lower }}">{{ h.status }}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:disciplinary' %}" style="margin: 0;" onsubmit="return confirm('Remove this hearing?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_hearing">
+                                <input type="hidden" name="doc_id" value="{{ h.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-regular fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No hearings scheduled.</td></tr>
+                {% endfor %}
+            </tbody>
         </table>
-      </div>
     </div>
-  </div>
 </div>
 
 {# ═══════════════════ ACTIONS ═══════════════════ #}
-<div id="dc-panel-actions" class="dc-panel">
-  <div class="dc-layout">
-    <div class="dc-form-card">
-      <h4><i class="fa-solid fa-scale-balanced" style="color:var(--accent-color);"></i> Issue Action</h4>
-      <form method="POST" action="{% url 'hrm:disciplinary' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_action">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Case <span>*</span></label>
-          <select name="case_id" class="form-control" required>
-            <option value="">Select Case</option>
-            {% for case in cases %}
-            <option value="{{ case.id }}">{{ case.case_number }} - {{ case.employee.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Action Type <span>*</span></label>
-          <select name="action_type" class="form-control" required>
-            {% for a in action_type_choices %}
-            <option value="{{ a }}">{{ a }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Description <span>*</span></label>
-          <textarea name="description" class="form-control" rows="3" required></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Issued Date <span>*</span></label>
-          <input type="date" name="issued_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Effective Date <span>*</span></label>
-          <input type="date" name="effective_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Expiry Date (if applicable)</label>
-          <input type="date" name="expiry_date" class="form-control">
-        </div>
-        <button type="submit" class="btn-dc"><i class="fa-solid fa-floppy-disk"></i> Issue Action</button>
-      </form>
+<div id="stage-actions" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-scale-balanced" style="color: var(--accent-color);"></i> Issue Action
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:disciplinary' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_action">
+            <div class="form-group">
+                <label>Case <span class="asterisk">*</span></label>
+                <select name="case_id" class="form-control" required>
+                    <option value="">Select Case</option>
+                    {% for case in cases %}
+                    <option value="{{ case.id }}">{{ case.case_number }} - {{ case.employee.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Action Type <span class="asterisk">*</span></label>
+                <select name="action_type" class="form-control" required>
+                    {% for a in action_type_choices %}
+                    <option value="{{ a }}">{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Description <span class="asterisk">*</span></label>
+                <textarea name="description" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Issued Date <span class="asterisk">*</span></label>
+                <input type="date" name="issued_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Effective Date <span class="asterisk">*</span></label>
+                <input type="date" name="effective_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Expiry Date (if applicable)</label>
+                <input type="date" name="expiry_date" class="form-control">
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-solid fa-floppy-disk"></i> Issue Action
+            </button>
+        </form>
     </div>
-    <div class="dc-table-card">
-      <div class="dc-table-header">
-        <h4><i class="fa-solid fa-list"></i> All Actions</h4>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Case</th>
-              <th>Type</th>
-              <th>Issued</th>
-              <th>Effective</th>
-              <th>Status</th>
-              <th>Appeal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for act in actions %}
-            <tr>
-              <td>{{ act.case.case_number }}</td>
-              <td><strong>{{ act.action_type }}</strong></td>
-              <td>{{ act.issued_date|date:"d M Y" }}</td>
-              <td>{{ act.effective_date|date:"d M Y" }}</td>
-              <td><span class="pf-status-pill badge-{{ act.status|lower|cut:' ' }}">{{ act.status }}</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="document.getElementById('appeal-action-id').value='{{ act.id }}'">Appeal</button>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" style="text-align:center;padding:48px;color:var(--text-secondary);">No actions issued.</td></tr>
-            {% endfor %}
-          </tbody>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-list" style="color: var(--accent-color);"></i> All Actions
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr>
+                    <th>Case</th>
+                    <th>Type</th>
+                    <th>Issued</th>
+                    <th>Effective</th>
+                    <th>Status</th>
+                    <th>Appeal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in actions %}
+                <tr>
+                    <td>{{ act.case.case_number }}</td>
+                    <td><strong>{{ act.action_type }}</strong></td>
+                    <td>{{ act.issued_date|date:"d M Y" }}</td>
+                    <td>{{ act.effective_date|date:"d M Y" }}</td>
+                    <td><span class="badge badge-{{ act.status|lower|cut:' ' }}">{{ act.status }}</span></td>
+                    <td>
+                        <button class="btn-action edit" onclick="document.getElementById('appeal-action-id').value='{{ act.id }}'"><i class="fa-solid fa-scale-balanced"></i></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" style="text-align: center; padding: 48px; color: var(--text-secondary);">No actions issued.</td></tr>
+                {% endfor %}
+            </tbody>
         </table>
-      </div>
     </div>
-  </div>
 </div>
 
 {# ═══════════════════ APPEALS ═══════════════════ #}
-<div id="dc-panel-appeals" class="dc-panel">
-  <div class="dc-layout">
-    <div class="dc-form-card">
-      <h4><i class="fa-solid fa-circle-notch" style="color:var(--accent-color);"></i> File Appeal</h4>
-      <form method="POST" action="{% url 'hrm:disciplinary' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_appeal">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Action <span>*</span></label>
-          <select name="action_id" class="form-control" id="appeal-action-id" required>
-            <option value="">Select Action</option>
-            {% for act in actions %}
-            <option value="{{ act.id }}">{{ act.action_type }} - {{ act.case.case_number }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Appeal Date <span>*</span></label>
-          <input type="date" name="appeal_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Grounds for Appeal <span>*</span></label>
-          <textarea name="grounds" class="form-control" rows="4" required placeholder="Explain why the action should be reconsidered"></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Supporting Evidence</label>
-          <textarea name="supporting_evidence" class="form-control" rows="2" placeholder="References to documents, emails, etc."></textarea>
-        </div>
-        <button type="submit" class="btn-dc"><i class="fa-solid fa-paper-plane"></i> Submit Appeal</button>
-      </form>
+<div id="stage-appeals" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-circle-notch" style="color: var(--accent-color);"></i> File Appeal
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:disciplinary' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_appeal">
+            <div class="form-group">
+                <label>Action <span class="asterisk">*</span></label>
+                <select name="action_id" class="form-control" id="appeal-action-id" required>
+                    <option value="">Select Action</option>
+                    {% for act in actions %}
+                    <option value="{{ act.id }}">{{ act.action_type }} - {{ act.case.case_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Appeal Date <span class="asterisk">*</span></label>
+                <input type="date" name="appeal_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Grounds for Appeal <span class="asterisk">*</span></label>
+                <textarea name="grounds" class="form-control" rows="4" required placeholder="Explain why the action should be reconsidered"></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Supporting Evidence</label>
+                <textarea name="supporting_evidence" class="form-control" rows="2" placeholder="References to documents, emails, etc."></textarea>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-solid fa-paper-plane"></i> Submit Appeal
+            </button>
+        </form>
     </div>
-    <div class="dc-table-card">
-      <div class="dc-table-header">
-        <h4><i class="fa-solid fa-list"></i> All Appeals</h4>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Action</th>
-              <th>Date</th>
-              <th>Grounds</th>
-              <th>Status</th>
-              <th style="width:160px;">Resolve</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ap in appeals %}
-            <tr>
-              <td>{{ ap.action.action_type }}</td>
-              <td>{{ ap.appeal_date|date:"d M Y" }}</td>
-              <td>{{ ap.grounds|truncatewords:10 }}</td>
-              <td><span class="pf-status-pill badge-{{ ap.status|lower|cut:' ' }}">{{ ap.status }}</span></td>
-              <td>
-                {% if ap.status == 'Submitted' or ap.status == 'Under Review' %}
-                <form method="POST" action="{% url 'hrm:disciplinary' %}" style="display:flex;gap:4px;">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="resolve_appeal">
-                  <input type="hidden" name="appeal_id" value="{{ ap.id }}">
-                  <input type="hidden" name="decision_date" value="{% now 'Y-m-d' %}">
-                  <select name="decision" class="form-control form-control-sm" style="width:auto;font-size:.75rem;" required>
-                    <option value="">Decide</option>
-                    <option value="Upheld">Upheld</option>
-                    <option value="Overturned">Overturned</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                  <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-check"></i></button>
-                </form>
-                {% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" style="text-align:center;padding:48px;color:var(--text-secondary);">No appeals filed.</td></tr>
-            {% endfor %}
-          </tbody>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-list" style="color: var(--accent-color);"></i> All Appeals
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Date</th>
+                    <th>Grounds</th>
+                    <th>Status</th>
+                    <th style="width:160px;">Resolve</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ap in appeals %}
+                <tr>
+                    <td>{{ ap.action.action_type }}</td>
+                    <td>{{ ap.appeal_date|date:"d M Y" }}</td>
+                    <td>{{ ap.grounds|truncatewords:10 }}</td>
+                    <td><span class="badge badge-{{ ap.status|lower|cut:' ' }}">{{ ap.status }}</span></td>
+                    <td>
+                        {% if ap.status == 'Submitted' or ap.status == 'Under Review' %}
+                        <form method="POST" action="{% url 'hrm:disciplinary' %}" style="display:flex;gap:4px;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="resolve_appeal">
+                            <input type="hidden" name="appeal_id" value="{{ ap.id }}">
+                            <input type="hidden" name="decision_date" value="{% now 'Y-m-d' %}">
+                            <select name="decision" class="form-control form-control-sm" style="width:auto;font-size:.75rem;" required>
+                                <option value="">Decide</option>
+                                <option value="Upheld">Upheld</option>
+                                <option value="Overturned">Overturned</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                            <button type="submit" class="btn-action edit"><i class="fa-solid fa-check"></i></button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No appeals filed.</td></tr>
+                {% endfor %}
+            </tbody>
         </table>
-      </div>
     </div>
-  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function switchDcTab(name) {
-  document.querySelectorAll('.dc-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.dc-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('dc-panel-' + name).classList.add('active');
-  document.querySelector('.dc-tab-btn[onclick*="' + name + '"]').classList.add('active');
+function switchTab(tabId) {
+    localStorage.setItem('discipline_active_tab', tabId);
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.querySelectorAll('.department-stage').forEach(stage => stage.classList.remove('active'));
+    const activeStage = document.getElementById('stage-' + tabId);
+    if (activeStage) activeStage.classList.add('active');
 }
+(function initPage() {
+    const activeTab = localStorage.getItem('discipline_active_tab') || 'cases';
+    switchTab(activeTab);
+})();
 </script>
 {% endblock %}

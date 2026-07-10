@@ -2,18 +2,43 @@
 {% block title %}Talent Review - Intrex ERP{% endblock %}
 {% block extra_css %}
 <style>
-.tr-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
-.tr-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
-.tr-tab-btn:hover { color:var(--accent-color); }
-.tr-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
-.tr-panel { display:none; }
-.tr-panel.active { display:block; }
-.tr-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
-.tr-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.tr-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.tr-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.tr-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.tr-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    align-items: start;
+}
 .nine-box { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:720px; margin:0 auto; }
 .nine-cell { background:#fff; border:1px solid var(--sidebar-border); border-radius:10px; padding:16px; min-height:120px; }
 .nine-cell h6 { margin:0 0 8px; font-size:.82rem; font-weight:700; text-align:center; padding:4px; border-radius:4px; }
@@ -22,78 +47,149 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="tr-tabs">
-  <button class="tr-tab-btn active" onclick="switchTrTab('meetings')"><i class="fa-regular fa-calendar"></i> Meetings</button>
-  <button class="tr-tab-btn" onclick="switchTrTab('ninebox')"><i class="fa-solid fa-grid-2"></i> 9-Box Grid</button>
+<div class="tabs-container">
+    <button class="tab-btn active" id="btn-meetings" onclick="switchTab('meetings')"><i class="fa-regular fa-calendar"></i> Meetings</button>
+    <button class="tab-btn" id="btn-ninebox" onclick="switchTab('ninebox')"><i class="fa-solid fa-grid-2"></i> 9-Box Grid</button>
 </div>
 
-<div id="tr-panel-meetings" class="tr-panel active">
-  <div class="tr-layout">
-    <div class="tr-form-card">
-      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Start Meeting</h4>
-      <form method="POST">
-        {% csrf_token %}<input type="hidden" name="action" value="start_meeting">
-        <div class="mb-3"><label class="form-label">Title</label><input name="title" class="form-control" required></div>
-        <div class="mb-3"><label class="form-label">Meeting Date</label><input name="meeting_date" type="date" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="3"></textarea></div>
-        <button class="btn btn-primary w-100"><i class="fa-regular fa-floppy-disk"></i> Create</button>
-      </form>
+<div id="stage-meetings" class="department-stage active">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-color);"></i> Start Meeting
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST">
+            {% csrf_token %}<input type="hidden" name="action" value="start_meeting">
+            <div class="form-group">
+                <label>Title <span class="asterisk">*</span></label>
+                <input name="title" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Meeting Date</label>
+                <input name="meeting_date" type="date" class="form-control">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Notes</label>
+                <textarea name="notes" class="form-control" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Create
+            </button>
+        </form>
     </div>
-    <div class="tr-table-card">
-      <div class="tr-table-header"><h4><i class="fa-regular fa-calendar" style="color:var(--accent-color);"></i> Review Meetings</h4></div>
-      <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Title</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>{% for m in meetings %}<tr>
-          <td><strong>{{ m.title }}</strong></td>
-          <td>{{ m.meeting_date|date:'M d, Y'|default:'-' }}</td>
-          <td><span class="badge bg-{% if m.status == 'Completed' %}success{% else %}warning{% endif %}">{{ m.status }}</span></td>
-          <td>{% if m.status == 'Draft' %}
-            <form method="POST" style="display:inline;">{% csrf_token %}<input type="hidden" name="action" value="complete_meeting"><input type="hidden" name="meeting_id" value="{{ m.id }}"><button class="btn btn-sm btn-success"><i class="fa-regular fa-check"></i> Complete</button></form>
-            {% endif %}</td>
-        </tr>{% empty %}<tr><td colspan="4" class="text-center text-muted">No meetings</td></tr>{% endfor %}</tbody>
-      </table></div>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-regular fa-calendar" style="color: var(--accent-color);"></i> Review Meetings
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Title</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for m in meetings %}
+                <tr>
+                    <td><strong>{{ m.title }}</strong></td>
+                    <td>{{ m.meeting_date|date:'M d, Y'|default:'-' }}</td>
+                    <td><span class="badge {% if m.status == 'Completed' %}badge-closed{% else %}badge-active{% endif %}">{{ m.status }}</span></td>
+                    <td>
+                        {% if m.status == 'Draft' %}
+                        <form method="POST" style="display:inline;">
+                            {% csrf_token %}<input type="hidden" name="action" value="complete_meeting"><input type="hidden" name="meeting_id" value="{{ m.id }}">
+                            <button type="submit" class="btn-action edit"><i class="fa-regular fa-check"></i></button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align: center; padding: 48px; color: var(--text-secondary);">No meetings</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
-<div id="tr-panel-ninebox" class="tr-panel">
-  <div class="tr-layout">
-    <div class="tr-form-card">
-      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add to 9-Box</h4>
-      <form method="POST">
-        {% csrf_token %}<input type="hidden" name="action" value="add_cell">
-        <div class="mb-3"><label class="form-label">Meeting</label>
-          <select name="meeting_id" class="form-control" required>{% for m in meetings %}<option value="{{ m.id }}">{{ m.title }}</option>{% endfor %}</select></div>
-        <div class="mb-3"><label class="form-label">Employee</label>
-          <select name="employee" class="form-control" required>{% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }} {{ e.last_name|default:'' }}</option>{% endfor %}</select></div>
-        <div class="row g-2 mb-3">
-          <div class="col"><label class="form-label">Performance</label>
-            <select name="performance" class="form-control"><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select></div>
-          <div class="col"><label class="form-label">Potential</label>
-            <select name="potential" class="form-control"><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select></div>
-        </div>
-        <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
-        <button class="btn btn-primary w-100"><i class="fa-regular fa-floppy-disk"></i> Save</button>
-      </form>
+<div id="stage-ninebox" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-color);"></i> Add to 9-Box
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST">
+            {% csrf_token %}<input type="hidden" name="action" value="add_cell">
+            <div class="form-group">
+                <label>Meeting <span class="asterisk">*</span></label>
+                <select name="meeting_id" class="form-control" required>
+                    {% for m in meetings %}<option value="{{ m.id }}">{{ m.title }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Employee <span class="asterisk">*</span></label>
+                <select name="employee" class="form-control" required>
+                    {% for e in employees %}<option value="{{ e.id }}">{{ e.name|default:e.first_name }} {{ e.last_name|default:'' }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Performance <span class="asterisk">*</span></label>
+                <select name="performance" class="form-control">
+                    <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Potential <span class="asterisk">*</span></label>
+                <select name="potential" class="form-control">
+                    <option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Notes</label>
+                <textarea name="notes" class="form-control" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save
+            </button>
+        </form>
     </div>
-    <div class="tr-table-card">
-      <div class="tr-table-header"><h4><i class="fa-solid fa-grid-2" style="color:var(--accent-color);"></i> 9-Box Grid</h4></div>
-      <div class="nine-box">
-        {% for perf in 'High','Medium','Low' %}{% for pot in 'High','Medium','Low' %}
-        <div class="nine-cell">
-          <h6 style="background:{% if perf == 'High' and pot == 'High' %}#10b98120;color:#059669{% elif perf == 'Low' or pot == 'Low' %}#fee2e2;color:#dc2626{% else %}#dbeafe;color:#2563eb{% endif %};">{{ perf }} Perf / {{ pot }} Pot</h6>
-          <ul>{% for c in cells %}{% if c.performance == perf and c.potential == pot %}
-            <li>{{ c.employee.name|default:c.employee.first_name }}{% if c.notes %} <small class="text-muted">({{ c.notes|truncatechars:20 }})</small>{% endif %}</li>
-          {% endif %}{% endfor %}</ul>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-grid-2" style="color: var(--accent-color);"></i> 9-Box Grid
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
         </div>
-        {% endfor %}{% endfor %}
-      </div>
+        <div class="nine-box" style="margin-top: 24px;">
+            {% for perf in 'High','Medium','Low' %}{% for pot in 'High','Medium','Low' %}
+            <div class="nine-cell">
+                <h6 style="background:{% if perf == 'High' and pot == 'High' %}#10b98120;color:#059669{% elif perf == 'Low' or pot == 'Low' %}#fee2e2;color:#dc2626{% else %}#dbeafe;color:#2563eb{% endif %};">{{ perf }} Perf / {{ pot }} Pot</h6>
+                <ul>{% for c in cells %}{% if c.performance == perf and c.potential == pot %}
+                    <li>{{ c.employee.name|default:c.employee.first_name }}{% if c.notes %} <small style="color:var(--text-secondary);">({{ c.notes|truncatechars:20 }})</small>{% endif %}</li>
+                {% endif %}{% endfor %}</ul>
+            </div>
+            {% endfor %}{% endfor %}
+        </div>
     </div>
-  </div>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script>
-function switchTrTab(name){document.querySelectorAll('.tr-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tr-tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('tr-panel-'+name).classList.add('active');document.querySelector('[onclick="switchTrTab(\''+name+'\')"]').classList.add('active');}
+function switchTab(tabId) {
+    localStorage.setItem('talent_review_active_tab', tabId);
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.querySelectorAll('.department-stage').forEach(stage => stage.classList.remove('active'));
+    const activeStage = document.getElementById('stage-' + tabId);
+    if (activeStage) activeStage.classList.add('active');
+}
+(function initPage() {
+    const activeTab = localStorage.getItem('talent_review_active_tab') || 'meetings';
+    switchTab(activeTab);
+})();
 </script>
 {% endblock %}

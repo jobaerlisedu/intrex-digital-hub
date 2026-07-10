@@ -2,101 +2,205 @@
 {% block title %}Engagement Surveys - Intrex ERP{% endblock %}
 {% block extra_css %}
 <style>
-.sv-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
-.sv-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
-.sv-tab-btn:hover { color:var(--accent-color); }
-.sv-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
-.sv-panel { display:none; }
-.sv-panel.active { display:block; }
-.sv-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
-.sv-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.sv-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.sv-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.sv-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.sv-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    align-items: start;
+}
 </style>
 {% endblock %}
 {% block content %}
 <div class="flex-between" style="margin-bottom:24px;">
-  <h2 style="margin:0;font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="fa-regular fa-rectangle-list" style="color:var(--accent-color);"></i> Engagement Surveys</h2>
-  <button class="btn btn-primary" onclick="openModal('createSurveyModal')"><i class="fa-solid fa-plus"></i> New Survey</button>
+    <h2 style="margin:0;font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px;"><i class="fa-regular fa-rectangle-list" style="color:var(--accent-color);"></i> Engagement Surveys</h2>
+    <button class="btn-submit" onclick="document.getElementById('createSurveyModal').style.display='flex'" style="padding:10px 20px;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-plus"></i> New Survey</button>
 </div>
 
-<div class="sv-tabs">
-  <button class="sv-tab-btn active" onclick="switchSvTab('surveys')"><i class="fa-regular fa-rectangle-list"></i> Surveys</button>
-  <button class="sv-tab-btn" onclick="switchSvTab('questions')"><i class="fa-regular fa-circle-question"></i> Questions</button>
-  <button class="sv-tab-btn" onclick="switchSvTab('responses')"><i class="fa-regular fa-chart-bar"></i> Responses</button>
+<div class="tabs-container">
+    <button class="tab-btn active" id="btn-surveys" onclick="switchTab('surveys')"><i class="fa-regular fa-rectangle-list"></i> Surveys</button>
+    <button class="tab-btn" id="btn-questions" onclick="switchTab('questions')"><i class="fa-regular fa-circle-question"></i> Questions</button>
+    <button class="tab-btn" id="btn-responses" onclick="switchTab('responses')"><i class="fa-regular fa-chart-bar"></i> Responses</button>
 </div>
 
-<div id="sv-panel-surveys" class="sv-panel active">
-  {% for s in surveys %}
-  <div class="sv-table-card" style="margin-bottom:16px;">
-    <div class="flex-between" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-      <div><h4 style="margin:0;font-size:1rem;font-weight:700;">{{ s.title }}</h4>
-        <p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ s.description|truncatechars:100 }}</p></div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span class="badge bg-{% if s.status == 'Active' %}success{% elif s.status == 'Draft' %}warning{% else %}secondary{% endif %}">{{ s.status }}</span>
-        <small class="text-muted">{{ s.start_date|date:'M d'|default:'Not started' }} - {{ s.end_date|date:'M d, Y'|default:'Open' }}</small>
-      </div>
+<div id="stage-surveys" class="department-stage active">
+    <div class="glass-card" style="margin-bottom: 0; grid-column: 1 / -1;">
+        {% for s in surveys %}
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:16px 0;{% if not forloop.last %}border-bottom:1px solid var(--sidebar-border);{% endif %}">
+            <div>
+                <h4 style="margin:0;font-size:1rem;font-weight:700;">{{ s.title }}</h4>
+                <p style="margin:4px 0 0;font-size:.82rem;color:var(--text-secondary);">{{ s.description|truncatechars:100 }}</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span class="badge {% if s.status == 'Active' %}badge-active{% elif s.status == 'Draft' %}badge-draft{% else %}badge-closed{% endif %}">{{ s.status }}</span>
+                <small style="color:var(--text-secondary);font-size:.82rem;">{{ s.start_date|date:'M d'|default:'Not started' }} - {{ s.end_date|date:'M d, Y'|default:'Open' }}</small>
+            </div>
+        </div>
+        {% empty %}<p style="text-align:center;padding:48px;color:var(--text-secondary);">No surveys created yet.</p>{% endfor %}
     </div>
-  </div>
-  {% empty %}<p class="text-center text-muted">No surveys created yet.</p>{% endfor %}
 </div>
 
-<div id="sv-panel-questions" class="sv-panel">
-  <div class="sv-layout">
-    <div class="sv-form-card">
-      <h4><i class="fa-solid fa-plus" style="color:var(--accent-color);"></i> Add Question</h4>
-      <form method="POST">
-        {% csrf_token %}<input type="hidden" name="action" value="add_question">
-        <div class="mb-3"><label class="form-label">Survey</label>
-          <select name="survey_id" class="form-control" required>{% for s in surveys %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></div>
-        <div class="mb-3"><label class="form-label">Question Type</label>
-          <select name="question_type" class="form-control"><option value="text">Text</option><option value="rating">Rating</option><option value="multiple_choice">Multiple Choice</option></select></div>
-        <div class="mb-3"><label class="form-label">Question</label><textarea name="question_text" class="form-control" rows="2" required></textarea></div>
-        <div class="mb-3"><label class="form-label">Order</label><input name="order" type="number" class="form-control"></div>
-        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_required" id="svReq"><label class="form-check-label" for="svReq">Required</label></div>
-        <button class="btn btn-primary w-100"><i class="fa-regular fa-floppy-disk"></i> Save</button>
-      </form>
+<div id="stage-questions" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-plus" style="color: var(--accent-color);"></i> Add Question
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST">
+            {% csrf_token %}<input type="hidden" name="action" value="add_question">
+            <div class="form-group">
+                <label>Survey <span class="asterisk">*</span></label>
+                <select name="survey_id" class="form-control" required>
+                    {% for s in surveys %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Question Type <span class="asterisk">*</span></label>
+                <select name="question_type" class="form-control">
+                    <option value="text">Text</option><option value="rating">Rating</option><option value="multiple_choice">Multiple Choice</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Question <span class="asterisk">*</span></label>
+                <textarea name="question_text" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Order</label>
+                <input name="order" type="number" class="form-control">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;">
+                    <input type="checkbox" name="is_required" style="width:16px;height:16px;accent-color:var(--accent-color);"> Required
+                </label>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save
+            </button>
+        </form>
     </div>
-    <div class="sv-table-card">
-      <div class="sv-table-header"><h4><i class="fa-regular fa-circle-question" style="color:var(--accent-color);"></i> Survey Questions</h4></div>
-      <div class="table-responsive"><table class="table table-hover">
-        <thead><tr><th>Survey</th><th>Type</th><th>Question</th><th>Required</th><th>Order</th></tr></thead>
-        <tbody>{% for q in survey_questions %}<tr><td>{{ q.survey.title }}</td><td>{{ q.question_type }}</td><td>{{ q.question_text|truncatechars:40 }}</td><td>{% if q.is_required %}<span class="badge bg-danger">Yes</span>{% endif %}</td><td>{{ q.order }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted">No questions</td></tr>{% endfor %}</tbody>
-      </table></div>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-regular fa-circle-question" style="color: var(--accent-color);"></i> Survey Questions
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Survey</th><th>Type</th><th>Question</th><th>Required</th><th>Order</th></tr>
+            </thead>
+            <tbody>
+                {% for q in survey_questions %}<tr>
+                    <td>{{ q.survey.title }}</td><td>{{ q.question_type }}</td>
+                    <td>{{ q.question_text|truncatechars:40 }}</td>
+                    <td>{% if q.is_required %}<span class="badge badge-draft">Yes</span>{% endif %}</td>
+                    <td>{{ q.order }}</td>
+                </tr>{% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No questions</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
-<div id="sv-panel-responses" class="sv-panel">
-  <div class="sv-table-card">
-    <div class="sv-table-header"><h4><i class="fa-regular fa-chart-bar" style="color:var(--accent-color);"></i> Survey Responses</h4></div>
-    <div class="table-responsive"><table class="table table-hover">
-      <thead><tr><th>Survey</th><th>Question</th><th>Employee</th><th>Response</th></tr></thead>
-      <tbody>{% for r in survey_responses %}<tr>
-        <td>{{ r.survey.title }}</td><td>{{ r.question.question_text|truncatechars:30 }}</td>
-        <td>{{ r.employee.name|default:r.employee.first_name|default:'Anonymous' }}</td>
-        <td>{{ r.response_text|truncatechars:40 }}{% if r.response_value %}{{ r.response_value }}{% endif %}</td>
-      </tr>{% empty %}<tr><td colspan="4" class="text-center text-muted">No responses</td></tr>{% endfor %}</tbody>
-    </table></div>
-  </div>
+<div id="stage-responses" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0; grid-column: 1 / -1;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-regular fa-chart-bar" style="color: var(--accent-color);"></i> Survey Responses
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Survey</th><th>Question</th><th>Employee</th><th>Response</th></tr>
+            </thead>
+            <tbody>
+                {% for r in survey_responses %}<tr>
+                    <td>{{ r.survey.title }}</td><td>{{ r.question.question_text|truncatechars:30 }}</td>
+                    <td>{{ r.employee.name|default:r.employee.first_name|default:'Anonymous' }}</td>
+                    <td>{{ r.response_text|truncatechars:40 }}{% if r.response_value %}{{ r.response_value }}{% endif %}</td>
+                </tr>{% empty %}
+                <tr><td colspan="4" style="text-align: center; padding: 48px; color: var(--text-secondary);">No responses</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<div class="modal fade" id="createSurveyModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-  <div class="modal-header"><h5 class="modal-title">New Survey</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-  <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="create_survey">
-    <div class="modal-body">
-      <div class="mb-3"><label class="form-label">Title</label><input name="title" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="3"></textarea></div>
-      <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="is_anonymous" id="anonSurvey"><label class="form-check-label" for="anonSurvey">Anonymous</label></div>
+<div class="modal-overlay" id="createSurveyModal" style="display:none;">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header"><h3>New Survey</h3><span class="modal-close" onclick="this.closest('.modal-overlay').style.display='none'">&times;</span></div>
+        <form method="POST">
+            {% csrf_token %}<input type="hidden" name="action" value="create_survey">
+            <div class="form-group">
+                <label>Title <span class="asterisk">*</span></label>
+                <input name="title" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="form-group" style="margin-top:20px;">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;">
+                    <input type="checkbox" name="is_anonymous" style="width:16px;height:16px;accent-color:var(--accent-color);"> Anonymous
+                </label>
+            </div>
+            <button type="submit" class="btn-submit" style="width:100%;margin-top:24px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;font-size:1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Create
+            </button>
+        </form>
     </div>
-    <div class="modal-footer"><button type="submit" class="btn btn-primary">Create</button></div>
-  </form>
-</div></div></div>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
-function switchSvTab(name){document.querySelectorAll('.sv-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.sv-tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('sv-panel-'+name).classList.add('active');document.querySelector('[onclick="switchSvTab(\''+name+'\')"]').classList.add('active');}
+function switchTab(tabId) {
+    localStorage.setItem('engagement_surveys_active_tab', tabId);
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.querySelectorAll('.department-stage').forEach(stage => stage.classList.remove('active'));
+    const activeStage = document.getElementById('stage-' + tabId);
+    if (activeStage) activeStage.classList.add('active');
+}
+(function initPage() {
+    const activeTab = localStorage.getItem('engagement_surveys_active_tab') || 'surveys';
+    switchTab(activeTab);
+})();
 </script>
 {% endblock %}

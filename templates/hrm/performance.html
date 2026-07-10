@@ -3,366 +3,421 @@
 
 {% block extra_css %}
 <style>
-.pf-tabs { display:flex; gap:12px; margin-bottom:28px; border-bottom:1px solid var(--sidebar-border); padding-bottom:8px; flex-wrap:wrap; }
-.pf-tab-btn { color:var(--text-secondary); font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:8px; padding:8px 18px; border-radius:6px; border:none; background:transparent; cursor:pointer; transition:all .2s; }
-.pf-tab-btn:hover { color:var(--accent-color); }
-.pf-tab-btn.active { background-color:var(--accent-color); color:#fff !important; }
-.pf-panel { display:none; }
-.pf-panel.active { display:block; }
-.pf-layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
-.pf-form-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.pf-form-card h4 { margin:0 0 20px 0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.pf-table-card { background:#fff; border:1px solid var(--sidebar-border); border-radius:12px; padding:24px; }
-.pf-table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--sidebar-border); }
-.pf-table-header h4 { margin:0; font-size:.95rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
-.form-label-pf { color:#ef4444; font-weight:600; font-size:.85rem; display:block; margin-bottom:6px; }
-.pf-form-group { margin-bottom:16px; }
-.btn-pf-save { width:100%; padding:11px; background:var(--accent-color); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9rem; margin-top:8px; transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
-.btn-pf-save:hover { opacity:.88; }
+.tabs-container {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--sidebar-border);
+    padding-bottom: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.tab-btn {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.tab-btn:hover { color: var(--accent-color); }
+.tab-btn.active {
+    background-color: var(--accent-color);
+    color: #ffffff !important;
+}
+.asterisk { color: #ef4444; margin-left: 2px; }
+.department-stage { display: none; }
+.department-stage.active {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    align-items: start;
+}
 .badge-draft { background:#fef3c7;color:#92400e; }
 .badge-active { background:#dbeafe;color:#1e40af; }
 .badge-closed { background:#e2e8f0;color:#475569; }
-.pf-status-pill { display:inline-block;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:700; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="pf-tabs">
-  <button class="pf-tab-btn active" id="pf-btn-cycles" onclick="switchPfTab('cycles')">
-    <i class="fa-regular fa-calendar-days"></i> Review Cycles
-  </button>
-  <button class="pf-tab-btn" id="pf-btn-kpis" onclick="switchPfTab('kpis')">
-    <i class="fa-solid fa-chart-simple"></i> KPI Library
-  </button>
-  <button class="pf-tab-btn" id="pf-btn-reviews" onclick="switchPfTab('reviews')">
-    <i class="fa-regular fa-star"></i> Performance Reviews
-  </button>
-  <button class="pf-tab-btn" id="pf-btn-pips" onclick="switchPfTab('pips')">
-    <i class="fa-solid fa-triangle-exclamation"></i> Improvement Plans
-  </button>
+<div class="tabs-container">
+    <button class="tab-btn active" id="btn-cycles" onclick="switchTab('cycles')">
+        <i class="fa-regular fa-calendar-days"></i> Review Cycles
+    </button>
+    <button class="tab-btn" id="btn-kpis" onclick="switchTab('kpis')">
+        <i class="fa-solid fa-chart-simple"></i> KPI Library
+    </button>
+    <button class="tab-btn" id="btn-reviews" onclick="switchTab('reviews')">
+        <i class="fa-regular fa-star"></i> Performance Reviews
+    </button>
+    <button class="tab-btn" id="btn-pips" onclick="switchTab('pips')">
+        <i class="fa-solid fa-triangle-exclamation"></i> Improvement Plans
+    </button>
 </div>
 
 {# ===== TAB 1: Review Cycles ===== #}
-<div id="pf-panel-cycles" class="pf-panel active">
-  <div class="pf-layout">
-    <div class="pf-form-card">
-      <h4><i class="fa-regular fa-calendar-plus" style="color:var(--accent-color);"></i> Review Cycle</h4>
-      <form method="POST" action="{% url 'hrm:performance' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_review_cycle">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Cycle Name <span>*</span></label>
-          <input type="text" name="name" class="form-control" placeholder="e.g. H1 2026 Review" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Type <span>*</span></label>
-          <select name="review_type" class="form-control">
-            <option value="Quarterly">Quarterly</option>
-            <option value="Half-Yearly" selected>Half-Yearly</option>
-            <option value="Annual">Annual</option>
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Start Date <span>*</span></label>
-          <input type="date" name="start_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">End Date <span>*</span></label>
-          <input type="date" name="end_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Status</label>
-          <select name="status" class="form-control">
-            <option value="Draft">Draft</option>
-            <option value="Active">Active</option>
-            <option value="Closed">Closed</option>
-          </select>
-        </div>
-        <button type="submit" class="btn-pf-save"><i class="fa-regular fa-floppy-disk"></i> Save Cycle</button>
-      </form>
+<div id="stage-cycles" class="department-stage active">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-regular fa-calendar-plus" style="color: var(--accent-color);"></i> Review Cycle
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:performance' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_review_cycle">
+            <div class="form-group">
+                <label>Cycle Name <span class="asterisk">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. H1 2026 Review" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Type <span class="asterisk">*</span></label>
+                <select name="review_type" class="form-control">
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Half-Yearly" selected>Half-Yearly</option>
+                    <option value="Annual">Annual</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Start Date <span class="asterisk">*</span></label>
+                <input type="date" name="start_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>End Date <span class="asterisk">*</span></label>
+                <input type="date" name="end_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="Draft">Draft</option>
+                    <option value="Active">Active</option>
+                    <option value="Closed">Closed</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save Cycle
+            </button>
+        </form>
     </div>
-    <div class="pf-table-card">
-      <div class="pf-table-header">
-        <h4><i class="fa-regular fa-calendar-days" style="color:var(--accent-color);"></i> Review Cycles</h4>
-        <button class="btn-icon" onclick="window.location.reload();"><i class="fa-solid fa-rotate-right" style="font-size:.75rem;"></i></button>
-      </div>
-      <table class="data-table">
-        <thead>
-          <tr><th>Name</th><th>Type</th><th>Period</th><th>Status</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for rc in review_cycles %}
-          <tr>
-            <td><strong>{{ rc.name }}</strong></td>
-            <td>{{ rc.review_type }}</td>
-            <td>{{ rc.start_date }} &rarr; {{ rc.end_date }}</td>
-            <td><span class="pf-status-pill {% if rc.status == 'Draft' %}badge-draft{% elif rc.status == 'Active' %}badge-active{% else %}badge-closed{% endif %}">{{ rc.status }}</span></td>
-            <td>
-              <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this cycle?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_review_cycle">
-                <input type="hidden" name="doc_id" value="{{ rc.id }}">
-                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No review cycles found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-regular fa-calendar-days" style="color: var(--accent-color);"></i> Review Cycles
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Name</th><th>Type</th><th>Period</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for rc in review_cycles %}
+                <tr>
+                    <td><strong>{{ rc.name }}</strong></td>
+                    <td>{{ rc.review_type }}</td>
+                    <td>{{ rc.start_date }} &rarr; {{ rc.end_date }}</td>
+                    <td><span class="badge {% if rc.status == 'Draft' %}badge-draft{% elif rc.status == 'Active' %}badge-active{% else %}badge-closed{% endif %}">{{ rc.status }}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this cycle?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_review_cycle">
+                                <input type="hidden" name="doc_id" value="{{ rc.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No review cycles found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
 {# ===== TAB 2: KPI Library ===== #}
-<div id="pf-panel-kpis" class="pf-panel">
-  <div class="pf-layout">
-    <div class="pf-form-card">
-      <h4><i class="fa-solid fa-chart-simple" style="color:var(--accent-color);"></i> KPI Definition</h4>
-      <form method="POST" action="{% url 'hrm:performance' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_kpi">
-        <div class="pf-form-group">
-          <label class="form-label-pf">KPI Name <span>*</span></label>
-          <input type="text" name="name" class="form-control" placeholder="e.g. Sales Target" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Description</label>
-          <textarea name="description" class="form-control" style="height:60px;resize:none;" placeholder="Optional description..."></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Unit</label>
-          <input type="text" name="unit" class="form-control" placeholder="e.g. %, $, units">
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Target Value</label>
-          <input type="number" name="target_value" step="0.01" class="form-control" placeholder="e.g. 100">
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Default Weight</label>
-          <input type="number" name="default_weight" step="0.01" class="form-control" value="1.0">
-        </div>
-        <button type="submit" class="btn-pf-save"><i class="fa-regular fa-floppy-disk"></i> Save KPI</button>
-      </form>
+<div id="stage-kpis" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-chart-simple" style="color: var(--accent-color);"></i> KPI Definition
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:performance' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_kpi">
+            <div class="form-group">
+                <label>KPI Name <span class="asterisk">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Sales Target" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Description</label>
+                <textarea name="description" class="form-control" style="height:60px;resize:none;" placeholder="Optional description..."></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Unit</label>
+                <input type="text" name="unit" class="form-control" placeholder="e.g. %, $, units">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Target Value</label>
+                <input type="number" name="target_value" step="0.01" class="form-control" placeholder="e.g. 100">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Default Weight</label>
+                <input type="number" name="default_weight" step="0.01" class="form-control" value="1.0">
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save KPI
+            </button>
+        </form>
     </div>
-    <div class="pf-table-card">
-      <div class="pf-table-header">
-        <h4><i class="fa-solid fa-chart-simple" style="color:var(--accent-color);"></i> KPI Library</h4>
-        <button class="btn-icon" onclick="window.location.reload();"><i class="fa-solid fa-rotate-right" style="font-size:.75rem;"></i></button>
-      </div>
-      <table class="data-table">
-        <thead>
-          <tr><th>Name</th><th>Unit</th><th>Target</th><th>Weight</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for kpi in kpis %}
-          <tr>
-            <td><strong>{{ kpi.name }}</strong></td>
-            <td>{{ kpi.unit|default:'-' }}</td>
-            <td>{{ kpi.target_value|default:'-' }}</td>
-            <td>{{ kpi.default_weight }}</td>
-            <td>
-              <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this KPI?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_kpi">
-                <input type="hidden" name="doc_id" value="{{ kpi.id }}">
-                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No KPIs found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-chart-simple" style="color: var(--accent-color);"></i> KPI Library
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Name</th><th>Unit</th><th>Target</th><th>Weight</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for kpi in kpis %}
+                <tr>
+                    <td><strong>{{ kpi.name }}</strong></td>
+                    <td>{{ kpi.unit|default:'-' }}</td>
+                    <td>{{ kpi.target_value|default:'-' }}</td>
+                    <td>{{ kpi.default_weight }}</td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this KPI?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_kpi">
+                                <input type="hidden" name="doc_id" value="{{ kpi.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No KPIs found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
 {# ===== TAB 3: Performance Reviews ===== #}
-<div id="pf-panel-reviews" class="pf-panel">
-  <div class="pf-layout">
-    <div class="pf-form-card">
-      <h4><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> Performance Review</h4>
-      <form method="POST" action="{% url 'hrm:performance' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_review">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Employee <span>*</span></label>
-          <select name="employee" class="form-control" required>
-            <option value="" disabled selected>Select Employee...</option>
-            {% for emp in employees %}
-            <option value="{{ emp.name }}">{{ emp.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Reviewer <span>*</span></label>
-          <select name="reviewer" class="form-control" required>
-            <option value="" disabled selected>Select Reviewer...</option>
-            {% for emp in employees %}
-            <option value="{{ emp.name }}">{{ emp.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Review Cycle <span>*</span></label>
-          <select name="review_cycle" class="form-control" required>
-            <option value="" disabled selected>Select Cycle...</option>
-            {% for rc in review_cycles %}
-            <option value="{{ rc.name }}">{{ rc.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Overall Score</label>
-          <input type="number" name="overall_score" step="0.01" class="form-control" placeholder="1.0 - 5.0">
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Status</label>
-          <select name="status" class="form-control">
-            <option value="Self-Assessment">Self-Assessment</option>
-            <option value="Manager-Review">Manager Review</option>
-            <option value="HR-Review">HR Review</option>
-            <option value="Completed">Completed</option>
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Strengths</label>
-          <textarea name="strengths" class="form-control" style="height:60px;resize:none;" placeholder="Key strengths..."></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Areas to Improve</label>
-          <textarea name="improvements" class="form-control" style="height:60px;resize:none;" placeholder="Areas for improvement..."></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Goals</label>
-          <textarea name="goals" class="form-control" style="height:60px;resize:none;" placeholder="Next period goals..."></textarea>
-        </div>
-        <button type="submit" class="btn-pf-save"><i class="fa-regular fa-floppy-disk"></i> Save Review</button>
-      </form>
+<div id="stage-reviews" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-regular fa-star" style="color: var(--accent-color);"></i> Performance Review
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:performance' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_review">
+            <div class="form-group">
+                <label>Employee <span class="asterisk">*</span></label>
+                <select name="employee" class="form-control" required>
+                    <option value="" disabled selected>Select Employee...</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.name }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Reviewer <span class="asterisk">*</span></label>
+                <select name="reviewer" class="form-control" required>
+                    <option value="" disabled selected>Select Reviewer...</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.name }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Review Cycle <span class="asterisk">*</span></label>
+                <select name="review_cycle" class="form-control" required>
+                    <option value="" disabled selected>Select Cycle...</option>
+                    {% for rc in review_cycles %}
+                    <option value="{{ rc.name }}">{{ rc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Overall Score</label>
+                <input type="number" name="overall_score" step="0.01" class="form-control" placeholder="1.0 - 5.0">
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="Self-Assessment">Self-Assessment</option>
+                    <option value="Manager-Review">Manager Review</option>
+                    <option value="HR-Review">HR Review</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Strengths</label>
+                <textarea name="strengths" class="form-control" style="height:60px;resize:none;" placeholder="Key strengths..."></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Areas to Improve</label>
+                <textarea name="improvements" class="form-control" style="height:60px;resize:none;" placeholder="Areas for improvement..."></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Goals</label>
+                <textarea name="goals" class="form-control" style="height:60px;resize:none;" placeholder="Next period goals..."></textarea>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save Review
+            </button>
+        </form>
     </div>
-    <div class="pf-table-card">
-      <div class="pf-table-header">
-        <h4><i class="fa-regular fa-star" style="color:var(--accent-color);"></i> Performance Reviews</h4>
-        <button class="btn-icon" onclick="window.location.reload();"><i class="fa-solid fa-rotate-right" style="font-size:.75rem;"></i></button>
-      </div>
-      <table class="data-table">
-        <thead>
-          <tr><th>Employee</th><th>Cycle</th><th>Score</th><th>Status</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for rv in reviews %}
-          <tr>
-            <td><strong>{{ rv.employee }}</strong></td>
-            <td>{{ rv.review_cycle }}</td>
-            <td>{{ rv.overall_score|default:'-' }}</td>
-            <td><span class="pf-status-pill badge-active">{{ rv.status }}</span></td>
-            <td>
-              <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this review?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_review">
-                <input type="hidden" name="doc_id" value="{{ rv.id }}">
-                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No performance reviews found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-regular fa-star" style="color: var(--accent-color);"></i> Performance Reviews
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Employee</th><th>Cycle</th><th>Score</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for rv in reviews %}
+                <tr>
+                    <td><strong>{{ rv.employee }}</strong></td>
+                    <td>{{ rv.review_cycle }}</td>
+                    <td>{{ rv.overall_score|default:'-' }}</td>
+                    <td><span class="badge badge-active">{{ rv.status }}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this review?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_review">
+                                <input type="hidden" name="doc_id" value="{{ rv.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No performance reviews found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 
 {# ===== TAB 4: PIPs ===== #}
-<div id="pf-panel-pips" class="pf-panel">
-  <div class="pf-layout">
-    <div class="pf-form-card">
-      <h4><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-color);"></i> Improvement Plan</h4>
-      <form method="POST" action="{% url 'hrm:performance' %}">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="add_pip">
-        <div class="pf-form-group">
-          <label class="form-label-pf">Employee <span>*</span></label>
-          <select name="employee" class="form-control" required>
-            <option value="" disabled selected>Select Employee...</option>
-            {% for emp in employees %}
-            <option value="{{ emp.name }}">{{ emp.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Issue Description <span>*</span></label>
-          <textarea name="issue_description" class="form-control" style="height:70px;resize:none;" placeholder="Describe the performance issue..." required></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Improvement Goals <span>*</span></label>
-          <textarea name="improvement_goals" class="form-control" style="height:70px;resize:none;" placeholder="Specific improvement targets..." required></textarea>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">Start Date <span>*</span></label>
-          <input type="date" name="start_date" class="form-control" required>
-        </div>
-        <div class="pf-form-group">
-          <label class="form-label-pf">End Date <span>*</span></label>
-          <input type="date" name="end_date" class="form-control" required>
-        </div>
-        <button type="submit" class="btn-pf-save"><i class="fa-regular fa-floppy-disk"></i> Save PIP</button>
-      </form>
+<div id="stage-pips" class="department-stage">
+    <div class="glass-card" style="margin-bottom: 0;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-color);"></i> Improvement Plan
+        </h3>
+        <hr style="border: 0; border-top: 1px solid var(--sidebar-border); margin: 16px 0 24px 0;">
+        <form method="POST" action="{% url 'hrm:performance' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_pip">
+            <div class="form-group">
+                <label>Employee <span class="asterisk">*</span></label>
+                <select name="employee" class="form-control" required>
+                    <option value="" disabled selected>Select Employee...</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.name }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Issue Description <span class="asterisk">*</span></label>
+                <textarea name="issue_description" class="form-control" style="height:70px;resize:none;" placeholder="Describe the performance issue..." required></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Improvement Goals <span class="asterisk">*</span></label>
+                <textarea name="improvement_goals" class="form-control" style="height:70px;resize:none;" placeholder="Specific improvement targets..." required></textarea>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Start Date <span class="asterisk">*</span></label>
+                <input type="date" name="start_date" class="form-control" required>
+            </div>
+            <div class="form-group" style="margin-top: 20px;">
+                <label>End Date <span class="asterisk">*</span></label>
+                <input type="date" name="end_date" class="form-control" required>
+            </div>
+            <button type="submit" class="btn-submit" style="width: 100%; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 1rem;">
+                <i class="fa-regular fa-floppy-disk"></i> Save PIP
+            </button>
+        </form>
     </div>
-    <div class="pf-table-card">
-      <div class="pf-table-header">
-        <h4><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-color);"></i> Improvement Plans</h4>
-        <button class="btn-icon" onclick="window.location.reload();"><i class="fa-solid fa-rotate-right" style="font-size:.75rem;"></i></button>
-      </div>
-      <table class="data-table">
-        <thead>
-          <tr><th>Employee</th><th>Issue</th><th>Period</th><th>Status</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          {% for pip in pips %}
-          <tr>
-            <td><strong>{{ pip.employee }}</strong></td>
-            <td>{{ pip.issue_description|truncatewords:8 }}</td>
-            <td>{{ pip.start_date }} &rarr; {{ pip.end_date }}</td>
-            <td><span class="pf-status-pill {% if pip.status == 'Open' %}badge-draft{% elif pip.status == 'Completed' %}badge-closed{% else %}badge-active{% endif %}">{{ pip.status }}</span></td>
-            <td>
-              <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this PIP?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_pip">
-                <input type="hidden" name="doc_id" value="{{ pip.id }}">
-                <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;padding:4px;"><i class="fa-solid fa-trash-can"></i></button>
-              </form>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No improvement plans found.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="glass-card" style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.15rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-color);"></i> Improvement Plans
+            </h3>
+            <button onclick="window.location.reload();" class="btn-submit" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+        </div>
+        <table class="data-table" style="margin-top: 24px;">
+            <thead>
+                <tr><th>Employee</th><th>Issue</th><th>Period</th><th>Status</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% for pip in pips %}
+                <tr>
+                    <td><strong>{{ pip.employee }}</strong></td>
+                    <td>{{ pip.issue_description|truncatewords:8 }}</td>
+                    <td>{{ pip.start_date }} &rarr; {{ pip.end_date }}</td>
+                    <td><span class="badge {% if pip.status == 'Open' %}badge-draft{% elif pip.status == 'Completed' %}badge-closed{% else %}badge-active{% endif %}">{{ pip.status }}</span></td>
+                    <td>
+                        <div class="action-group">
+                            <form method="POST" action="{% url 'hrm:performance' %}" style="margin:0;" onsubmit="return confirm('Delete this PIP?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_pip">
+                                <input type="hidden" name="doc_id" value="{{ pip.id }}">
+                                <button type="submit" class="btn-action delete"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align: center; padding: 48px; color: var(--text-secondary);">No improvement plans found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function switchPfTab(tab) {
-  document.querySelectorAll('.pf-tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('pf-btn-' + tab).classList.add('active');
-  document.querySelectorAll('.pf-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('pf-panel-' + tab).classList.add('active');
+function switchTab(tabId) {
+    localStorage.setItem('performance_active_tab', tabId);
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById('btn-' + tabId);
+    if (activeBtn) activeBtn.classList.add('active');
+    document.querySelectorAll('.department-stage').forEach(stage => stage.classList.remove('active'));
+    const activeStage = document.getElementById('stage-' + tabId);
+    if (activeStage) activeStage.classList.add('active');
 }
-const savedTab = localStorage.getItem('pf_active_tab') || 'cycles';
-switchPfTab(savedTab);
-document.querySelectorAll('.pf-tab-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    const tab = b.id.replace('pf-btn-', '');
-    localStorage.setItem('pf_active_tab', tab);
-  });
-});
+(function initPage() {
+    const activeTab = localStorage.getItem('performance_active_tab') || 'cycles';
+    switchTab(activeTab);
+})();
 </script>
 {% endblock %}
