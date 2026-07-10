@@ -164,7 +164,7 @@
             </button>
         </div>
         <div class="nine-box" style="margin-top: 24px;">
-            {% for perf in 'High','Medium','Low' %}{% for pot in 'High','Medium','Low' %}
+            {% for perf in nine_box_levels %}{% for pot in nine_box_levels %}
             <div class="nine-cell">
                 <h6 style="background:{% if perf == 'High' and pot == 'High' %}#10b98120;color:#059669{% elif perf == 'Low' or pot == 'Low' %}#fee2e2;color:#dc2626{% else %}#dbeafe;color:#2563eb{% endif %};">{{ perf }} Perf / {{ pot }} Pot</h6>
                 <ul>{% for c in cells %}{% if c.performance == perf and c.potential == pot %}

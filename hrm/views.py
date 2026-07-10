@@ -1468,8 +1468,10 @@ def talent_review(request):
     cells = get_collection_data('hrm_nine_box_cells', [])
     employees = get_collection_data('hrm_employees', [])
 
+    nine_box_levels = ['High', 'Medium', 'Low']
     return render(request, 'hrm/talent_review.html', {
         'meetings': meetings, 'cells': cells, 'employees': employees,
+        'nine_box_levels': nine_box_levels,
     })
 
 
