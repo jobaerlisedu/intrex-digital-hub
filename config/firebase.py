@@ -52,7 +52,11 @@ if not firebase_admin._apps:
         raise
 
 db = firestore.client()
-bucket = storage.bucket()
+try:
+    bucket = storage.bucket()
+except Exception as e:
+    logger.warning(f"Firebase Storage not available: {e}")
+    bucket = None
 
 
 # Tenant-scoped Firestore accessor.

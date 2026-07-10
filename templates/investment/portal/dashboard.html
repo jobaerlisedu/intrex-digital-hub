@@ -1,0 +1,117 @@
+{% extends 'erp_base.html' %}
+{% block title %}Portal Dashboard - Intrex ERP{% endblock %}
+{% block extra_css %}
+<style>
+    .portal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px; }
+    .kpi-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px; }
+    .kpi-card { padding:18px 20px;border-radius:10px; }
+    .kpi-value { font-size:1.5rem;font-weight:700;color:var(--text-primary);margin:8px 0 2px 0; }
+    .kpi-label { font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em; }
+    .chart-container { position:relative;height:280px;width:100%; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="portal-header">
+    <div>
+        <h2 style="margin:0;"><i class="fa-solid fa-gauge-high" style="color:var(--accent-color);"></i> Welcome, {{ investor.name }}</h2>
+        <p style="margin:4px 0 0 0;color:var(--text-secondary);font-size:0.9rem;">{{ investor.investor_code }}</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'investment:portal_statements' %}" class="tab-btn" style="text-decoration:none;"><i class="fa-solid fa-file-invoice"></i> Statements</a>
+        <a href="{% url 'investment:portal_profile' %}" class="tab-btn" style="text-decoration:none;"><i class="fa-solid fa-user-gear"></i> Profile</a>
+        <a href="{% url 'investment:portal_logout' %}" class="tab-btn" style="text-decoration:none;color:#ef4444;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+    </div>
+</div>
+
+<div class="kpi-grid">
+    <div class="glass-card kpi-card"><div class="kpi-label">Total Invested</div><div class="kpi-value">BDT {{ total_invested|floatformat:2 }}</div></div>
+    <div class="glass-card kpi-card"><div class="kpi-label">Current Value</div><div class="kpi-value">BDT {{ total_value|floatformat:2 }}</div></div>
+    <div class="glass-card kpi-card"><div class="kpi-label">Unrealized P&L</div><div class="kpi-value" style="color:{% if total_pl >= 0 %}#10b981{% else %}#ef4444{% endif %};">BDT {{ total_pl|floatformat:2 }}</div></div>
+    <div class="glass-card kpi-card"><div class="kpi-label">Return</div><div class="kpi-value" style="color:{% if return_pct >= 0 %}#10b981{% else %}#ef4444{% endif %};">{{ return_pct }}%</div></div>
+    <div class="glass-card kpi-card"><div class="kpi-label">NAV per Unit</div><div class="kpi-value">{{ current_nav.nav_per_unit|default:'--' }}</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="glass-card">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> NAV Performance</h4>
+        <div class="chart-container"><canvas id="navChart"></canvas></div>
+    </div>
+    <div class="glass-card">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chess-board" style="color:var(--accent-color);"></i> Holdings</h4>
+        {% if holdings %}
+        <table class="data-table" style="font-size:0.85rem;">
+            <thead><tr><th>Units Held</th><th>Avg Cost</th><th>Invested</th><th>Current Value</th><th>P&L</th></tr></thead>
+            <tbody>
+                {% for h in holdings %}
+                <tr>
+                    <td>{{ h.units_held }}</td>
+                    <td>BDT {{ h.avg_cost_per_unit|floatformat:4 }}</td>
+                    <td>BDT {{ h.total_invested|floatformat:2 }}</td>
+                    <td>BDT {{ h.current_value|floatformat:2 }}</td>
+                    <td style="color:{% if h.unrealized_pl >= 0 %}#10b981{% else %}#ef4444{% endif %};">BDT {{ h.unrealized_pl|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--text-secondary);text-align:center;padding:24px;">No holdings records.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="glass-card" style="margin-top:20px;">
+    <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-color);"></i> Recent Transactions</h4>
+    {% if recent_transactions %}
+    <table class="data-table" style="font-size:0.85rem;">
+        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+        <tbody>
+            {% for t in recent_transactions %}
+            <tr>
+                <td>{{ t.value_date }}</td>
+                <td>{{ t.transaction_type }}</td>
+                <td>BDT {{ t.amount|floatformat:2 }}</td>
+                <td>{{ t.payment_method }}</td>
+                <td><span style="color:#10b981;">{{ t.status }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-secondary);text-align:center;padding:24px;">No recent transactions.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const navData = {{ nav_history_json|safe }};
+    document.addEventListener('DOMContentLoaded', () => {
+        if (navData && navData.length) {
+            const sorted = [...navData].sort((a, b) => a.nav_date.localeCompare(b.nav_date));
+            new Chart(document.getElementById('navChart'), {
+                type: 'line',
+                data: {
+                    labels: sorted.map(n => n.nav_date),
+                    datasets: [{
+                        label: 'NAV per Unit',
+                        data: sorted.map(n => parseFloat(n.nav_per_unit || 0)),
+                        borderColor: '#0f766e',
+                        backgroundColor: 'rgba(15,118,110,0.08)',
+                        fill: true,
+                        tension: 0.4,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#64748b' } } },
+                    scales: {
+                        y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                        x: { ticks: { color: '#64748b' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

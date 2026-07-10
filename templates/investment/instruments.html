@@ -2,12 +2,16 @@
 {% block title %}Securities Registry - Intrex ERP{% endblock %}
 
 {% block extra_css %}
+<style>
+    .price-chart-container { position: relative; height: 260px; width: 100%; margin-bottom: 20px; }
+    .price-cell { cursor: pointer; color: var(--accent-color); font-weight: 600; transition: opacity 0.2s; }
+    .price-cell:hover { opacity: 0.7; }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="flex-between" style="margin-bottom: 24px;">
     <h2>Securities Registry</h2>
-    <!-- Tabs Header -->
     <div style="display: flex; gap: 8px;">
         <button id="tab-form-btn" onclick="switchTab('form')" style="background: var(--accent-color); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.95rem; transition: all 0.2s ease;">
             <i class="fa-regular fa-square-plus"></i> Register Security
@@ -106,6 +110,7 @@
                 <th>Issued Units</th>
                 <th>Outstanding</th>
                 <th>Issue Date</th>
+                <th>Last Price</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -119,9 +124,13 @@
                 <td>{{ inst.total_units_issued }}</td>
                 <td>{{ inst.units_outstanding }}</td>
                 <td>{{ inst.issue_date }}</td>
+                <td class="price-cell" onclick="showPriceHistory('{{ inst.id }}')">
+                    {% if inst.last_price is not None %}BDT {{ inst.last_price|floatformat:2 }}{% else %}--{% endif %}
+                </td>
                 <td>
                     {{ inst|json_script:inst.id }}
                     <div class="action-group">
+                        <button type="button" class="btn-action view" onclick="showPriceHistory('{{ inst.id }}')" title="Price History"><i class="fa-solid fa-chart-line"></i></button>
                         <button type="button" class="btn-action edit" onclick="editRecord('{{ inst.id }}')" title="Edit Instrument"><i class="fa-solid fa-pen-to-square"></i></button>
                         <form method="POST" action="{% url 'investment:instruments_list' %}" style="margin:0;" onsubmit="return confirm('Delete this financial instrument registry?');">
                             {% csrf_token %}
@@ -134,16 +143,28 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" style="text-align: center; padding: 48px; color: var(--text-secondary);">No securities registered yet.</td>
+                <td colspan="9" style="text-align: center; padding: 48px; color: var(--text-secondary);">No securities registered yet.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+
+<!-- CSRF helper form -->
+<div style="display: none;">
+    <form id="csrf-helper-form">
+        {% csrf_token %}
+    </form>
+</div>
+
+{{ prices_by_instrument|json_script:"prices-data" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    const pricesDb = JSON.parse(document.getElementById('prices-data').textContent);
+    let priceChartInstance = null;
+
     document.addEventListener('DOMContentLoaded', () => {
         const dateInput = document.getElementById('issue_date');
         if (dateInput) {
@@ -151,28 +172,147 @@
         }
     });
 
-    function editRecord(id) {
-        const data = JSON.parse(document.getElementById(id).textContent);
-        crudEditRecord(id, [data], {
-            instrument_code: 'instrument_code',
-            type: 'type',
-            face_value: 'face_value',
-            coupon_rate: 'coupon_rate',
-            total_units_issued: 'total_units_issued',
-            units_outstanding: 'units_outstanding',
-            issue_date: 'issue_date'
-        }, {
-            formTitle: '<i class="fa-solid fa-pen-to-square" style="color: var(--accent-color);"></i> Edit Registered Security',
-            saveBtnHtml: '<i class="fa-solid fa-circle-check"></i> Update Security'
-        });
+    function showPriceHistory(instrumentId) {
+        const data = JSON.parse(document.getElementById(instrumentId).textContent);
+        const prices = pricesDb[instrumentId] || [];
+
+        const csrfToken = document.querySelector('#csrf-helper-form [name=csrfmiddlewaretoken]').value;
+        const actionUrl = "{% url 'investment:instruments_list' %}";
+        const today = new Date().toISOString().substring(0, 10);
+
+        let tableRows = '';
+        if (prices.length > 0) {
+            prices.slice().reverse().forEach(p => {
+                tableRows += `
+                    <tr>
+                        <td style="padding: 8px;">${p.price_date}</td>
+                        <td style="padding: 8px; font-weight: 600;">BDT ${p.price.toFixed(2)}</td>
+                        <td style="padding: 8px;">
+                            <form method="POST" action="${actionUrl}" style="margin:0;" onsubmit="return confirm('Delete this price record?');">
+                                <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                                <input type="hidden" name="action" value="delete_price">
+                                <input type="hidden" name="doc_id" value="${p.id}">
+                                <button type="submit" class="btn-action delete" title="Delete Price"><i class="fa-solid fa-trash-can"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            tableRows = `<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-secondary); font-style: italic;">No price history recorded yet.</td></tr>`;
+        }
+
+        const modalHtml = `
+            <div style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); max-height: 75vh; overflow-y: auto; padding-right: 8px;">
+                <div style="margin-bottom: 16px;">
+                    <strong style="color: var(--accent-color); font-size: 1rem;">${data.instrument_code}</strong>
+                    <span style="color: var(--text-secondary); margin-left: 12px;">${data.type}</span>
+                    <span style="color: var(--text-secondary); margin-left: 12px;">Face Value: BDT ${data.face_value ? data.face_value.toFixed(2) : '0.00'}</span>
+                </div>
+
+                <div class="price-chart-container">
+                    <canvas id="priceChartCanvas"></canvas>
+                </div>
+
+                <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin: 16px 0 12px 0; color: var(--accent-color); font-size: 0.95rem; font-weight: 700;">ADD PRICE POINT</h4>
+                <form method="POST" action="${actionUrl}" style="display: flex; gap: 12px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap;">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                    <input type="hidden" name="action" value="add_price">
+                    <input type="hidden" name="instrument_id" value="${instrumentId}">
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 140px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.8rem;">Date</label>
+                        <input type="date" name="price_date" class="form-control" value="${today}" required style="height: 38px;">
+                    </div>
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 140px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 4px; font-size: 0.8rem;">Price (BDT)</label>
+                        <input type="number" name="price" step="0.01" min="0.01" class="form-control" required placeholder="e.g. 105.50" style="height: 38px;">
+                    </div>
+                    <button type="submit" class="btn-submit" style="padding: 8px 18px; font-size: 0.85rem; height: 38px; display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;">
+                        <i class="fa-solid fa-circle-plus"></i> Record Price
+                    </button>
+                </form>
+
+                <h4 style="border-top: 1px solid var(--sidebar-border); padding-top: 16px; margin: 16px 0 12px 0; color: var(--accent-color); font-size: 0.95rem; font-weight: 700;">PRICE HISTORY</h4>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" style="margin-top: 0; width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--sidebar-border);">
+                                <th style="padding: 8px; text-align: left;">Date</th>
+                                <th style="padding: 8px; text-align: left;">Price</th>
+                                <th style="padding: 8px; text-align: left;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        openGlobalModal(`PRICE HISTORY — ${data.instrument_code}`, modalHtml, data.type);
+
+        // Render chart after modal opens
+        setTimeout(() => renderPriceChart(prices, data.instrument_code), 100);
     }
 
-    function cancelEdit() {
-        crudCancelEdit('instrumentForm', {
-            formTitle: '<i class="fa-regular fa-square-plus" style="color: var(--accent-color);"></i> Register Security',
-            saveBtnHtml: '<i class="fa-solid fa-arrow-down-to-bracket"></i> Save Instrument'
+    function renderPriceChart(prices, label) {
+        const canvas = document.getElementById('priceChartCanvas');
+        if (!canvas) return;
+
+        if (priceChartInstance) {
+            priceChartInstance.destroy();
+            priceChartInstance = null;
+        }
+
+        if (prices.length < 2) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        const sorted = [...prices].sort((a, b) => a.price_date.localeCompare(b.price_date));
+        const labels = sorted.map(p => p.price_date);
+        const data = sorted.map(p => p.price);
+
+        priceChartInstance = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Price (BDT)',
+                    data: data,
+                    borderColor: '#215C5C',
+                    backgroundColor: 'rgba(33, 92, 92, 0.08)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#215C5C',
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `BDT ${ctx.parsed.y.toFixed(2)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { maxTicksLimit: 10, color: '#94a3b8' },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8', callback: v => 'BDT ' + v.toFixed(2) },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    }
+                }
+            }
         });
-        document.getElementById('issue_date').value = new Date().toISOString().substring(0, 10);
     }
 </script>
 {% endblock %}

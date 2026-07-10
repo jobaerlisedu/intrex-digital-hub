@@ -83,6 +83,9 @@
         <button class="tab-btn" onclick="switchReportTab('pl')"><i class="fa-solid fa-file-invoice"></i> P&L</button>
         <button class="tab-btn" onclick="switchReportTab('investors')"><i class="fa-solid fa-users"></i> Activity</button>
         <button class="tab-btn" onclick="switchReportTab('instruments')"><i class="fa-solid fa-gem"></i> Instruments</button>
+        <button class="tab-btn" onclick="switchReportTab('performance')"><i class="fa-solid fa-gauge-high"></i> Performance</button>
+        <button class="tab-btn" onclick="switchReportTab('compliance')"><i class="fa-solid fa-shield"></i> Compliance</button>
+        <button class="tab-btn" onclick="switchReportTab('cashflow')"><i class="fa-solid fa-chart-waterfall"></i> Cash Flow</button>
     </div>
 </div>
 
@@ -252,6 +255,142 @@
         <a href="{% url 'investment:export_csv' 'instrument_performance' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
     </div>
 </div>
+
+{# ─── PERFORMANCE METRICS TAB ─── #}
+<div id="tab-performance" class="report-tab">
+    <div class="kpi-grid" id="perf-kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Sharpe Ratio</div><div class="kpi-value" id="perf-sharpe">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Sortino Ratio</div><div class="kpi-value" id="perf-sortino">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Max Drawdown</div><div class="kpi-value" style="color:#ef4444;" id="perf-maxdd">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">CAGR (SI)</div><div class="kpi-value" id="perf-cagr">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Volatility</div><div class="kpi-value" id="perf-vol">--</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> Equity Curve (NAV)</h4>
+            <div class="chart-container"><canvas id="equityCurveChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-area" style="color:#ef4444;"></i> Drawdown</h4>
+            <div class="chart-container"><canvas id="drawdownChart"></canvas></div>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Rolling 12m Returns</h4>
+            <div class="chart-container-sm"><canvas id="rollingReturnChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-table" style="color:var(--accent-color);"></i> Summary</h4>
+            <table class="data-table" style="font-size:0.85rem;">
+                <tbody>
+                    <tr><td style="font-weight:600;">TWRR (Since Inception)</td><td id="perf-twrr" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">MWRR / IRR</td><td id="perf-mwrr" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Total Return</td><td id="perf-total-return" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Win Rate</td><td id="perf-win-rate" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Peak Date</td><td id="perf-peak-date" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Trough Date</td><td id="perf-trough-date" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Total Invested</td><td id="perf-invested" style="text-align:right;">--</td></tr>
+                    <tr><td style="font-weight:600;">Total Value</td><td id="perf-value" style="text-align:right;">--</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'performance_metrics' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── COMPLIANCE TAB ─── #}
+<div id="tab-compliance" class="report-tab">
+    <div class="kpi-grid" id="comp-kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Total Investors</div><div class="kpi-value" id="comp-total-inv">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">KYC Compliant</div><div class="kpi-value" style="color:#10b981;" id="comp-kyc-compliant">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Needs Attention</div><div class="kpi-value" style="color:#f59e0b;" id="comp-kyc-attention">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">KYC Expired</div><div class="kpi-value" style="color:#ef4444;" id="comp-kyc-expired">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Concentration Breaches</div><div class="kpi-value" style="color:#ef4444;" id="comp-breaches">--</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-donut" style="color:var(--accent-color);"></i> KYC Status</h4>
+            <div class="chart-container-sm"><canvas id="kycStatusChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-pie" style="color:var(--accent-color);"></i> Sector Concentration</h4>
+            <div class="chart-container-sm"><canvas id="sectorConcentrationChart"></canvas></div>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Investor Concentration</h4>
+            <div class="chart-container-sm"><canvas id="investorConcentrationChart"></canvas></div>
+        </div>
+        <div class="glass-card" style="overflow:auto;max-height:320px;">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> Alerts</h4>
+            <div id="comp-alerts"><p style="color:var(--text-secondary);">No alerts.</p></div>
+        </div>
+    </div>
+    <div style="margin-top:20px;">
+        <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-table" style="color:var(--accent-color);"></i> KYC Status Matrix</h4>
+        <div style="overflow-x:auto;">
+            <table class="data-table" style="font-size:0.85rem;" id="kyc-table">
+                <thead><tr><th>Investor</th><th>KYC Status</th><th>Expiry Date</th><th>Document</th><th>Status</th></tr></thead>
+                <tbody id="kyc-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'compliance' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
+
+{# ─── CASH FLOW FORECAST TAB ─── #}
+<div id="tab-cashflow" class="report-tab">
+    <div class="kpi-grid">
+        <div class="glass-card kpi-card"><div class="kpi-label">Projected Inflow (12mo)</div><div class="kpi-value" style="color:#10b981;" id="cf-inflow">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Projected Outflow</div><div class="kpi-value" style="color:#ef4444;" id="cf-outflow">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Net Cash Flow</div><div class="kpi-value" id="cf-net">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Min AUM</div><div class="kpi-value" id="cf-min-aum">--</div></div>
+        <div class="glass-card kpi-card"><div class="kpi-label">Liquidity Ratio</div><div class="kpi-value" id="cf-liq">--</div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-bar" style="color:var(--accent-color);"></i> Projected Inflows vs Outflows</h4>
+            <div class="chart-container"><canvas id="cfBarChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-chart-line" style="color:var(--accent-color);"></i> Projected AUM Growth</h4>
+            <div class="chart-container"><canvas id="cfAumChart"></canvas></div>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div class="glass-card">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> Scenario: Default Rate Stress Test</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+                <div class="glass-card" style="padding:12px;text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Base Case</div>
+                    <div style="font-size:1.2rem;font-weight:700;color:#10b981;" id="cf-base-aum">--</div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);" id="cf-base-rate">at 2% default</div>
+                </div>
+                <div class="glass-card" style="padding:12px;text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Stress Case</div>
+                    <div style="font-size:1.2rem;font-weight:700;color:#ef4444;" id="cf-stress-aum">--</div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);" id="cf-stress-rate">at 10% default</div>
+                </div>
+            </div>
+        </div>
+        <div class="glass-card" style="overflow:auto;max-height:300px;">
+            <h4 style="margin:0 0 12px 0;"><i class="fa-solid fa-table" style="color:var(--accent-color);"></i> Monthly Breakdown</h4>
+            <table class="data-table" style="font-size:0.8rem;">
+                <thead><tr><th>Month</th><th>Inflow</th><th>Outflow</th><th>Net</th><th>AUM</th></tr></thead>
+                <tbody id="cf-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="export-bar" style="margin-top:16px;">
+        <a href="{% url 'investment:export_csv' 'cash_flow_forecast' %}" class="btn-submit" style="padding:8px 16px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -262,6 +401,9 @@
     const plSummary = {{ pl_summary_json|safe }};
     const investorActivity = {{ investor_activity_json|safe }};
     const instrumentPerformance = {{ instrument_performance_json|safe }};
+    const performanceMetrics = {{ performance_metrics_json|safe }};
+    const compliance = {{ compliance_json|safe }};
+    const cashFlowForecast = {{ cash_flow_forecast_json|safe }};
 
     document.addEventListener('DOMContentLoaded', () => {
         renderCapitalCharts();
@@ -269,6 +411,9 @@
         renderPLChart();
         renderInvestorChart();
         renderInstrumentCharts();
+        renderPerformanceCharts();
+        renderComplianceCharts();
+        renderCashFlowCharts();
     });
 
     function switchReportTab(tab) {
@@ -384,6 +529,304 @@
                 data: { labels: typeLabels, datasets: [{ label: 'Face Value (BDT)', data: typeValues, backgroundColor: '#0f766e', borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }, x: { ticks: { color: '#64748b' }, grid: { display: false } } } }
             });
+        }
+    }
+
+    function renderPerformanceCharts() {
+        const pm = performanceMetrics;
+        if (pm.error) {
+            document.getElementById('perf-kpi-grid').innerHTML = '<div class="glass-card" style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-secondary);">' + pm.error + '</div>';
+            return;
+        }
+        // Fill KPI cards
+        document.getElementById('perf-sharpe').textContent = pm.sharpe_ratio != null ? pm.sharpe_ratio.toFixed(4) : 'N/A';
+        document.getElementById('perf-sortino').textContent = pm.sortino_ratio != null ? pm.sortino_ratio.toFixed(4) : 'N/A';
+        document.getElementById('perf-maxdd').textContent = pm.max_drawdown_pct != null ? pm.max_drawdown_pct.toFixed(2) + '%' : 'N/A';
+        document.getElementById('perf-cagr').textContent = pm.cagr_since_inception != null ? pm.cagr_since_inception.toFixed(2) + '%' : 'N/A';
+        document.getElementById('perf-vol').textContent = pm.volatility != null ? pm.volatility.toFixed(2) + '%' : 'N/A';
+
+        // Fill summary table
+        document.getElementById('perf-twrr').textContent = pm.twrr != null ? pm.twrr.toFixed(4) + '%' : 'N/A';
+        document.getElementById('perf-mwrr').textContent = pm.mwrr != null ? pm.mwrr.toFixed(4) + '%' : 'N/A';
+        document.getElementById('perf-total-return').textContent = pm.total_return_pct != null ? pm.total_return_pct.toFixed(2) + '%' : 'N/A';
+        document.getElementById('perf-win-rate').textContent = pm.win_rate != null ? pm.win_rate.toFixed(2) + '%' : 'N/A';
+        document.getElementById('perf-peak-date').textContent = pm.peak_date || 'N/A';
+        document.getElementById('perf-trough-date').textContent = pm.trough_date || 'N/A';
+        document.getElementById('perf-invested').textContent = pm.total_invested ? 'BDT ' + pm.total_invested : 'N/A';
+        document.getElementById('perf-value').textContent = pm.total_value ? 'BDT ' + pm.total_value : 'N/A';
+
+        // Fetch NAV history for equity curve & drawdown
+        fetch('/api/investment/nav-history/')
+            .then(r => r.json())
+            .then(navData => {
+                const sorted = (navData.results || navData).sort((a, b) => a.nav_date.localeCompare(b.nav_date));
+                const labels = sorted.map(n => n.nav_date);
+                const navValues = sorted.map(n => parseFloat(n.nav_per_unit || 0));
+                if (!labels.length) return;
+
+                new Chart(document.getElementById('equityCurveChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'NAV per Unit',
+                            data: navValues,
+                            borderColor: '#0f766e',
+                            backgroundColor: 'rgba(15,118,110,0.08)',
+                            fill: true,
+                            tension: 0.4,
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#64748b' } } },
+                        scales: {
+                            y: { ticks: { color: '#64748b', callback: v => v.toFixed(4) }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                            x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { display: false } }
+                        }
+                    }
+                });
+
+                // Drawdown: peak-to-current
+                let peak = 0;
+                const ddValues = navValues.map(v => {
+                    if (v > peak) peak = v;
+                    return peak > 0 ? ((peak - v) / peak * -100) : 0;
+                });
+                new Chart(document.getElementById('drawdownChart'), {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Drawdown %',
+                            data: ddValues,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239,68,68,0.15)',
+                            fill: true,
+                            tension: 0.4,
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { labels: { color: '#64748b' } } },
+                        scales: {
+                            y: { ticks: { color: '#64748b', callback: v => v.toFixed(1) + '%' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                            x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { display: false } }
+                        }
+                    }
+                });
+            })
+            .catch(() => {});
+
+        // Rolling returns bar chart
+        const rolling = pm.rolling_12m_returns || [];
+        if (rolling.length) {
+            const rLabels = rolling.map(r => r.date);
+            const rValues = rolling.map(r => parseFloat((r.return * 100).toFixed(4)));
+            const rColors = rValues.map(v => v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)');
+            new Chart(document.getElementById('rollingReturnChart'), {
+                type: 'bar',
+                data: {
+                    labels: rLabels,
+                    datasets: [{
+                        label: 'Rolling 12m Return %',
+                        data: rValues,
+                        backgroundColor: rColors,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#64748b' } } },
+                    scales: {
+                        y: { ticks: { color: '#64748b', callback: v => v + '%' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                        x: { ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+    }
+
+    function renderComplianceCharts() {
+        const c = compliance;
+        if (!c || c.error) return;
+
+        // KPI cards
+        const kycSum = c.kyc_summary || {};
+        document.getElementById('comp-total-inv').textContent = kycSum.total_investors || 0;
+        document.getElementById('comp-kyc-compliant').textContent = kycSum.compliant || 0;
+        document.getElementById('comp-kyc-attention').textContent = kycSum.needs_attention || 0;
+        document.getElementById('comp-kyc-expired').textContent = kycSum.expired || 0;
+        document.getElementById('comp-breaches').textContent = c.breach_count || 0;
+
+        // KYC status pie chart
+        const kycReport = c.kyc_report || [];
+        const statusCounts = {};
+        kycReport.forEach(r => { statusCounts[r.kyc_status] = (statusCounts[r.kyc_status] || 0) + 1; });
+        const kycLabels = Object.keys(statusCounts);
+        const kycData = Object.values(statusCounts);
+        if (kycLabels.length) {
+            new Chart(document.getElementById('kycStatusChart'), {
+                type: 'pie',
+                data: {
+                    labels: kycLabels,
+                    datasets: [{ data: kycData, backgroundColor: ['#10b981', '#f59e0b', '#6366f1', '#ef4444', '#94a3b8'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b' } } } }
+            });
+        }
+
+        // Sector concentration pie chart
+        const sectors = (c.sector_concentration || {}).sectors || [];
+        if (sectors.length) {
+            new Chart(document.getElementById('sectorConcentrationChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: sectors.map(s => s.sector),
+                    datasets: [{ data: sectors.map(s => s.concentration_pct), backgroundColor: ['#0f766e', '#6366f1', '#f59e0b', '#ef4444', '#10b981', '#94a3b8'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#64748b' } } } }
+            });
+        }
+
+        // Investor concentration bar chart
+        const concentrations = c.concentrations || [];
+        if (concentrations.length) {
+            const concLabels = concentrations.map(c => c.investor_name.length > 12 ? c.investor_name.substring(0, 12) + '...' : c.investor_name);
+            const concValues = concentrations.map(c => c.concentration_pct);
+            const concColors = concentrations.map(c => c.breached ? 'rgba(239,68,68,0.7)' : 'rgba(16,185,129,0.7)');
+            new Chart(document.getElementById('investorConcentrationChart'), {
+                type: 'bar',
+                data: {
+                    labels: concLabels,
+                    datasets: [{ label: 'Concentration %', data: concValues, backgroundColor: concColors, borderRadius: 3 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: '#64748b' }, grid: { display: false } },
+                        x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }
+                    }
+                }
+            });
+        }
+
+        // Alerts panel
+        const alertsDiv = document.getElementById('comp-alerts');
+        const breaches = c.breaches || [];
+        const attention = kycReport.filter(r => r.needs_attention);
+        const alertItems = [];
+        breaches.forEach(b => alertItems.push(`<div style="padding:8px 12px;margin:4px 0;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;font-size:0.85rem;"><strong>CONCENTRATION BREACH</strong>: ${b.investor_name} at ${b.concentration_pct.toFixed(2)}%</div>`));
+        attention.forEach(r => {
+            if (r.is_expired) alertItems.push(`<div style="padding:8px 12px;margin:4px 0;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;font-size:0.85rem;"><strong>KYC EXPIRED</strong>: ${r.investor_name}</div>`);
+            else if (r.expires_soon) alertItems.push(`<div style="padding:8px 12px;margin:4px 0;border-radius:6px;background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;font-size:0.85rem;"><strong>KYC EXPIRING SOON</strong>: ${r.investor_name} — ${r.kyc_expiry_date}</div>`);
+        });
+        if (alertItems.length) {
+            alertsDiv.innerHTML = alertItems.join('');
+        }
+
+        // KYC table
+        const tbody = document.getElementById('kyc-table-body');
+        if (kycReport.length) {
+            tbody.innerHTML = kycReport.map(r => {
+                const statusClass = r.is_expired ? 'color:#ef4444;font-weight:600;' : r.expires_soon ? 'color:#f59e0b;font-weight:600;' : 'color:#10b981;';
+                return `<tr>
+                    <td style="font-weight:600;">${r.investor_name}</td>
+                    <td>${r.kyc_status}</td>
+                    <td>${r.kyc_expiry_date || '--'}</td>
+                    <td>${r.has_document ? '<span style="color:#10b981;">Yes</span>' : '<span style="color:#ef4444;">No</span>'}</td>
+                    <td style="${statusClass}">${r.is_expired ? 'EXPIRED' : r.expires_soon ? 'Expiring Soon' : 'OK'}</td>
+                </tr>`;
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);">No investor data.</td></tr>';
+        }
+    }
+
+    function renderCashFlowCharts() {
+        const cf = cashFlowForecast;
+        if (!cf || cf.error) return;
+
+        const summary = cf.summary || {};
+        document.getElementById('cf-inflow').textContent = 'BDT ' + (summary.total_projected_inflow || 0).toLocaleString('en-IN');
+        document.getElementById('cf-outflow').textContent = 'BDT ' + (summary.total_projected_outflow || 0).toLocaleString('en-IN');
+        const netVal = summary.net_projected || 0;
+        const netEl = document.getElementById('cf-net');
+        netEl.textContent = 'BDT ' + Math.abs(netVal).toLocaleString('en-IN');
+        netEl.style.color = netVal >= 0 ? '#10b981' : '#ef4444';
+        document.getElementById('cf-min-aum').textContent = 'BDT ' + (summary.min_projected_aum || 0).toLocaleString('en-IN');
+        document.getElementById('cf-liq').textContent = (summary.liquidity_ratio || 0).toFixed(2);
+
+        // Scenario
+        const sc = cf.scenario || {};
+        document.getElementById('cf-base-aum').textContent = 'BDT ' + parseFloat(sc.base_aum_after || 0).toLocaleString('en-IN');
+        document.getElementById('cf-stress-aum').textContent = 'BDT ' + parseFloat(sc.stress_aum_after || 0).toLocaleString('en-IN');
+        document.getElementById('cf-base-rate').textContent = 'at ' + ((sc.base_default_rate || 0) * 100).toFixed(0) + '% default';
+        document.getElementById('cf-stress-rate').textContent = 'at ' + ((sc.stress_default_rate || 0) * 100).toFixed(0) + '% default';
+
+        // Monthly bar chart: inflows vs outflows
+        const monthly = cf.monthly || [];
+        if (monthly.length) {
+            const labels = monthly.map(m => m.month);
+            new Chart(document.getElementById('cfBarChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Inflow', data: monthly.map(m => m.projected_inflow), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 3 },
+                        { label: 'Outflow', data: monthly.map(m => m.projected_outflow), backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { color: '#64748b' } } },
+                    scales: {
+                        y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                        x: { ticks: { color: '#64748b' }, grid: { display: false } }
+                    }
+                }
+            });
+
+            // AUM growth line chart
+            const aumData = cf.nav_growth || [];
+            const aumLabels = aumData.map(n => n.month);
+            new Chart(document.getElementById('cfAumChart'), {
+                type: 'line',
+                data: {
+                    labels: aumLabels,
+                    datasets: [{
+                        label: 'Projected AUM',
+                        data: aumData.map(n => n.projected_aum),
+                        borderColor: '#0f766e',
+                        backgroundColor: 'rgba(15,118,110,0.08)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#64748b' } } },
+                    scales: {
+                        y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                        x: { ticks: { color: '#64748b' }, grid: { display: false } }
+                    }
+                }
+            });
+
+            // Table
+            const tbody = document.getElementById('cf-table-body');
+            tbody.innerHTML = monthly.map(m => {
+                const net = m.net_flow;
+                const netColor = net >= 0 ? '#10b981' : '#ef4444';
+                return `<tr>
+                    <td style="font-weight:600;">${m.month}</td>
+                    <td style="color:#10b981;">BDT ${m.projected_inflow.toLocaleString('en-IN')}</td>
+                    <td style="color:#ef4444;">BDT ${m.projected_outflow.toLocaleString('en-IN')}</td>
+                    <td style="color:${netColor};">BDT ${Math.abs(net).toLocaleString('en-IN')}</td>
+                    <td>BDT ${(m.projected_aum || 0).toLocaleString('en-IN')}</td>
+                </tr>`;
+            }).join('');
         }
     }
 </script>

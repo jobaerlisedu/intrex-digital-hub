@@ -97,7 +97,7 @@ class TransactionSchema:
     investor_id: str
     investor_name: str
     transaction_type: str
-    amount: float
+    amount: str
     payment_method: str = 'Bank Wire'
     value_date: str = ''
     status: str = 'Cleared'
@@ -114,8 +114,8 @@ class LoanSchema:
     """Collection: invst_loans"""
     investor_id: str
     investor_name: str
-    principal_amount: float
-    outstanding_balance: float
+    principal_amount: str
+    outstanding_balance: str
     interest_rate: float
     tenure_months: int
     disbursement_date: str
@@ -133,9 +133,9 @@ class LoanScheduleSchema:
     loan_id: str
     installment_number: int
     due_date: str
-    scheduled_principal: float
-    scheduled_interest: float
-    paid_amount: float = 0.0
+    scheduled_principal: str
+    scheduled_interest: str
+    paid_amount: str = "0.00"
     payment_status: str = 'Unpaid'
     actual_payment_date: Optional[str] = None
     is_active: bool = True
@@ -148,8 +148,8 @@ class OutboundPlacementSchema:
     """Collection: invst_outbound_placements"""
     project_name: str
     entity_type: str = 'Subsidiary'
-    allocated_capital: float = 0.0
-    current_valuation: float = 0.0
+    allocated_capital: str = "0.00"
+    current_valuation: str = "0.00"
     roi_expected_annual: float = 0.0
     placement_date: str = ''
     status: str = 'Active'
@@ -165,7 +165,7 @@ class FinancialInstrumentSchema:
     """Collection: invst_financial_instruments"""
     instrument_code: str
     instrument_type: str = 'Common Stock'
-    face_value: float = 0.0
+    face_value: str = "0.00"
     coupon_rate: float = 0.0
     total_units_issued: int = 0
     units_outstanding: int = 0
@@ -185,7 +185,7 @@ class InstrumentPriceSchema:
     """Collection: invst_instrument_prices"""
     instrument_id: str
     price_date: str
-    price: float
+    price: str
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -197,12 +197,104 @@ class InstrumentPriceSchema:
 class PLLedgerSchema:
     """Collection: invst_pl_ledger"""
     month: str  # YYYY-MM
-    revenue: float = 0.0
-    opex: float = 0.0
-    interest_expense: float = 0.0
-    net_profit: float = 0.0
+    revenue: str = "0.00"
+    opex: str = "0.00"
+    interest_expense: str = "0.00"
+    net_profit: str = "0.00"
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     created_by: str = ''
     updated_by: str = ''
+
+
+@dataclass
+class NavSchema:
+    """Collection: invst_nav_history"""
+    nav_date: str
+    nav_per_unit: str
+    total_units: str
+    total_aum: str
+    management_fee_accrued: str = "0.00"
+    performance_fee_accrued: str = "0.00"
+    total_liabilities: str = "0.00"
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: str = ""
+    updated_by: str = ""
+
+
+@dataclass
+class InvestorHoldingSchema:
+    """Collection: invst_investor_holdings"""
+    investor_id: str
+    units_held: str = "0.0000"
+    avg_cost_per_unit: str = "0.0000"
+    total_invested: str = "0.00"
+    current_value: str = "0.00"
+    unrealized_pl: str = "0.00"
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: str = ""
+    updated_by: str = ""
+
+
+@dataclass
+class FeeStructureSchema:
+    """Collection: invst_fee_structures"""
+    management_fee_annual_pct: str = "2.00"
+    performance_fee_pct: str = "20.00"
+    hurdle_rate_pct: str = "5.00"
+    high_water_mark: str = "0.0000"
+    fee_frequency: str = "monthly"
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: str = ""
+    updated_by: str = ""
+
+
+@dataclass
+class FeeAccrualSchema:
+    """Collection: invst_fee_accruals"""
+    accrual_date: str
+    fee_type: str
+    amount: str
+    nav_before_fee: str = "0.00"
+    nav_after_fee: str = "0.00"
+    is_settled: bool = False
+    settled_date: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: str = ""
+    updated_by: str = ""
+
+
+# ══════════════════════════════════════════════
+# CURRENCY SUPPORT SCHEMAS (Phase 7)
+# ══════════════════════════════════════════════
+
+@dataclass
+class CurrencyConfigSchema:
+    """Collection: invst_currency_config"""
+    base_currency: str = "BDT"
+    fx_rate_source: str = "manual"
+    last_updated: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+@dataclass
+class FxRateSchema:
+    """Collection: invst_fx_rates"""
+    from_currency: str
+    to_currency: str
+    rate: str
+    rate_date: str
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

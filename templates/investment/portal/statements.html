@@ -1,0 +1,26 @@
+{% extends 'erp_base.html' %}
+{% block title %}Statements - Investor Portal{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+    <a href="{% url 'investment:portal_dashboard' %}" style="color:var(--accent-color);text-decoration:none;font-size:0.9rem;">&larr; Back to Dashboard</a>
+    <h2 style="margin:12px 0 0 0;"><i class="fa-solid fa-file-invoice" style="color:var(--accent-color);"></i> Account Statements</h2>
+</div>
+<div class="glass-card" style="max-width:600px;margin:0 auto;">
+    {% if periods %}
+    <p style="color:var(--text-secondary);margin-bottom:16px;">Select a period to download your statement:</p>
+    <table class="data-table">
+        <thead><tr><th>Period</th><th>Action</th></tr></thead>
+        <tbody>
+            {% for p in periods %}
+            <tr>
+                <td style="font-weight:600;">{{ p }}</td>
+                <td><a href="{% url 'investment:statement_download' investor.id p %}" class="btn-submit" style="padding:6px 14px;font-size:0.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="fa-solid fa-file-pdf"></i> Download PDF</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-secondary);text-align:center;padding:24px;">No statements available yet. Statements will appear once transactions are recorded.</p>
+    {% endif %}
+</div>
+{% endblock %}

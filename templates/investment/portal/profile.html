@@ -1,0 +1,63 @@
+{% extends 'erp_base.html' %}
+{% block title %}Profile - Investor Portal{% endblock %}
+{% block content %}
+<div style="margin-bottom:24px;">
+    <a href="{% url 'investment:portal_dashboard' %}" style="color:var(--accent-color);text-decoration:none;font-size:0.9rem;">&larr; Back to Dashboard</a>
+    <h2 style="margin:12px 0 0 0;"><i class="fa-solid fa-user-gear" style="color:var(--accent-color);"></i> My Profile</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="glass-card">
+        <h4 style="margin:0 0 16px 0;"><i class="fa-solid fa-address-card" style="color:var(--accent-color);"></i> Contact Information</h4>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_profile">
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Name</label>
+                <input type="text" class="form-input" value="{{ investor.name }}" disabled style="width:100%;padding:8px 12px;border-radius:6px;opacity:0.7;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Email</label>
+                <input type="email" name="email" class="form-input" value="{{ investor.email|default:'' }}" style="width:100%;padding:8px 12px;border-radius:6px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Phone</label>
+                <input type="text" name="phone" class="form-input" value="{{ investor.phone|default:'' }}" style="width:100%;padding:8px 12px;border-radius:6px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Bank Account Name</label>
+                <input type="text" name="bank_account_name" class="form-input" value="{{ investor.bank_account_name|default:'' }}" style="width:100%;padding:8px 12px;border-radius:6px;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Bank Account Number</label>
+                <input type="text" name="bank_account_number" class="form-input" value="{{ investor.bank_account_number|default:'' }}" style="width:100%;padding:8px 12px;border-radius:6px;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Bank Routing Code</label>
+                <input type="text" name="bank_routing_code" class="form-input" value="{{ investor.bank_routing_code|default:'' }}" style="width:100%;padding:8px 12px;border-radius:6px;">
+            </div>
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        </form>
+    </div>
+    <div class="glass-card">
+        <h4 style="margin:0 0 16px 0;"><i class="fa-solid fa-file-shield" style="color:var(--accent-color);"></i> KYC Documents</h4>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Current KYC Status: <strong>{{ investor.kyc_status|default:'Not Started' }}</strong></p>
+        {% if investor.kyc_document_url %}
+        <p style="font-size:0.85rem;margin-bottom:12px;"><a href="{{ investor.kyc_document_url }}" target="_blank" style="color:var(--accent-color);"><i class="fa-solid fa-file"></i> View Uploaded Document</a></p>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_kyc">
+            <div style="margin-bottom:12px;">
+                <label style="display:block;margin-bottom:4px;font-size:0.85rem;font-weight:600;">Upload KYC Document</label>
+                <input type="file" name="kyc_document" accept=".pdf,.jpg,.jpeg,.png" class="form-input" style="width:100%;padding:8px;border-radius:6px;">
+            </div>
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-upload"></i> Upload</button>
+        </form>
+        <hr style="border-color:var(--sidebar-border);margin:20px 0;">
+        <h4 style="margin:0 0 8px 0;font-size:0.9rem;">Account Info</h4>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0;">Code: <strong>{{ investor.investor_code }}</strong></p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0;">Category: <strong>{{ investor.category|default:'--' }}</strong></p>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin:4px 0;">Tax ID: <strong>{{ investor.tax_id|default:'--' }}</strong></p>
+    </div>
+</div>
+{% endblock %}

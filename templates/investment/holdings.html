@@ -1,0 +1,48 @@
+{% extends 'investment/base.html' %}
+{% block title %}Investor Holdings{% endblock %}
+{% block page_title %}Investor Holdings{% endblock %}
+{% block page_actions %}
+<a href="{% url 'investment:nav_dashboard' %}" class="btn btn-outline-primary btn-sm">NAV Dashboard</a>
+<a href="{% url 'investment:index' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Investor</th>
+                    <th>Units Held</th>
+                    <th>Avg Cost/Unit</th>
+                    <th>Total Invested</th>
+                    <th>Current Value</th>
+                    <th>Unrealized P&L</th>
+                    <th>Return %</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for h in holdings %}
+                <tr>
+                    <td>{{ h.investor_name }}</td>
+                    <td>{{ h.units_held }}</td>
+                    <td>BDT {{ h.avg_cost_per_unit }}</td>
+                    <td>BDT {{ h.total_invested }}</td>
+                    <td>BDT {{ h.current_value }}</td>
+                    <td class="{% if h.unrealized_pl|first != '-' %}text-success{% else %}text-danger{% endif %}">
+                        BDT {{ h.unrealized_pl }}
+                    </td>
+                    <td>
+                        <span class="badge bg-{% if h.return_pct|first != '-' %}success{% else %}danger{% endif %}">
+                            {{ h.return_pct }}%
+                        </span>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-muted text-center">No holdings found</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

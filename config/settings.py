@@ -335,6 +335,30 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'investment.tasks.notify_overdue_schedules',
         'schedule': 43200,
     },
+    'daily-nav-calculation': {
+        'task': 'investment.tasks.calculate_daily_nav',
+        'schedule': 86400,
+    },
+    'monthly-fee-accrual': {
+        'task': 'investment.tasks.accrue_monthly_fees',
+        'schedule': 86400,
+    },
+    'daily-kyc-expiry-check': {
+        'task': 'investment.tasks.check_kyc_expiry',
+        'schedule': 86400,
+    },
+    'weekly-concentration-check': {
+        'task': 'investment.tasks.check_concentration_limits',
+        'schedule': 604800,
+    },
+    'monthly-statement-dispatch': {
+        'task': 'investment.tasks.dispatch_monthly_statements',
+        'schedule': 86400 * 30,
+    },
+    'weekly-performance-summary': {
+        'task': 'investment.tasks.dispatch_weekly_performance_summary',
+        'schedule': 604800,
+    },
 }
 
 # Detect Render Environment

@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.contrib.auth.hashers import make_password
 from accounts.decorators import module_access
 from datetime import datetime, date, timedelta
 from collections import defaultdict
@@ -10,6 +11,9 @@ from investment.services import (
     FirestoreService as fs,
     CodeGenerator,
     AmortizationService as amt,
+    money_to_float,
+    money_to_str,
+    money_to_storage,
     audit_create,
     audit_update,
     COLL_INVESTORS,
@@ -20,6 +24,12 @@ from investment.services import (
     COLL_INSTRUMENTS,
     COLL_INSTRUMENT_PRICES,
     COLL_PL_LEDGER,
+    COLL_NAV_HISTORY,
+    COLL_INVESTOR_HOLDINGS,
+    COLL_FEE_STRUCTURES,
+    COLL_FEE_ACCRUALS,
+    NavService,
+    FeeService,
 )
 from config.services.integration_service import IntegrationService
 
@@ -39,7 +49,7 @@ def index(request):
     for tx in transactions:
         if tx.get('status') == 'Cleared':
             ttype = tx.get('transaction_type')
-            amt_val = float(tx.get('amount', 0.0))
+            amt_val = money_to_float(tx.get('amount', '0.00'))
             if ttype == 'Capital Influx':
                 total_capital_managed += amt_val
             elif ttype == 'Capital Withdrawal':
@@ -47,15 +57,15 @@ def index(request):
 
     for loan in loans:
         if loan.get('status') == 'Active':
-            total_capital_managed += float(loan.get('outstanding_balance', 0.0))
+            total_capital_managed += money_to_float(loan.get('outstanding_balance', '0.00'))
 
     for out in outbound:
         if out.get('status') == 'Active':
-            total_outbound += float(out.get('allocated_capital', 0.0))
+            total_outbound += money_to_float(out.get('allocated_capital', '0.00'))
 
     for sch in schedules:
         if sch.get('payment_status') == 'Unpaid':
-            total_interest_due += float(sch.get('scheduled_interest', 0.0))
+            total_interest_due += money_to_float(sch.get('scheduled_interest', '0.00'))
 
     loan_map = {l['id']: l for l in loans}
     investor_map = {i['id']: i for i in investors}
@@ -77,9 +87,9 @@ def index(request):
             'id': sch['id'],
             'investor_name': investor_name,
             'due_date': sch.get('due_date', ''),
-            'principal': float(sch.get('scheduled_principal', 0.0)),
-            'interest': float(sch.get('scheduled_interest', 0.0)),
-            'total': float(sch.get('scheduled_principal', 0.0)) + float(sch.get('scheduled_interest', 0.0)),
+            'principal': money_to_float(sch.get('scheduled_principal', '0.00')),
+            'interest': money_to_float(sch.get('scheduled_interest', '0.00')),
+            'total': money_to_float(sch.get('scheduled_principal', '0.00')) + money_to_float(sch.get('scheduled_interest', '0.00')),
         })
 
     # Rolling 12-month chart
@@ -107,9 +117,9 @@ def index(request):
                     d = datetime.strptime(tx['value_date'], '%Y-%m-%d')
                     if d.year == y and d.month == m:
                         if tx.get('transaction_type') == 'Capital Influx':
-                            inflow += float(tx.get('amount', 0.0))
+                            inflow += money_to_float(tx.get('amount', '0.00'))
                         elif tx.get('transaction_type') in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
-                            outflow += float(tx.get('amount', 0.0))
+                            outflow += money_to_float(tx.get('amount', '0.00'))
                 except (ValueError, TypeError):
                     continue
         inflow_data.append(inflow)
@@ -167,6 +177,10 @@ def investor_list(request):
                 fs.update_document(COLL_INVESTORS, doc_id, data)
                 messages.success(request, "Investor profile updated successfully!")
             else:
+                # Hash password on creation for portal login
+                raw_password = request.POST.get('password', '')
+                if raw_password:
+                    data['password_hash'] = make_password(raw_password)
                 fs.create_document(COLL_INVESTORS, data)
                 messages.success(request, "Investor profile registered successfully!")
 
@@ -176,9 +190,9 @@ def investor_list(request):
                 try:
                     blob = bucket.blob(f'kyc/{doc_id}/{kyc_file.name}')
                     blob.upload_from_file(kyc_file)
-                    blob.make_public()
+                    signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
                     fs.update_document(COLL_INVESTORS, doc_id, {
-                        'kyc_document_url': blob.public_url,
+                        'kyc_document_url': signed_url,
                     })
                     messages.success(request, "KYC document uploaded successfully!")
                 except Exception as e:
@@ -204,7 +218,7 @@ def investor_list(request):
             tx_by_investor[inv_id].append({
                 'id': tx.get('id'),
                 'transaction_type': tx.get('transaction_type'),
-                'amount': float(tx.get('amount', 0.0)),
+                'amount': money_to_float(tx.get('amount', '0.00')),
                 'payment_method': tx.get('payment_method'),
                 'value_date': tx.get('value_date'),
                 'status': tx.get('status'),
@@ -217,9 +231,9 @@ def investor_list(request):
         if inv_id:
             loans_by_investor[inv_id].append({
                 'id': loan.get('id'),
-                'principal_amount': float(loan.get('principal_amount', 0.0)),
-                'outstanding_balance': float(loan.get('outstanding_balance', 0.0)),
-                'interest_rate': float(loan.get('interest_rate', 0.0)),
+                'principal_amount': money_to_float(loan.get('principal_amount', '0.00')),
+                'outstanding_balance': money_to_float(loan.get('outstanding_balance', '0.00')),
+                'interest_rate': money_to_float(loan.get('interest_rate', '0.00')),
                 'tenure_months': int(loan.get('tenure_months', 0)),
                 'disbursement_date': loan.get('disbursement_date'),
                 'status': loan.get('status'),
@@ -248,7 +262,7 @@ def inbound_list(request):
                 'investor_id': investor_id,
                 'investor_name': investor_name,
                 'transaction_type': 'Capital Influx',
-                'amount': float(request.POST.get('amount', 0.0)),
+                'amount': money_to_storage(request.POST.get('amount', 0.0)),
                 'payment_method': request.POST.get('payment_method', 'Bank Wire'),
                 'value_date': request.POST.get('value_date', date.today().isoformat()),
                 'status': request.POST.get('status', 'Cleared'),
@@ -282,8 +296,8 @@ def loans_list(request):
 
         if action == 'add_loan':
             investor_id = request.POST.get('investor_id')
-            principal = float(request.POST.get('principal_amount', 0.0))
-            rate_percent = float(request.POST.get('interest_rate', 0.0))
+            principal = money_to_float(request.POST.get('principal_amount', 0.0))
+            rate_percent = money_to_float(request.POST.get('interest_rate', 0.0))
             tenure = int(request.POST.get('tenure_months', 1))
             disb_date_str = request.POST.get('disbursement_date')
 
@@ -293,8 +307,8 @@ def loans_list(request):
             loan_data = {
                 'investor_id': investor_id,
                 'investor_name': investor_name,
-                'principal_amount': principal,
-                'outstanding_balance': principal,
+                'principal_amount': money_to_storage(principal),
+                'outstanding_balance': money_to_storage(principal),
                 'interest_rate': rate_percent,
                 'tenure_months': tenure,
                 'disbursement_date': disb_date_str,
@@ -347,9 +361,9 @@ def outbound_list(request):
             data = {
                 'project_name': request.POST.get('project_name'),
                 'entity_type': request.POST.get('entity_type', 'Subsidiary'),
-                'allocated_capital': float(request.POST.get('allocated_capital', 0.0)),
-                'current_valuation': float(request.POST.get('current_valuation', 0.0)),
-                'roi_expected_annual': float(request.POST.get('roi_expected_annual', 0.0)),
+                'allocated_capital': money_to_storage(request.POST.get('allocated_capital', 0.0)),
+                'current_valuation': money_to_storage(request.POST.get('current_valuation', 0.0)),
+                'roi_expected_annual': money_to_float(request.POST.get('roi_expected_annual', 0.0)),
                 'placement_date': request.POST.get('placement_date'),
                 'status': request.POST.get('status', 'Active'),
                 **audit_create(request.user),
@@ -382,8 +396,8 @@ def instruments_list(request):
             data = {
                 'instrument_code': request.POST.get('instrument_code'),
                 'type': request.POST.get('type', 'Common Stock'),
-                'face_value': float(request.POST.get('face_value', 0.0)),
-                'coupon_rate': float(request.POST.get('coupon_rate', 0.0)) if request.POST.get('coupon_rate') else 0.0,
+                'face_value': money_to_storage(request.POST.get('face_value', 0.0)),
+                'coupon_rate': money_to_float(request.POST.get('coupon_rate', 0.0)) if request.POST.get('coupon_rate') else 0.0,
                 'total_units_issued': int(request.POST.get('total_units_issued', 0)),
                 'units_outstanding': int(request.POST.get('units_outstanding', 0)),
                 'issue_date': request.POST.get('issue_date'),
@@ -401,10 +415,46 @@ def instruments_list(request):
             fs.delete_document(COLL_INSTRUMENTS, doc_id)
             messages.success(request, "Financial instrument deleted successfully.")
 
+        elif action == 'add_price':
+            instrument_id = request.POST.get('instrument_id')
+            price_date = request.POST.get('price_date')
+            price_value = money_to_float(request.POST.get('price', 0.0))
+            if not instrument_id or not price_date or price_value <= 0:
+                messages.error(request, "Invalid price data.")
+                return redirect('investment:instruments_list')
+            fs.create_document(COLL_INSTRUMENT_PRICES, {
+                'instrument_id': instrument_id,
+                'price_date': price_date,
+                'price': money_to_storage(price_value),
+                **audit_create(request.user),
+            })
+            messages.success(request, f"Price point {money_to_str(price_value)} recorded for {price_date}.")
+
+        elif action == 'delete_price' and doc_id:
+            fs.delete_document(COLL_INSTRUMENT_PRICES, doc_id)
+            messages.success(request, "Price record deleted.")
+
         return redirect('investment:instruments_list')
 
     instruments = fs.get_collection(COLL_INSTRUMENTS)
-    return render(request, 'investment/instruments.html', {'instruments': instruments})
+    all_prices = fs.get_collection(COLL_INSTRUMENT_PRICES)
+    prices_by_instrument = defaultdict(list)
+    for p in all_prices:
+        prices_by_instrument[p.get('instrument_id')].append({
+            'id': p['id'],
+            'price_date': p.get('price_date', ''),
+            'price': money_to_float(p.get('price', '0.00')),
+        })
+    for inv_id in prices_by_instrument:
+        prices_by_instrument[inv_id].sort(key=lambda x: x['price_date'])
+    for inst in instruments:
+        inst_prices = prices_by_instrument.get(inst.get('id', ''), [])
+        inst['last_price'] = inst_prices[-1]['price'] if inst_prices else None
+    context = {
+        'instruments': instruments,
+        'prices_by_instrument': dict(prices_by_instrument),
+    }
+    return render(request, 'investment/instruments.html', context)
 
 
 @module_access('investment')
@@ -415,8 +465,8 @@ def pl_list(request):
 
         if action == 'add_pl_entry':
             month = request.POST.get('month')
-            revenue = float(request.POST.get('revenue', 0.0))
-            opex = float(request.POST.get('opex', 0.0))
+            revenue = money_to_float(request.POST.get('revenue', 0.0))
+            opex = money_to_float(request.POST.get('opex', 0.0))
 
             schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
             interest_expense = amt.compute_interest_expense(month, schedules)
@@ -424,10 +474,10 @@ def pl_list(request):
 
             data = {
                 'month': month,
-                'revenue': revenue,
-                'opex': opex,
-                'interest_expense': interest_expense,
-                'net_profit': net_profit,
+                'revenue': money_to_storage(revenue),
+                'opex': money_to_storage(opex),
+                'interest_expense': money_to_storage(interest_expense),
+                'net_profit': money_to_storage(net_profit),
                 **audit_create(request.user),
             }
 
@@ -460,24 +510,24 @@ def payables_list(request):
                 messages.error(request, "Schedule not found.")
                 return redirect('investment:payables_list')
 
-            principal = float(sch.get('scheduled_principal', 0.0))
-            interest = float(sch.get('scheduled_interest', 0.0))
+            principal = money_to_float(sch.get('scheduled_principal', '0.00'))
+            interest = money_to_float(sch.get('scheduled_interest', '0.00'))
             total = principal + interest
 
             fs.update_document(COLL_LOAN_SCHEDULES, sch_id, {
                 'payment_status': 'Paid',
-                'paid_amount': total,
+                'paid_amount': money_to_storage(total),
                 'actual_payment_date': date.today().isoformat(),
             })
 
             loan_id = sch.get('loan_id')
             loan = fs.get_document(COLL_LOANS, loan_id)
             if loan:
-                curr_bal = float(loan.get('outstanding_balance', 0.0))
+                curr_bal = money_to_float(loan.get('outstanding_balance', '0.00'))
                 new_bal = max(0.0, curr_bal - principal)
                 loan_status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
                 fs.update_document(COLL_LOANS, loan_id, {
-                    'outstanding_balance': new_bal,
+                    'outstanding_balance': money_to_storage(new_bal),
                     'status': loan_status,
                 })
 
@@ -489,7 +539,7 @@ def payables_list(request):
                     'investor_id': inv_id,
                     'investor_name': inv_name,
                     'transaction_type': 'Interest Payout',
-                    'amount': total,
+                    'amount': money_to_storage(total),
                     'payment_method': 'Bank Wire',
                     'value_date': date.today().isoformat(),
                     'status': 'Cleared',
@@ -499,7 +549,7 @@ def payables_list(request):
                 messages.success(request, "Loan installment payment cleared and payout logged successfully.")
 
         elif action == 'partial_payment' and sch_id:
-            payment_amount = float(request.POST.get('amount', 0.0))
+            payment_amount = money_to_float(request.POST.get('amount', 0.0))
             if payment_amount <= 0:
                 messages.error(request, "Invalid payment amount.")
                 return redirect('investment:payables_list')
@@ -509,10 +559,10 @@ def payables_list(request):
                 messages.error(request, "Schedule not found.")
                 return redirect('investment:payables_list')
 
-            scheduled_principal = float(sch.get('scheduled_principal', 0.0))
-            scheduled_interest = float(sch.get('scheduled_interest', 0.0))
+            scheduled_principal = money_to_float(sch.get('scheduled_principal', '0.00'))
+            scheduled_interest = money_to_float(sch.get('scheduled_interest', '0.00'))
             total_due = scheduled_principal + scheduled_interest
-            prev_paid = float(sch.get('paid_amount', 0.0))
+            prev_paid = money_to_float(sch.get('paid_amount', '0.00'))
             new_paid = prev_paid + payment_amount
             capped = min(new_paid, total_due)
 
@@ -522,7 +572,7 @@ def payables_list(request):
                 principal_portion = 0.0
 
             update_data = {
-                'paid_amount': round(capped, 2),
+                'paid_amount': money_to_storage(capped),
             }
             if capped >= total_due - 0.01:
                 update_data['payment_status'] = 'Paid'
@@ -533,11 +583,11 @@ def payables_list(request):
             loan_id = sch.get('loan_id')
             loan = fs.get_document(COLL_LOANS, loan_id)
             if loan:
-                curr_bal = float(loan.get('outstanding_balance', 0.0))
+                curr_bal = money_to_float(loan.get('outstanding_balance', '0.00'))
                 new_bal = max(0.0, curr_bal - principal_portion)
                 loan_status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
                 fs.update_document(COLL_LOANS, loan_id, {
-                    'outstanding_balance': round(new_bal, 2),
+                    'outstanding_balance': money_to_storage(new_bal),
                     'status': loan_status,
                 })
 
@@ -549,7 +599,7 @@ def payables_list(request):
                     'investor_id': inv_id,
                     'investor_name': inv_name,
                     'transaction_type': 'Interest Payout',
-                    'amount': round(payment_amount, 2),
+                    'amount': money_to_storage(payment_amount),
                     'payment_method': 'Bank Wire',
                     'value_date': date.today().isoformat(),
                     'status': 'Cleared',
@@ -557,7 +607,7 @@ def payables_list(request):
                 })
 
             msg = "Full payment" if capped >= total_due - 0.01 else "Partial payment"
-            messages.success(request, f"{msg} of BDT {payment_amount:.2f} recorded successfully.")
+            messages.success(request, f"{msg} of {money_to_str(payment_amount)} recorded successfully.")
 
         return redirect('investment:payables_list')
 
@@ -580,10 +630,10 @@ def payables_list(request):
             'id': s['id'],
             'installment_number': s.get('installment_number'),
             'due_date': s.get('due_date'),
-            'scheduled_principal': float(s.get('scheduled_principal', 0.0)),
-            'scheduled_interest': float(s.get('scheduled_interest', 0.0)),
-            'total_due': float(s.get('scheduled_principal', 0.0)) + float(s.get('scheduled_interest', 0.0)),
-            'paid_amount': float(s.get('paid_amount', 0.0)),
+            'scheduled_principal': money_to_float(s.get('scheduled_principal', '0.00')),
+            'scheduled_interest': money_to_float(s.get('scheduled_interest', '0.00')),
+            'total_due': money_to_float(s.get('scheduled_principal', '0.00')) + money_to_float(s.get('scheduled_interest', '0.00')),
+            'paid_amount': money_to_float(s.get('paid_amount', '0.00')),
             'payment_status': s.get('payment_status'),
             'actual_payment_date': s.get('actual_payment_date', '--'),
             'investor_name': investor_name,
@@ -592,3 +642,118 @@ def payables_list(request):
 
     joined_schedules.sort(key=lambda x: x.get('due_date', ''))
     return render(request, 'investment/payables.html', {'schedules': joined_schedules})
+
+
+@module_access('investment')
+def nav_dashboard(request):
+    """NAV trend chart, current NAV, units outstanding, AUM."""
+    nav_history = fs.get_collection(COLL_NAV_HISTORY)
+    nav_history.sort(key=lambda r: r.get('nav_date', ''))
+
+    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
+    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
+    fee_accruals.sort(key=lambda r: r.get('accrual_date', ''), reverse=True)
+
+    current_nav = NavService.get_current_nav()
+
+    context = {
+        'nav_history': nav_history,
+        'current_nav': current_nav,
+        'holdings': holdings,
+        'fee_accruals': fee_accruals,
+        'total_units': sum(money_to_float(h.get('units_held', '0.0000')) for h in holdings),
+        'total_invested': sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings),
+    }
+    return render(request, 'investment/nav.html', context)
+
+
+@module_access('investment')
+def investor_holdings_list(request):
+    """Per-investor unit balance, value, and P&L."""
+    investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
+    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
+
+    joined = []
+    for h in holdings:
+        inv = investors.get(h.get('investor_id', ''), {})
+        invested = money_to_float(h.get('total_invested', '0.00'))
+        pl = money_to_float(h.get('unrealized_pl', '0.00'))
+        return_pct = round((pl / invested) * 100, 2) if invested > 0 else 0.0
+        joined.append({
+            'id': h['id'],
+            'investor_id': h.get('investor_id'),
+            'investor_name': inv.get('name', 'Unknown'),
+            'units_held': h.get('units_held', '0.0000'),
+            'avg_cost_per_unit': h.get('avg_cost_per_unit', '0.0000'),
+            'total_invested': h.get('total_invested', '0.00'),
+            'current_value': h.get('current_value', '0.00'),
+            'unrealized_pl': h.get('unrealized_pl', '0.00'),
+            'return_pct': f'{return_pct:.2f}',
+        })
+
+    return render(request, 'investment/holdings.html', {'holdings': joined})
+
+
+@module_access('investment')
+def fee_management(request):
+    """Fee structure CRUD and accrual history."""
+    fee_structs = fs.get_collection(COLL_FEE_STRUCTURES)
+    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
+    fee_accruals.sort(key=lambda r: r.get('accrual_date', ''), reverse=True)
+
+    current_struct = None
+    for s in fee_structs:
+        if s.get('is_active', True):
+            current_struct = s
+            break
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'update_fee_structure':
+            data = {
+                'management_fee_annual_pct': request.POST.get('management_fee_annual_pct', '2.00'),
+                'performance_fee_pct': request.POST.get('performance_fee_pct', '20.00'),
+                'hurdle_rate_pct': request.POST.get('hurdle_rate_pct', '5.00'),
+                'high_water_mark': request.POST.get('high_water_mark', '0.0000'),
+                'fee_frequency': request.POST.get('fee_frequency', 'monthly'),
+                'is_active': True,
+            }
+            if current_struct:
+                fs.update_document(COLL_FEE_STRUCTURES, current_struct['id'], {
+                    **data, **audit_update(request.user),
+                })
+                messages.success(request, 'Fee structure updated.')
+            else:
+                fs.create_document(COLL_FEE_STRUCTURES, {
+                    **data, **audit_create(request.user),
+                })
+                messages.success(request, 'Fee structure created.')
+            return redirect('investment:fee_management')
+
+        elif action == 'settle_fee':
+            fee_id = request.POST.get('fee_id')
+            if fee_id:
+                fs.update_document(COLL_FEE_ACCRUALS, fee_id, {
+                    'is_settled': True,
+                    'settled_date': date.today().isoformat(),
+                })
+                messages.success(request, 'Fee marked as settled.')
+            return redirect('investment:fee_management')
+
+    total_accrued_management = sum(
+        money_to_float(f.get('amount', '0.00'))
+        for f in fee_accruals if f.get('fee_type') == 'management' and not f.get('is_settled', False)
+    )
+    total_accrued_performance = sum(
+        money_to_float(f.get('amount', '0.00'))
+        for f in fee_accruals if f.get('fee_type') == 'performance' and not f.get('is_settled', False)
+    )
+
+    context = {
+        'fee_structure': current_struct,
+        'fee_accruals': fee_accruals,
+        'total_accrued_management': total_accrued_management,
+        'total_accrued_performance': total_accrued_performance,
+    }
+    return render(request, 'investment/fees.html', context)

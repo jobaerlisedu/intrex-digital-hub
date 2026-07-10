@@ -1,0 +1,20 @@
+{% extends 'erp_base.html' %}
+{% block title %}Investor Portal Login - Intrex ERP{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:60px auto;padding:32px;border-radius:12px;" class="glass-card">
+    <h2 style="text-align:center;margin-bottom:24px;"><i class="fa-solid fa-user-lock" style="color:var(--accent-color);"></i> Investor Portal</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div style="margin-bottom:16px;">
+            <label style="display:block;margin-bottom:6px;font-weight:600;font-size:0.9rem;">Investor Code</label>
+            <input type="text" name="investor_code" class="form-input" required placeholder="e.g. INV-0001" style="width:100%;padding:10px 14px;border-radius:8px;">
+        </div>
+        <div style="margin-bottom:24px;">
+            <label style="display:block;margin-bottom:6px;font-weight:600;font-size:0.9rem;">Password</label>
+            <input type="password" name="password" class="form-input" required placeholder="Enter your password" style="width:100%;padding:10px 14px;border-radius:8px;">
+        </div>
+        <button type="submit" class="btn-submit" style="width:100%;padding:12px;font-size:1rem;"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+    </form>
+    <p style="text-align:center;margin-top:16px;font-size:0.85rem;color:var(--text-secondary);">Use your investor code and password to access your portal.</p>
+</div>
+{% endblock %}
