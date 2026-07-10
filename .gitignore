@@ -8,3 +8,5 @@ firebase_credentials.json
 node_modules/
 staticfiles/
 static/dist/
+
+# Firestore sync sentinel.last_firestore_sync
