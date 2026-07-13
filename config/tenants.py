@@ -29,28 +29,6 @@ def set_current_user(user):
     _thread_locals.current_user = user
 
 
-# ─── Firestore multi-tenancy helpers ──────────────────────────────────
-
-def tenant_org_id():
-    org = get_current_organization()
-    if org:
-        return str(org.pk)
-    tid = get_current_tenant()
-    return str(tid) if tid else None
-
-
-def fs_add_org(data, org_id_field='org_id'):
-    data[org_id_field] = tenant_org_id()
-    return data
-
-
-def fs_scope_query(collection_ref, org_id_field='org_id'):
-    org_id = tenant_org_id()
-    if org_id:
-        return collection_ref.where(org_id_field, '==', org_id)
-    return collection_ref
-
-
 # ─── Django ORM tenant helpers ────────────────────────────────────────
 
 class TenantQuerySet(QuerySet):

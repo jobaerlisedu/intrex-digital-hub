@@ -1,8 +1,8 @@
 """
 Unit and integration tests for the Investment module.
 
-Firestore-dependent tests use mocking to avoid requiring live credentials.
 Pure business logic (PMT, amortization) is tested directly.
+ORM-dependent tests use Django TestCase with model factories.
 """
 
 import json
@@ -19,7 +19,7 @@ from django.urls import reverse
 from investment.services import (
     AmortizationService as amt,
     CodeGenerator,
-    FirestoreService as fs,
+    ORMDocumentService as fs,
     NavService,
     FeeService,
     PerformanceService,
@@ -189,17 +189,15 @@ class CategoryChoicesTests(TestCase):
 class CodeGenerationTests(TestCase):
     """Test atomic counter-based code generation logic."""
 
-    @patch('investment.services.db')
-    def test_next_sequence_generates_code(self, mock_db):
+    def test_next_sequence_generates_code(self):
         """Counter-based code generation returns formatted code."""
-        mock_doc = MagicMock()
-        mock_doc.get.return_value.exists = False
-        mock_db.collection.return_value.document.return_value = mock_doc
-
         from investment.services import CodeGenerator
+        from investment.models import Counter
+        Counter.objects.create(id='test_counter', value=5)
         result = CodeGenerator._next_sequence('test_counter', 'TST', 4)
-        self.assertIsNotNone(result)
-        self.assertTrue(result.startswith('TST-'))
+        self.assertEqual(result, 'TST-0006')
+        counter = Counter.objects.get(id='test_counter')
+        self.assertEqual(counter.value, 6)
 
 
 # ══════════════════════════════════════════════
@@ -243,12 +241,12 @@ class LoanSerializerTests(TestCase):
 
 
 # ══════════════════════════════════════════════
-# API TESTS (Firestore-mocked)
+# API TESTS (ORM-mocked)
 # ══════════════════════════════════════════════
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class InvestmentAPITestCase(APITestCase):
-    """API tests with FirestoreService fully mocked."""
+    """API tests with ORMDocumentService fully mocked."""
 
     def setUp(self):
         self.user = User.objects.create_user(username='testuser', password='testpass')
@@ -376,7 +374,7 @@ class PartialPaymentTests(TestCase):
 # ══════════════════════════════════════════════
 
 class ReportServiceTests(TestCase):
-    """Test ReportService data aggregation with mocked Firestore."""
+    """Test ReportService data aggregation with mocked data."""
 
     @patch('investment.reports.ReportService.capital_overview')
     def test_capital_overview_structure(self, mock_overview):
@@ -488,7 +486,7 @@ class ReportServiceTests(TestCase):
 # ══════════════════════════════════════════════
 
 class CeleryTaskTests(TestCase):
-    """Test Celery tasks with FirestoreService fully mocked."""
+    """Test Celery tasks with ORMDocumentService fully mocked."""
 
     @patch('investment.tasks.fs.get_collection')
     @patch('investment.tasks.fs.update_document')
@@ -589,10 +587,9 @@ class InstrumentPriceSchemaTests(TestCase):
         self.assertEqual(schema.sector, 'Technology')
         self.assertEqual(schema.isin, 'US1234567890')
 
-    def test_investor_schema_has_kyc_document_url(self):
-        from investment.models import InvestorSchema
-        schema = InvestorSchema(investor_code='INV-001', name='Test')
-        self.assertEqual(schema.kyc_document_url, '')
+    def test_investor_kyc_document_default(self):
+        investor = Investor.objects.create(investor_code='INV-001', name='Test')
+        self.assertFalse(investor.kyc_document)
 
     def test_instrument_price_defaults(self):
         from investment.models import InstrumentPriceSchema
@@ -641,7 +638,7 @@ class InstrumentPriceSerializerTests(TestCase):
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class InstrumentPriceAPITests(APITestCase):
-    """Test price history API endpoints with mocked Firestore."""
+    """Test price history API endpoints with mocked data."""
 
     def setUp(self):
         self.user = User.objects.create_user(username='priceuser', password='testpass')
@@ -748,9 +745,9 @@ class InstrumentMarketValueTests(TestCase):
 # ══════════════════════════════════════════════
 
 class NavCalculationTests(TestCase):
-    """Verify NAV math with mocked Firestore data."""
+    """Verify NAV math with mocked data."""
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_calculate_nav_basic(self, mock_get_coll):
         def side_effect(*args):
             coll_name = args[0]
@@ -786,7 +783,7 @@ class NavCalculationTests(TestCase):
         self.assertEqual(result['nav_per_unit'], '39.3000')
         self.assertEqual(result['total_units'], '10000.0000')
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_calculate_nav_zero_units(self, mock_get_coll):
         def side_effect(*args):
             coll_name = args[0]
@@ -810,7 +807,7 @@ class NavCalculationTests(TestCase):
         self.assertEqual(result['nav_per_unit'], '0.0000')
         self.assertEqual(result['total_aum'], '0.00')
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_issue_units_creates_holding(self, mock_get_coll):
         mock_get_coll.return_value = []
         from datetime import date
@@ -820,14 +817,14 @@ class NavCalculationTests(TestCase):
             'total_units': '1000.0000',
             'total_aum': '50000.00',
         })
-        with patch('investment.services.FirestoreService.create_document') as mock_create:
+        with patch('investment.services.ORMDocumentService.create_document') as mock_create:
             mock_create.return_value = 'new-holding-id'
             result = NavService.issue_units('inv-1', '10000', '50.0000')
             self.assertEqual(result['units_issued'], '200.0000')
             self.assertEqual(result['amount_invested'], '10000.00')
             self.assertEqual(result['investor_id'], 'inv-1')
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_redeem_units_reduces_holding(self, mock_get_coll):
         mock_get_coll.return_value = [{
             'id': 'h1', 'investor_id': 'inv-1', 'units_held': '500.0000',
@@ -835,7 +832,7 @@ class NavCalculationTests(TestCase):
             'current_value': '27500.00', 'unrealized_pl': '2500.00',
             'is_active': True,
         }]
-        with patch('investment.services.FirestoreService.update_document') as mock_update:
+        with patch('investment.services.ORMDocumentService.update_document') as mock_update:
             mock_update.return_value = True
             result = NavService.redeem_units('inv-1', '100.0000', '55.0000')
             self.assertEqual(result['units_redeemed'], '100.0000')
@@ -871,7 +868,7 @@ class FeeCalculationTests(TestCase):
 class UnitIssuanceTests(TestCase):
     """Verify unit issue/redeem math with existing holdings."""
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_issue_units_updates_existing_holding(self, mock_get_coll):
         mock_get_coll.return_value = [{
             'id': 'h1', 'investor_id': 'inv-1', 'units_held': '1000.0000',
@@ -879,7 +876,7 @@ class UnitIssuanceTests(TestCase):
             'current_value': '55000.00', 'unrealized_pl': '5000.00',
             'is_active': True,
         }]
-        with patch('investment.services.FirestoreService.update_document') as mock_update:
+        with patch('investment.services.ORMDocumentService.update_document') as mock_update:
             mock_update.return_value = True
             result = NavService.issue_units('inv-1', '25000', '50.0000')
             # Units = 25000 / 50 = 500
@@ -890,7 +887,7 @@ class UnitIssuanceTests(TestCase):
             call_kwargs = mock_update.call_args[0][2]
             self.assertEqual(call_kwargs['units_held'], '1500.0000')
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_redeem_full_units(self, mock_get_coll):
         mock_get_coll.return_value = []
         result = NavService.redeem_units('inv-full', '500.0000', '50.0000')
@@ -1029,7 +1026,7 @@ class PerformanceMetricsTests(TestCase):
 class CashFlowForecastTests(TestCase):
     """Verify forecast engine and scenario modeling."""
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_forecast_payables_projects_correct_months(self, mock_get_coll):
         mock_get_coll.side_effect = [
             # First call: schedules
@@ -1048,7 +1045,7 @@ class CashFlowForecastTests(TestCase):
         self.assertGreater(len(result), 0)
         self.assertIn('projected_inflow', result[0])
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_what_if_default_rate_reduces_aum(self, mock_get_coll):
         mock_get_coll.side_effect = [
             # loans
@@ -1069,7 +1066,7 @@ class CashFlowForecastTests(TestCase):
         stress_aum = money_to_float(result['stress_aum_after'])
         self.assertGreaterEqual(base_aum, stress_aum)
 
-    @patch('investment.services.FirestoreService.get_collection')
+    @patch('investment.services.ORMDocumentService.get_collection')
     def test_nav_growth_with_expected_returns(self, mock_get_coll):
         mock_get_coll.side_effect = [
             # nav_history

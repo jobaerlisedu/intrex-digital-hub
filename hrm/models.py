@@ -6,7 +6,6 @@ from django_cryptography.fields import encrypt
 
 class Department(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True, related_name='sub_departments')
     module_linking = models.JSONField(default=list, blank=True)
@@ -29,7 +28,6 @@ class Department(models.Model):
 
 class Position(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     title = models.CharField(max_length=255)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, blank=True, null=True, related_name='positions')
     sub_department = models.ForeignKey(Department, on_delete=models.SET_NULL, blank=True, null=True, related_name='sub_positions')
@@ -73,7 +71,6 @@ class Employee(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     contact_id = models.CharField(max_length=255, blank=True, null=True)
     emp_id = models.CharField(max_length=50, unique=True, verbose_name='Employee ID')
     first_name = models.CharField(max_length=255)
@@ -166,7 +163,6 @@ class RecruitmentCandidate(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     cand_id = models.CharField(max_length=50, unique=True, verbose_name='Candidate ID')
     name = models.CharField(max_length=255)
     position = models.CharField(max_length=255)
@@ -193,7 +189,6 @@ class RecruitmentCandidate(models.Model):
 
 class RecruitmentShortlist(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     candidate = models.ForeignKey(RecruitmentCandidate, on_delete=models.CASCADE, related_name='shortlists')
     name = models.CharField(max_length=255)
     position = models.CharField(max_length=255)
@@ -220,7 +215,6 @@ class RecruitmentInterview(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     candidate = models.ForeignKey(RecruitmentCandidate, on_delete=models.CASCADE, related_name='interviews')
     name = models.CharField(max_length=255)
     position = models.CharField(max_length=255)
@@ -249,7 +243,6 @@ class RecruitmentSelection(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     candidate = models.ForeignKey(RecruitmentCandidate, on_delete=models.CASCADE, related_name='selections')
     name = models.CharField(max_length=255)
     position = models.CharField(max_length=255)
@@ -298,7 +291,6 @@ class Attendance(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='attendances')
     date = models.DateField()
     check_in = models.TimeField(blank=True, null=True)
@@ -337,7 +329,6 @@ class Leave(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='leaves')
     leave_type = models.CharField(max_length=50, choices=LEAVE_TYPE_CHOICES, verbose_name='Type')
     from_date = models.DateField()
@@ -362,7 +353,6 @@ class Leave(models.Model):
 
 class Holiday(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     holiday_name = models.CharField(max_length=255)
     from_date = models.DateField()
     to_date = models.DateField()
@@ -389,7 +379,6 @@ class AdvanceSalary(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='advance_salaries')
     amount = models.DecimalField(max_digits=14, decimal_places=2)
     deduct_month = models.CharField(max_length=7, verbose_name='Deduction Month (YYYY-MM)')
@@ -417,7 +406,6 @@ class Payroll(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     period = models.CharField(max_length=50, verbose_name='Pay Period')
     employee_count = models.IntegerField(default=0)
     total_net_pay = models.DecimalField(max_digits=16, decimal_places=2, default=0)
@@ -464,7 +452,6 @@ class PayrollEmployee(models.Model):
 
 class EmployeeShift(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='shifts')
     shift_name = models.CharField(max_length=255)
     start_date = models.DateField()
@@ -489,7 +476,6 @@ class OnboardingTask(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='onboarding_tasks')
     task_name = models.CharField(max_length=255)
     due_date = models.DateField(blank=True, null=True)
@@ -518,7 +504,6 @@ class ExitClearance(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='exit_clearances')
     exit_date = models.DateField()
     reason = models.TextField(blank=True, null=True)
@@ -547,7 +532,6 @@ class ExpenseClaim(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='expense_claims')
     category = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=14, decimal_places=2)
@@ -570,7 +554,6 @@ class ExpenseClaim(models.Model):
 
 class Document(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255)
     document_number = models.CharField(max_length=255, blank=True, default='')
@@ -596,7 +579,6 @@ class Asset(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='assets')
     asset_name = models.CharField(max_length=255)
     asset_tag = models.CharField(max_length=255, blank=True, default='')
@@ -639,7 +621,6 @@ class ReviewCycle(models.Model):
     TYPE_CHOICES = [('Quarterly', 'Quarterly'), ('Half-Yearly', 'Half-Yearly'), ('Annual', 'Annual')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -662,7 +643,6 @@ class ReviewCycle(models.Model):
 
 class RatingTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
@@ -680,7 +660,6 @@ class RatingTemplate(models.Model):
 
 class RatingScale(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     template = models.ForeignKey(RatingTemplate, on_delete=models.CASCADE, related_name='scales')
     label = models.CharField(max_length=100)
     value = models.DecimalField(max_digits=3, decimal_places=1)
@@ -701,7 +680,6 @@ class RatingScale(models.Model):
 
 class KPI(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     unit = models.CharField(max_length=50, blank=True, default='')
@@ -722,7 +700,6 @@ class KPI(models.Model):
 
 class EmployeeKPI(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='kpis')
     review_cycle = models.ForeignKey(ReviewCycle, on_delete=models.CASCADE, related_name='employee_kpis')
     kpi = models.ForeignKey(KPI, on_delete=models.CASCADE, related_name='assignments')
@@ -754,7 +731,6 @@ class PerformanceReview(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='reviews')
     reviewer = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='reviews_given')
     review_cycle = models.ForeignKey(ReviewCycle, on_delete=models.CASCADE, related_name='reviews')
@@ -785,7 +761,6 @@ class PerformanceImprovementPlan(models.Model):
     STATUS_CHOICES = [('Open', 'Open'), ('In Progress', 'In Progress'), ('Completed', 'Completed'), ('Failed', 'Failed')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='pips')
     review = models.ForeignKey(PerformanceReview, on_delete=models.SET_NULL, null=True, blank=True, related_name='pips')
     issue_description = models.TextField()
@@ -812,7 +787,6 @@ class PIPMilestone(models.Model):
     STATUS_CHOICES = [('Pending', 'Pending'), ('Achieved', 'Achieved'), ('Missed', 'Missed')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     pip = models.ForeignKey(PerformanceImprovementPlan, on_delete=models.CASCADE, related_name='milestones')
     description = models.CharField(max_length=255)
     due_date = models.DateField()
@@ -844,7 +818,6 @@ class LeavePolicy(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee_type = models.CharField(max_length=50, choices=EMPLOYEE_TYPE_CHOICES)
     leave_type = models.CharField(max_length=50, choices=LEAVE_TYPE_CHOICES)
     entitled_days = models.DecimalField(max_digits=5, decimal_places=1)
@@ -865,7 +838,6 @@ class LeavePolicy(models.Model):
 
 class LeaveBalance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='leave_balances')
     leave_type = models.CharField(max_length=50)
     entitled = models.DecimalField(max_digits=5, decimal_places=1, default=0)
@@ -898,7 +870,6 @@ class TrainingNeed(models.Model):
     STATUS_CHOICES = [('Identified', 'Identified'), ('Approved', 'Approved'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='training_needs')
     skill_gap = models.CharField(max_length=255, help_text='Skill or knowledge gap identified')
     recommended_training = models.CharField(max_length=255, blank=True, default='')
@@ -924,7 +895,6 @@ class DevelopmentPlan(models.Model):
     STATUS_CHOICES = [('Draft', 'Draft'), ('Active', 'Active'), ('Completed', 'Completed'), ('On Hold', 'On Hold')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='development_plans')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
@@ -952,7 +922,6 @@ class TrainingNomination(models.Model):
     STATUS_CHOICES = [('Nominated', 'Nominated'), ('Enrolled', 'Enrolled'), ('Completed', 'Completed'), ('Cancelled', 'Cancelled')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='training_nominations')
     course_name = models.CharField(max_length=255)
     provider = models.CharField(max_length=255, blank=True, default='')
@@ -983,7 +952,6 @@ class Notification(models.Model):
     CHANNEL_CHOICES = [('in_app', 'In-App'), ('email', 'Email'), ('push', 'Push')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=255)
     message = models.TextField()
@@ -1050,7 +1018,6 @@ class KeyPosition(models.Model):
     STATUS_CHOICES = [('Active', 'Active'), ('Filled', 'Filled'), ('On Hold', 'On Hold'), ('Inactive', 'Inactive')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     position_title = models.CharField(max_length=255)
     position = models.ForeignKey(Position, on_delete=models.SET_NULL, null=True, blank=True, related_name='key_positions')
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='key_positions')
@@ -1082,7 +1049,6 @@ class SuccessorCandidate(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     key_position = models.ForeignKey(KeyPosition, on_delete=models.CASCADE, related_name='candidates')
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='successor_candidates')
     readiness = models.CharField(max_length=50, choices=READINESS_CHOICES, default='3-5 Years')
@@ -1110,7 +1076,6 @@ class SuccessionPlan(models.Model):
     STATUS_CHOICES = [('Draft', 'Draft'), ('Active', 'Active'), ('Completed', 'Completed'), ('On Hold', 'On Hold')]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True, related_name='succession_plans')

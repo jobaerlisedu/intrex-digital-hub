@@ -14,8 +14,12 @@ The application loads its configuration settings dynamically from the `.env` fil
 | `DJANGO_DEBUG` | `False` | `True` | Toggles detailed traceback pages. Must be `False` in production. |
 | `DJANGO_ALLOWED_HOSTS` | `erp.intrex.digital` | `*` or `localhost` | Comma-separated list of host/domain names that this Django site can serve. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://erp.intrex.digital` | `http://localhost:8000` | Comma-separated list of trusted origins for safe cross-site requests. |
-| `FIREBASE_CREDENTIALS_PATH` | `firebase-credentials.json` | `firebase-credentials.json` | File path to Google Cloud service account keys. |
-| `FIREBASE_CREDENTIALS_JSON` | *Minified JSON key string* | *None* | Alternative method (specifically for Render cloud deployments) to inject credentials as an environment variable without storing key files. |
+| `DB_ENGINE` | `django.db.backends.mysql` | `django.db.backends.mysql` | Django ORM database engine for MySQL. |
+| `DB_NAME` | `intrex_erp` | `intrex_erp_dev` | Name of the MySQL database. |
+| `DB_USER` | `erp_user` | `root` | MySQL database user. |
+| `DB_PASSWORD` | *Secure password* | *None* | MySQL database password. |
+| `DB_HOST` | `localhost` | `127.0.0.1` | MySQL server hostname or IP address. |
+| `DB_PORT` | `3306` | `3306` | MySQL server port. |
 
 ---
 
@@ -29,13 +33,13 @@ Manages django sessions, user groups, and compliance logs.
 *   **Path**: `BASE_DIR / 'db.sqlite3'`
 *   **Configuration Location**: `config/settings.py` -> `DATABASES` settings block.
 
-### B. Cloud NoSQL Engine (Google Firestore)
+### B. Core ERP Engine (MySQL via Django ORM)
 Manages ERP transactional and master business entities.
-*   **Initialization**: Configured inside `config/firebase.py`.
+*   **Initialization**: Configured inside `config/settings.py` -> `DATABASES` settings block.
 *   **Connection Logic**:
-    1. Looks for the `FIREBASE_CREDENTIALS_JSON` environment string. If found, initializes connections directly from the JSON payload.
-    2. Otherwise, looks for the physical file specified by `FIREBASE_CREDENTIALS_PATH` in the root directory.
-    3. If neither is present, falls back to Google Application Default Credentials (ADC) if running inside Google Cloud (GAE/GKE).
+    1. Reads the `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and `DB_PORT` variables from the `.env` file.
+    2. Falls back to the default SQLite configuration if MySQL environment variables are not set.
+    3. Django ORM handles connection pooling and query execution automatically.
 
 ---
 
@@ -56,5 +60,4 @@ Before deploying the platform instance to production:
 1. Set `DJANGO_DEBUG=False`.
 2. Generate a secure `DJANGO_SECRET_KEY` and store it inside environment variables (never hardcode in settings files).
 3. Specify exact, restricted hostnames in `DJANGO_ALLOWED_HOSTS`.
-4. Ensure `firebase-credentials.json` is excluded from git commits and is securely hosted or injected via variables.
-5. Verify that SQLite files are placed on a persistent disk volume (if using container services like Docker or Render) so that audit logs and user accounts are not wiped on service redeployments.
+4. Verify that SQLite files are placed on a persistent disk volume (if using container services like Docker or Render) so that audit logs and user accounts are not wiped on service redeployments.

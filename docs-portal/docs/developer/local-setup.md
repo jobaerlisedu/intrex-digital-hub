@@ -9,8 +9,8 @@ This guide contains step-by-step instructions for developers to install, configu
 Before starting, ensure your local development machine has the following tools installed:
 *   **Operating System**: Linux/macOS preferred (WSL supported on Windows).
 *   **Python**: Version `3.8` up to `3.11`.
-*   **Database**: SQLite3 (pre-installed with Python) and connection to Google Firestore.
-*   **GCP SDK**: (Optional) For backup management and cloud imports.
+*   **Database**: SQLite3 (pre-installed with Python) and MySQL (for ERP business data).
+*   **MySQL Client**: (Optional) For backup management and direct database access.
 
 ---
 
@@ -47,15 +47,30 @@ Populate `.env` with the following variables:
 DJANGO_SECRET_KEY=local_development_secret_key_change_me
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
-FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+DB_ENGINE=django.db.backends.mysql
+DB_NAME=intrex_erp_dev
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_HOST=127.0.0.1
+DB_PORT=3306
 ```
 
-### Step E: Configure Firebase Credentials
-1. Obtain the Firebase Admin SDK private key JSON file from the Firebase Console (Project Settings -> Service Accounts -> Generate New Private Key).
-2. Save the downloaded JSON file to the root of the project as `firebase-credentials.json` (ensure this matches the `FIREBASE_CREDENTIALS_PATH` in `.env`).
+### Step E: Configure MySQL Database
+1. Ensure MySQL is installed and running on your machine.
+2. Create a new MySQL database for the ERP platform:
+   ```sql
+   CREATE DATABASE intrex_erp_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+3. Create a MySQL user and grant privileges:
+   ```sql
+   CREATE USER 'erp_user'@'localhost' IDENTIFIED BY 'your_password';
+   GRANT ALL PRIVILEGES ON intrex_erp_dev.* TO 'erp_user'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+4. Update the `.env` file with the correct database credentials.
 > [!WARNING]
-> Never commit `firebase-credentials.json` or `.env` to version control. They are automatically ignored in the `.gitignore`.
+> Never commit `.env` to version control. It is automatically ignored in the `.gitignore`.
 
 ---
 
@@ -97,4 +112,4 @@ Run Django tests:
 ```bash
 python manage.py test
 ```
-The test runner will create a temporary local database, test view routings, check permission decorators, and verify Firebase connection handles.
+The test runner will create a temporary local database, test view routings, check permission decorators, and verify Django ORM connection handles.

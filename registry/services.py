@@ -1,6 +1,5 @@
 from django.contrib.auth.models import User
 from .models import Person, Organization
-from config.firebase import db
 
 
 def get_or_create_person(email, display_name, person_type='other',
@@ -68,20 +67,6 @@ def link_person_to_organization(person, organization, role='', is_primary=False)
             person=person, organization=organization
         ).exclude(id=link.id).update(is_primary=False)
     return link
-
-
-def lookup_person_by_firestore_employee(employee_doc_id):
-    try:
-        return Person.objects.get(firestore_employee_id=employee_doc_id)
-    except Person.DoesNotExist:
-        return None
-
-
-def lookup_person_by_firestore_contact(contact_id):
-    try:
-        return Person.objects.get(firestore_contact_id=contact_id)
-    except Person.DoesNotExist:
-        return None
 
 
 def lookup_person_by_auth_user(user):

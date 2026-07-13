@@ -12,20 +12,15 @@ from .models import log_action, get_client_ip, AuditLog, ActiveSession
 from config.logger import accounts_logger
 
 
-# ─────────────────────────────────────────────
-# User List
-# ─────────────────────────────────────────────
 @staff_required
 def user_list(request):
-    # Exclude employee-linked users (they have a Person linked to hrm_employees)
     employee_user_ids = Person.objects.filter(
-        firestore_employee_id__gt='', auth_user__isnull=False
+        person_type='employee', auth_user__isnull=False
     ).values_list('auth_user_id', flat=True)
     users = User.objects.prefetch_related('groups').exclude(
         id__in=employee_user_ids
     ).order_by('-date_joined')
 
-    # Annotate each user with their accessible module names
     user_data = []
     for user in users:
         group_names = {g.name for g in user.groups.all()}
@@ -41,21 +36,17 @@ def user_list(request):
     })
 
 
-# ─────────────────────────────────────────────
-# Create User
-# ─────────────────────────────────────────────
 @staff_required
 def user_create(request):
     if request.method == 'POST':
-        username   = request.POST.get('username', '').strip()
-        password   = request.POST.get('password', '').strip()
-        email      = request.POST.get('email', '').strip()
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        email = request.POST.get('email', '').strip()
         first_name = request.POST.get('first_name', '').strip()
-        last_name  = request.POST.get('last_name', '').strip()
-        is_staff   = request.POST.get('is_staff') == 'on'
+        last_name = request.POST.get('last_name', '').strip()
+        is_staff = request.POST.get('is_staff') == 'on'
         selected_modules = request.POST.getlist('modules')
 
-        # Validation
         if not username or not password:
             messages.error(request, 'Username and password are required.')
             return render(request, 'accounts/user_form.html', {
@@ -70,14 +61,12 @@ def user_create(request):
                 'form_data': request.POST,
             })
 
-        # Create the user
         user = User.objects.create_user(
             username=username, password=password,
             email=email, first_name=first_name,
             last_name=last_name, is_staff=is_staff,
         )
 
-        # Assign module groups
         for module_name in selected_modules:
             if module_name in [m[0] for m in ERP_MODULES]:
                 group, _ = Group.objects.get_or_create(name=f'{module_name}_access')
@@ -101,9 +90,6 @@ def user_create(request):
     })
 
 
-# ─────────────────────────────────────────────
-# Edit User
-# ─────────────────────────────────────────────
 @staff_required
 def user_edit(request, user_id):
     edit_user = get_object_or_404(User, id=user_id)
@@ -112,29 +98,19 @@ def user_edit(request, user_id):
     }
 
     if request.method == 'POST':
-        edit_user.email      = request.POST.get('email', '').strip()
+        edit_user.email = request.POST.get('email', '').strip()
         edit_user.first_name = request.POST.get('first_name', '').strip()
-        edit_user.last_name  = request.POST.get('last_name', '').strip()
+        edit_user.last_name = request.POST.get('last_name', '').strip()
 
-        # Only allow changing is_staff if the current user is a superuser
         if request.user.is_superuser:
             edit_user.is_staff = request.POST.get('is_staff') == 'on'
 
-        # Change password only if provided
         new_password = request.POST.get('password', '').strip()
         if new_password:
             edit_user.set_password(new_password)
-            try:
-                from config.firebase import db
-                db.collection('sys_users').document(edit_user.username).update({
-                    'password': make_password(new_password),
-                })
-            except Exception as e:
-                accounts_logger.warning(f"Could not sync password to Firestore for '{edit_user.username}': {e}")
 
         edit_user.save()
 
-        # Reset module groups (don't touch other groups, if any)
         module_groups = Group.objects.filter(name__endswith='_access')
         edit_user.groups.remove(*module_groups)
 
@@ -161,15 +137,12 @@ def user_edit(request, user_id):
         'user_module_names': user_module_names,
         'form_data': {
             'first_name': edit_user.first_name,
-            'last_name':  edit_user.last_name,
-            'email':      edit_user.email,
+            'last_name': edit_user.last_name,
+            'email': edit_user.email,
         },
     })
 
 
-# ─────────────────────────────────────────────
-# Toggle Active / Deactivate
-# ─────────────────────────────────────────────
 @staff_required
 def user_toggle_active(request, user_id):
     target_user = get_object_or_404(User, id=user_id)
@@ -198,84 +171,16 @@ def user_toggle_active(request, user_id):
     return redirect('accounts:user_list')
 
 
-# ─────────────────────────────────────────────
-# Audit Logs & Session Monitor
-# ─────────────────────────────────────────────
-class FirestoreAuditLog:
-    def __init__(self, data):
-        self.id = data.get('id')
-        self.action = data.get('action', '')
-        self.module = data.get('module', '')
-        self.description = data.get('description', '')
-        self.ip_address = data.get('ip_address', '')
-        self.sha256_hash = data.get('sha256_hash', '')
-        self.before_state = data.get('before_state')
-        self.after_state = data.get('after_state')
-        self.user_id = data.get('user_id')
-        
-        username = data.get('username')
-        if username and username != 'Anonymous':
-            class MockUser:
-                def __init__(self, name):
-                    self.username = name
-            self.user = MockUser(username)
-        else:
-            self.user = None
-            
-        t_val = data.get('timestamp')
-        if t_val:
-            from datetime import datetime
-            if isinstance(t_val, str):
-                try:
-                    dt = datetime.strptime(t_val, '%Y-%m-%d %H:%M:%S.%f')
-                except ValueError:
-                    try:
-                        dt = datetime.strptime(t_val, '%Y-%m-%d %H:%M:%S')
-                    except ValueError:
-                        dt = datetime.now()
-                self.timestamp = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
-            else:
-                self.timestamp = timezone.make_aware(t_val) if timezone.is_naive(t_val) else t_val
-        else:
-            self.timestamp = timezone.now()
-
-
 @module_access('audit_logs')
 def audit_logs(request):
     active_sessions = ActiveSession.objects.select_related('user').all().order_by('-last_activity')
-    
-    logs = []
-    use_firestore = False
-    
-    import sys
-    if 'test' not in sys.argv:
-        try:
-            from config.firebase import db
-            from google.cloud import firestore as google_firestore
-            
-            # Query recent 1000 logs from Firestore, ordered by timestamp descending
-            docs = db.collection('sys_audit_logs').order_by('timestamp', direction=google_firestore.Query.DESCENDING).limit(1000).stream()
-            for doc in docs:
-                data = doc.to_dict()
-                data['id'] = doc.id
-                logs.append(FirestoreAuditLog(data))
-            
-            use_firestore = True
-        except Exception as e:
-            accounts_logger.error(f"Error fetching audit logs from Firestore: {e}")
-            
-    if not use_firestore:
-        logs = list(AuditLog.objects.select_related('user').all().order_by('-timestamp'))
-        
-    # Perform an integrity check on the cryptographic hash chain
+    logs = list(AuditLog.objects.select_related('user').all().order_by('-timestamp'))
+
     integrity_status = "SECURE"
     altered_logs = []
-    
     prev_hash = "0" * 64
-    # Check from oldest to newest to verify chain validity
     for log in reversed(logs):
         if not log.sha256_hash:
-            # Skip legacy log entries created before the hash chain was introduced
             continue
         payload = f"{log.user_id or ''}|{log.action}|{log.module}|{log.description}|{log.ip_address or ''}|{prev_hash}"
         expected_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()
@@ -284,21 +189,8 @@ def audit_logs(request):
             altered_logs.append(log.id)
         prev_hash = log.sha256_hash
 
-    # Anomaly alerts: e.g. recent failed login count (last 24 hours) or mass exports
-    failed_logins = 0
-    has_mass_exports = False
-    
-    if use_firestore:
-        one_day_ago = timezone.now() - timedelta(days=1)
-        for log in logs:
-            if log.timestamp and log.timestamp >= one_day_ago:
-                if log.action == 'LOGIN_FAILED':
-                    failed_logins += 1
-                if 'EXPORT' in log.action.upper():
-                    has_mass_exports = True
-    else:
-        failed_logins = AuditLog.objects.filter(action='LOGIN_FAILED', timestamp__gte=timezone.now() - timedelta(days=1)).count()
-        has_mass_exports = AuditLog.objects.filter(action__icontains='EXPORT', timestamp__gte=timezone.now() - timedelta(days=1)).exists()
+    failed_logins = AuditLog.objects.filter(action='LOGIN_FAILED', timestamp__gte=timezone.now() - timedelta(days=1)).count()
+    has_mass_exports = AuditLog.objects.filter(action__icontains='EXPORT', timestamp__gte=timezone.now() - timedelta(days=1)).exists()
 
     return render(request, 'accounts/audit_logs.html', {
         'logs': logs,
@@ -340,67 +232,13 @@ def user_delete(request, user_id):
 
 @superuser_required
 def sync_users_view(request):
-    from django.contrib.auth.models import User, Group
-    from config.firebase import db
-
-    # ── Sync 1: Firestore → SQLite (pull — restores users after fresh deploy) ──
-    pulled = 0
-    pull_errors = []
-    docs = db.collection('sys_users').stream()
-    for doc in docs:
-        try:
-            data = doc.to_dict()
-            username = data.get('username') or doc.id
-            user, created = User.objects.update_or_create(
-                username=username,
-                defaults={
-                    'email': data.get('email', ''),
-                    'password': data.get('password', ''),
-                    'first_name': data.get('first_name', ''),
-                    'last_name': data.get('last_name', ''),
-                    'is_staff': data.get('is_staff', False),
-                    'is_superuser': data.get('is_superuser', False),
-                    'is_active': data.get('is_active', True),
-                }
-            )
-            for group_name in data.get('groups', []) or []:
-                group, _ = Group.objects.get_or_create(name=group_name)
-                user.groups.add(group)
-            pulled += 1
-        except Exception as e:
-            pull_errors.append(f"{doc.id}: {e}")
-
-    # ── Sync 2: SQLite → Firestore (push — ensures Firestore has latest) ──
-    pushed = 0
-    push_errors = []
-    for user in User.objects.all():
-        try:
-            data = {
-                'username': user.username,
-                'email': user.email,
-                'password': user.password,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'is_staff': user.is_staff,
-                'is_superuser': user.is_superuser,
-                'is_active': user.is_active,
-                'groups': list(user.groups.values_list('name', flat=True)),
-            }
-            db.collection('sys_users').document(user.username).set(data)
-            pushed += 1
-        except Exception as e:
-            push_errors.append(f"{user.username}: {e}")
-
-    log_action(
-        user=request.user, action='USER_SYNC', module='accounts',
-        description=f"Pulled {pulled} users, pushed {pushed} users",
-        ip_address=get_client_ip(request),
-    )
-
     return JsonResponse({
-        'status': 'ok' if not pull_errors and not push_errors else 'partial',
-        'pulled': pulled, 'pull_errors': pull_errors,
-        'pushed': pushed, 'push_errors': push_errors,
+        'status': 'ok',
+        'message': 'User sync via database only.',
+        'pulled': 0,
+        'pushed': 0,
+        'pull_errors': [],
+        'push_errors': [],
     })
 
 
@@ -410,8 +248,7 @@ def revoke_session(request, session_id):
     active_sess = get_object_or_404(ActiveSession, id=session_id)
     username = active_sess.user.username
     session_key = active_sess.session_key
-    
-    # Log the revocation
+
     log_action(
         user=request.user,
         action='SESSION_REVOKE',
@@ -419,17 +256,14 @@ def revoke_session(request, session_id):
         description=f"Administratively revoked active session for user '{username}'.",
         ip_address=get_client_ip(request)
     )
-    
-    # Delete from Django session store
+
     try:
         s = Session.objects.get(session_key=session_key)
         s.delete()
     except Session.DoesNotExist:
         pass
-    
-    # Delete from ActiveSession registry
+
     active_sess.delete()
-    
+
     messages.success(request, f"Successfully terminated session for operator @{username}.")
     return redirect('accounts:audit_logs')
-

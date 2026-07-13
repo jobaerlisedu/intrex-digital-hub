@@ -76,3 +76,27 @@ class AuditTrailAdmin(admin.ModelAdmin):
     list_filter = ['action_type']
     search_fields = ['action_type', 'performed_by_name']
     readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.JournalEntryLine)
+class JournalEntryLineAdmin(admin.ModelAdmin):
+    list_display = ['journal_entry', 'account', 'debit_amount', 'credit_amount']
+    list_filter = ['account']
+    raw_id_fields = ['journal_entry', 'account']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.InvoiceLine)
+class InvoiceLineAdmin(admin.ModelAdmin):
+    list_display = ['invoice', 'description', 'quantity', 'unit_price', 'line_total']
+    search_fields = ['description']
+    raw_id_fields = ['invoice']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.VendorBillLine)
+class VendorBillLineAdmin(admin.ModelAdmin):
+    list_display = ['vendor_bill', 'description', 'quantity', 'unit_price', 'line_total']
+    search_fields = ['description']
+    raw_id_fields = ['vendor_bill']
+    readonly_fields = ['id', 'created_at']

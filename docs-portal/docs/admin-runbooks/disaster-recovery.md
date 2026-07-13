@@ -1,6 +1,6 @@
 # Disaster Recovery & Backup Runbook
 
-This runbook outlines the disaster recovery procedures for the Intrex ERP/CRM platform. It details backup and restoration operations for both the local SQLite database (User Access, Sessions, & Audits) and the Google Firestore NoSQL database (ERP Business Ledger & Master Data).
+This runbook outlines the disaster recovery procedures for the Intrex ERP/CRM platform. It details backup and restoration operations for both the local SQLite database (User Access, Sessions, & Audits) and the MySQL database (ERP Business Ledger & Master Data).
 
 ---
 
@@ -42,24 +42,24 @@ sqlite3 db.sqlite3 ".backup '/var/backups/erp/sqlite/db_backup_$(date +%F_%H%M%S
 
 ---
 
-## 3. Google Firestore Backup & Restore (ERP Core Data)
+## 3. MySQL Backup & Restore (ERP Core Data)
 
-All business modules (HRM, Inventory, Investment, Billing, Solutions, Training) write to Google Firestore. 
+All business modules (HRM, Inventory, Investment, Billing, Solutions, Training) write to MySQL via Django ORM.
 
-### A. Firestore Export Procedure
-Exports are dispatched to a secure Google Cloud Storage (GCS) bucket:
+### A. MySQL Dump Procedure
+Exports are dispatched using `mysqldump`:
 ```bash
-gcloud firestore export gs://intrex-erp-backups/firestore-exports/$(date +%F)
+mysqldump -u erp_user -p intrex_erp > /var/backups/erp/mysql/intrex_erp_$(date +%F).sql
 ```
-*To automate this, schedule it via Google Cloud Scheduler and Google Cloud Functions.*
+*To automate this, schedule it via a cron job.*
 
-### B. Firestore Import (Restoration) Procedure
+### B. MySQL Import (Restoration) Procedure
 > [!IMPORTANT]
-> Firestore imports do not overwrite documents if the existing records are identical. If you need a clean rollback to a past state, you must first clear the existing collection records using the Firebase CLI or an admin script, then dispatch the import.
+> MySQL imports will overwrite existing tables. Ensure you have a backup of the current state before restoring.
 
 To import the database state:
 ```bash
-gcloud firestore import gs://intrex-erp-backups/firestore-exports/2026-06-27/
+mysql -u erp_user -p intrex_erp < /var/backups/erp/mysql/intrex_erp_2026-06-27.sql
 ```
 
 ---
@@ -73,21 +73,18 @@ gcloud firestore import gs://intrex-erp-backups/firestore-exports/2026-06-27/
     2. Run the SQLite Restore Procedure using the latest clean daily backup.
     3. Run a manual cryptographic integrity check via the Admin Dashboard.
 
-### Scenario B: Cloud Service Disruption or Firestore Loss
-*   **Symptom**: Page loads return Firestore connectivity errors, or collection data is missing.
+### Scenario B: MySQL Database Corruption
+*   **Symptom**: Page loads return MySQL connectivity errors, or table data is missing.
 *   **Resolution**:
-    1. Check the Google Cloud Status Dashboard for service outages.
-    2. If data was accidentally deleted, authenticate the Google Cloud SDK CLI.
-    3. Run `gcloud firestore import` pointing to the latest verified GCS export bucket folder.
+    1. Check the MySQL server status.
+    2. If data was accidentally deleted, restore from the latest verified MySQL dump file using `mysql` CLI.
 
-### Scenario C: Key Compromise (`firebase-credentials.json`)
-*   **Symptom**: Unauthorized read/write requests detected in Firebase audit trails.
+### Scenario C: Database Credential Compromise
+*   **Symptom**: Unauthorized access detected in MySQL audit trails.
 *   **Resolution**:
-    1. Log in to the Google Cloud Console (IAM & Admin -> Service Accounts).
-    2. Locate the service account key for the ERP connection.
-    3. Click **Actions** -> **Delete** to instantly revoke the compromised key.
-    4. Click **Add Key** -> **Create New Key** (JSON).
-    5. Download the key, upload it to the server, overwrite `/home/hsjb/Documents/Website/erp-intrex-digital/firebase-credentials.json` with the new file, and restart Django.
+    1. Log in to the MySQL server.
+    2. Revoke the compromised user credentials and create new ones.
+    3. Update the `.env` file with the new database credentials and restart Django.
 
 ---
 
@@ -101,18 +98,20 @@ Save the script below to `/usr/local/bin/erp-backup.sh` and set up a root cron j
 # Backup Configuration
 BACKUP_DIR="/var/backups/erp"
 SQLITE_BACKUP_DIR="$BACKUP_DIR/sqlite"
+MYSQL_BACKUP_DIR="$BACKUP_DIR/mysql"
 DATE=$(date +%F_%H%M%S)
 
-mkdir -p "$SQLITE_BACKUP_DIR"
+mkdir -p "$SQLITE_BACKUP_DIR" "$MYSQL_BACKUP_DIR"
 
 # 1. SQLite Online Backup
 sqlite3 /home/hsjb/Documents/Website/erp-intrex-digital/db.sqlite3 ".backup '$SQLITE_BACKUP_DIR/db_$DATE.sqlite3'"
 
-# 2. Firestore Cloud Backup Trigger
-gcloud firestore export gs://intrex-erp-backups/firestore-exports/$DATE
+# 2. MySQL Dump
+mysqldump -u erp_user -p'intrex_erp_password' intrex_erp > "$MYSQL_BACKUP_DIR/intrex_erp_$DATE.sql"
 
 # 3. Clean up local backups older than 14 days
 find "$SQLITE_BACKUP_DIR" -type f -name "*.sqlite3" -mtime +14 -delete
+find "$MYSQL_BACKUP_DIR" -type f -name "*.sql" -mtime +14 -delete
 
 echo "Intrex ERP backup completed on $DATE"
 ```

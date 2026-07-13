@@ -3,60 +3,37 @@ import time
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from config.logger import firebase_logger
+from accounts.models import AuditLog
+
 
 @login_required
 def erp_dashboard(request):
-    from config.firebase import tenant_db
     from config.services import KPIService
 
     kpis = KPIService.get_cross_module_kpis()
     summaries = KPIService.get_module_summaries()
     quick_actions = KPIService.get_quick_actions(request.user)
 
-    # Fetch audit logs (recent 5 system audit logs)
-    audit_logs = []
-    try:
-        from google.cloud import firestore
-        logs_stream = tenant_db.collection('sys_audit_logs').order_by('timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
-        for doc in logs_stream:
-            log_data = doc.to_dict()
-            log_data['id'] = doc.id
-            audit_logs.append(log_data)
-    except Exception:
-        try:
-            logs_stream = tenant_db.collection('sys_audit_logs').limit(5).stream()
-            for doc in logs_stream:
-                log_data = doc.to_dict()
-                log_data['id'] = doc.id
-                audit_logs.append(log_data)
-        except Exception as e:
-            firebase_logger.error(f"Error fetching audit logs: {e}")
+    audit_logs = list(AuditLog.objects.select_related('user').order_by('-timestamp')[:5].values(
+        'user__username', 'action', 'module', 'description', 'timestamp',
+    ))
+    for log in audit_logs:
+        log['username'] = log.pop('user__username') or 'Anonymous'
 
-    # User Stats
-    user_stats = {'total_users': 0, 'active_users': 0}
-    try:
-        from django.contrib.auth.models import User
-        user_stats['total_users'] = User.objects.count()
-        user_stats['active_users'] = User.objects.filter(is_active=True).count()
-    except Exception as e:
-        firebase_logger.error(f"Error fetching User stats: {e}")
+    from django.contrib.auth.models import User
+    user_stats = {
+        'total_users': User.objects.count(),
+        'active_users': User.objects.filter(is_active=True).count(),
+    }
 
-    # Documentation Stats
+    from django.conf import settings
     docs_stats = {'total_pages': 0}
-    try:
-        import os
-        from django.conf import settings
-        base_docs_path = os.path.join(settings.BASE_DIR, 'docs-portal', 'docs')
+    base_docs_path = os.path.join(settings.BASE_DIR, 'docs-portal', 'docs')
+    if os.path.exists(base_docs_path):
         total_md_files = 0
-        if os.path.exists(base_docs_path):
-            for root, dirs, files in os.walk(base_docs_path):
-                for file in files:
-                    if file.endswith('.md'):
-                        total_md_files += 1
+        for root, dirs, files in os.walk(base_docs_path):
+            total_md_files += sum(1 for f in files if f.endswith('.md'))
         docs_stats['total_pages'] = total_md_files
-    except Exception as e:
-        firebase_logger.error(f"Error fetching Docs stats: {e}")
 
     context = {
         'kpis': kpis,
@@ -72,45 +49,54 @@ def erp_dashboard(request):
 def health_check(request):
     status = {"status": "healthy", "timestamp": time.time()}
     code = 200
-    try:
-        from config.firebase import db
-        db.collection('intrex_health').limit(1).stream()
-        status["firestore"] = "connected"
-    except Exception:
-        status["firestore"] = "disconnected"
-        status["status"] = "degraded"
-        code = 503
+
+    # Database
     try:
         from django.db import connection
         connection.ensure_connection()
         status["database"] = "connected"
-    except Exception:
-        status["database"] = "disconnected"
+    except Exception as e:
+        status["database"] = f"disconnected: {e}"
         status["status"] = "degraded"
         code = 503
+
+    # Redis / Cache
+    try:
+        from django.core.cache import cache
+        cache.set('_health_check', 1, 5)
+        if cache.get('_health_check') != 1:
+            raise RuntimeError('cache write/read mismatch')
+        status["cache"] = "connected"
+    except Exception as e:
+        status["cache"] = f"disconnected: {e}"
+        if code == 200:
+            status["status"] = "degraded"
+            code = 503
+
+    # Celery worker (lightweight ping via Redis stats — full task ping is heavy)
+    from django.conf import settings
+    celery_broker = getattr(settings, 'CELERY_BROKER_URL', '')
+    status["celery_broker"] = "configured" if celery_broker else "not configured"
+
     return JsonResponse(status, status=code)
 
 
 @login_required
 def documentation_viewer(request, path=''):
-    import os
     import markdown
     import re
     from django.conf import settings
     from django.http import Http404
 
-    # Default to index.md if no path provided
     if not path or path == '/':
         path = 'index.md'
-    
-    # Ensure it ends with .md
+
     if not path.endswith('.md'):
         path += '.md'
 
-    # Secure the path against directory traversal
     base_docs_path = os.path.join(settings.BASE_DIR, 'docs-portal', 'docs')
     safe_path = os.path.abspath(os.path.join(base_docs_path, path))
-    
+
     if not safe_path.startswith(base_docs_path):
         raise Http404("Invalid documentation path.")
 
@@ -120,7 +106,6 @@ def documentation_viewer(request, path=''):
     with open(safe_path, 'r', encoding='utf-8') as f:
         md_content = f.read()
 
-    # Convert markdown to HTML with common extensions (disable_raw_html for security)
     html_content = markdown.markdown(
         md_content,
         extensions=['extra', 'codehilite', 'toc', 'tables'],
@@ -132,7 +117,6 @@ def documentation_viewer(request, path=''):
             }
         }
     )
-    # Strip any remaining dangerous tags as defense-in-depth
     html_content = re.sub(r'<script[\s\S]*?<\/script>', '', html_content, flags=re.IGNORECASE)
     html_content = re.sub(r'<iframe[\s\S]*?<\/iframe>', '', html_content, flags=re.IGNORECASE)
     html_content = re.sub(r'<object[\s\S]*?<\/object>', '', html_content, flags=re.IGNORECASE)
@@ -148,5 +132,3 @@ def documentation_viewer(request, path=''):
         'html_content': html_content,
         'current_path': path
     })
-
-

@@ -40,7 +40,7 @@ class EmployeeAdmin(admin.ModelAdmin):
         ('Bank Details', {'fields': ['account_holder', 'account_number', 'bank_name', 'branch_name']}),
         ('Personal', {'fields': ['dob', 'gender', 'marital_status', 'religion', 'city', 'zip']}),
         ('Emergency Contact', {'fields': ['ec_primary_name', 'ec_primary_relation', 'ec_primary_mobile', 'ec_secondary_name', 'ec_secondary_relation', 'ec_secondary_mobile']}),
-        ('Metadata', {'fields': ['id', 'contact_id', 'firestore_id', 'is_active', 'created_by', 'updated_by', 'created_at', 'updated_at']}),
+        ('Metadata', {'fields': ['id', 'contact_id', 'is_active', 'created_by', 'updated_by', 'created_at', 'updated_at']}),
     ]
 
 
@@ -491,3 +491,41 @@ class NineBoxCellAdmin(admin.ModelAdmin):
     search_fields = ['employee__first_name']
     readonly_fields = ['id', 'created_at', 'updated_at']
     raw_id_fields = ['employee', 'talent_review']
+
+
+# ── Phase 6: Disciplinary Management ─────────────────────────────
+
+@admin.register(models.DisciplinaryCase)
+class DisciplinaryCaseAdmin(admin.ModelAdmin):
+    list_display = ['employee', 'case_number', 'severity', 'status', 'incident_date']
+    list_filter = ['severity', 'status']
+    search_fields = ['employee__first_name', 'case_number', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['employee', 'reported_by']
+
+
+@admin.register(models.DisciplinaryHearing)
+class DisciplinaryHearingAdmin(admin.ModelAdmin):
+    list_display = ['case', 'hearing_date', 'location', 'status']
+    list_filter = ['status']
+    search_fields = ['case__case_number', 'notes']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['case']
+
+
+@admin.register(models.DisciplinaryAction)
+class DisciplinaryActionAdmin(admin.ModelAdmin):
+    list_display = ['case', 'action_type', 'issued_date', 'status']
+    list_filter = ['action_type', 'status']
+    search_fields = ['case__case_number', 'description']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['case', 'issued_by']
+
+
+@admin.register(models.DisciplinaryAppeal)
+class DisciplinaryAppealAdmin(admin.ModelAdmin):
+    list_display = ['action', 'appeal_date', 'status', 'decision_date']
+    list_filter = ['status']
+    search_fields = ['action__case__case_number', 'grounds']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    raw_id_fields = ['action', 'decided_by']

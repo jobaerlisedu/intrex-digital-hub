@@ -16,16 +16,16 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 
 | Theme | Objective | Success Metric |
 |-------|-----------|----------------|
-| **Process Automation** | Replace manual certificate issuance, journal posting, and notification workflows with Firestore-triggered Cloud Functions | Zero-touch certificate issuance; <30s from payment to certificate |
+| **Process Automation** | Replace manual certificate issuance, journal posting, and notification workflows with Django signal-triggered tasks | Zero-touch certificate issuance; <30s from payment to certificate |
 | **Integration Layer** | Enable external portals to subscribe to ERP state changes via webhooks | First external integration live (client-facing portal sync) |
 | **Security Hardening** | Enforce audit log immutability, session lifecycle signals, and tamper-proof trails | Zero audit-log deletion incidents; all auth events logged |
-| **Platform Stability** | Productionise Cloud Functions deployment, monitoring, and error recovery | Cloud Function uptime ≥ 99.9%; pager-duty alerts configured |
+| **Platform Stability** | Productionise background task deployment, monitoring, and error recovery | Background task uptime ≥ 99.9%; pager-duty alerts configured |
 
 ---
 
 ## Epics & User Stories
 
-### Epic 1: Firestore Cloud Triggers (Automation Engine)
+### Epic 1: Django Signal Triggers (Automation Engine)
 
 > **Priority: P1 (Critical)**  |  **Theme:** Process Automation  |  **Target Release:** Sprint 8–9
 
@@ -36,15 +36,15 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 > **So that** learners receive credentials immediately without manual review.
 
 **Acceptance Criteria:**
-- [ ] Firebase Cloud Function triggered `onWrite` on `learn_payments`
-- [ ] When `dueAmount ≤ 0` and assessment grade exists and is "Passed", write certificate record to `learn_certificates`
-- [ ] When `dueAmount > 0` or grade is "Failed" or missing, no certificate is written
-- [ ] Function logs outcome to Cloud Logging with structured payload
-- [ ] Idempotent — multiple payment writes for the same enrollment do not create duplicate certificates
-- [ ] Error handling: on failure, push error entry to a `failed_events` Firestore collection for manual retry
+- [ ] Django signal `post_save` on `StudentPayment` triggers certificate check
+- [ ] When `due_amount ≤ 0` and assessment grade exists and is "Passed", create certificate record in `learn_certificates`
+- [ ] When `due_amount > 0` or grade is "Failed" or missing, no certificate is created
+- [ ] Task logs outcome to Django logging with structured payload
+- [ ] Idempotent — multiple payment saves for the same enrollment do not create duplicate certificates
+- [ ] Error handling: on failure, push error entry to a `failed_events` table for manual retry
 
 **Story Points:** 8  
-**Dependencies:** Firestore collection schemas for `learn_payments`, `learn_course_assessments`, `learn_certificates` (all exist)
+**Dependencies:** Django model schemas for `StudentPayment`, `CourseAssessment`, `Certificate` (all exist)
 
 ---
 
@@ -55,15 +55,15 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 > **So that** my team can respond to procurement requests within the same business day.
 
 **Acceptance Criteria:**
-- [ ] Firebase Cloud Function triggered `onCreate` on `requisitions`
-- [ ] Function reads requisition fields: `title`, `requestedBy`, `department`, `urgency`, `createdAt`
-- [ ] Slack webhook URL stored in Firestore `config/slack_webhook` document
+- [ ] Django signal `post_save` on `Requisition` triggers Slack notification
+- [ ] Task reads requisition fields: `title`, `requested_by`, `department`, `urgency`, `created_at`
+- [ ] Slack webhook URL stored in a Django model `Config` table
 - [ ] Notification formatted with colour-coded urgency marker (red for high, yellow for medium, green for low)
-- [ ] Non-blocking — webhook failure does not prevent the requisition write
-- [ ] Configurable via Firestore config document (enable/disable, override channel)
+- [ ] Non-blocking — webhook failure does not prevent the requisition save
+- [ ] Configurable via Django admin (enable/disable, override channel)
 
 **Story Points:** 5  
-**Dependencies:** Slack workspace admin must provide incoming webhook URL; `requisitions` collection schema (exists)
+**Dependencies:** Slack workspace admin must provide incoming webhook URL; `Requisition` model (exists)
 
 ---
 
@@ -74,15 +74,15 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 > **So that** the general ledger always reflects current stock value without manual journal entry.
 
 **Acceptance Criteria:**
-- [ ] Firebase Cloud Function triggered `onUpdate` on `goods_receipts` when status changes to `Received`
-- [ ] Function retrieves product cost from `products` collection
-- [ ] Creates a journal entry in `journal_entries` (Debit: Inventory Asset, Credit: GRN/AP Clearing)
+- [ ] Django signal `post_save` on `GoodsReceipt` when status changes to `Received`
+- [ ] Task retrieves product cost from `Product` model
+- [ ] Creates a journal entry in `JournalEntry` (Debit: Inventory Asset, Credit: GRN/AP Clearing)
 - [ ] Maps to correct COA codes based on product category
 - [ ] Includes `goods_receipt_id` cross-reference in journal entry metadata
 - [ ] Reversal entry created if GRN is voided
 
 **Story Points:** 8  
-**Dependencies:** `goods_receipts` and `journal_entries` collections (exist); COA mapping table needed
+**Dependencies:** `GoodsReceipt` and `JournalEntry` models (exist); COA mapping table needed
 
 ---
 
@@ -138,7 +138,7 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 > **So that** external systems can subscribe to ERP events without code changes.
 
 **Acceptance Criteria:**
-- [ ] Firestore collection `webhooks` with schema: `event_type`, `target_url`, `secret_token`, `is_active`, `created_at`, `updated_at`, `last_triggered_at`, `failure_count`
+- [ ] Django model `Webhook` with fields: `event_type`, `target_url`, `secret_token`, `is_active`, `created_at`, `updated_at`, `last_triggered_at`, `failure_count`
 - [ ] Admin interface (Django admin) to manage webhook registrations
 - [ ] Secret token auto-generated on creation (SHA-256 HMAC key)
 - [ ] Validation on save: `target_url` must be valid HTTPS URL; `event_type` must match known event types
@@ -163,7 +163,7 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 - [ ] On non-2xx or timeout: increment `failure_count`; auto-deactivate after 10 consecutive failures
 - [ ] Dispatch is non-blocking — queued via background task (Celery or Django-Q)
 - [ ] Retry logic: exponential backoff up to 3 retries
-- [ ] Full dispatch log maintained in `webhook_delivery_log` collection
+- [ ] Full dispatch log maintained in `WebhookDeliveryLog` model
 
 **Story Points:** 8  
 **Dependencies:** Celery/Django-Q must be operational; `webhooks` collection (Story 3.1)
@@ -206,25 +206,25 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 - [ ] Rollback capability via previous version tag
 
 **Story Points:** 8  
-**Dependencies:** Google Cloud project configured with billing; Firebase Admin SDK access
+**Dependencies:** Celery/Django-Q configured with Redis/RabbitMQ; MySQL database access
 
 ---
 
-#### Story 4.2 — Monitoring & alerting for Cloud Functions
+#### Story 4.2 — Monitoring & alerting for Background Tasks
 
 > **As a** platform engineer  
-> **I want** dashboards and alerts for Cloud Function error rates, latency, and invocation counts  
+> **I want** dashboards and alerts for background task error rates, latency, and execution counts  
 > **So that** we can detect and respond to failures before users are impacted.
 
 **Acceptance Criteria:**
-- [ ] Cloud Monitoring dashboard created for all functions: invocation count, error count, execution time p50/p95/p99
+- [ ] Django monitoring dashboard created for all tasks: execution count, error count, execution time p50/p95/p99
 - [ ] Alert policy: error rate > 5% over 5 minutes → PagerDuty/Opsgenie notification
-- [ ] Alert policy: function timeout rate > 1% → slack notification to #devops
-- [ ] All functions emit structured logs with `severity`, `function_name`, `execution_id`, `trigger_resource`
+- [ ] Alert policy: task timeout rate > 1% → slack notification to #devops
+- [ ] All tasks emit structured logs with `severity`, `task_name`, `execution_id`, `trigger_source`
 - [ ] Log-based metric for business-level failures (e.g., certificate generation failure)
 
 **Story Points:** 5  
-**Dependencies:** Story 4.1; Google Cloud Monitoring + PagerDuty setup
+**Dependencies:** Story 4.1; Django monitoring + PagerDuty setup
 
 ---
 
@@ -239,12 +239,12 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 #### Story 5.2 — Centralise COA mapping
 
 > **As an** accountant  
-> **I want** Chart of Accounts codes to be centrally configured in Firestore  
+> **I want** Chart of Accounts codes to be centrally configured in a Django model  
 > **So that** auto-posting functions always use the correct account codes without hardcoding.
 
 **Acceptance Criteria:**
-- [ ] Firestore document `config/coa_mapping` contains category-to-COA-code mappings
-- [ ] Inventory valuation function reads COA from this config instead of hardcoded values
+- [ ] Django model `COAMapping` contains category-to-COA-code mappings
+- [ ] Inventory valuation task reads COA from this model instead of hardcoded values
 - [ ] Admin interface to view and update COA mappings
 - [ ] Validation: mappings must reference valid COA codes that exist in `chart_of_accounts`
 
@@ -298,8 +298,8 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 
 | ID | Dependency | Affected Stories | Owner | Status |
 |----|-----------|------------------|-------|--------|
-| D1 | Google Cloud project with billing enabled | 1.1, 1.2, 1.3, 4.1 | Infrastructure | 🔴 Not started |
-| D2 | Firebase Admin SDK deployed to Cloud Functions | 1.1, 1.2, 1.3 | Infrastructure | 🔴 Not started |
+| D1 | Celery/Django-Q with Redis/RabbitMQ configured | 1.1, 1.2, 1.3, 4.1 | Infrastructure | 🔴 Not started |
+| D2 | Django ORM models deployed and migrated | 1.1, 1.2, 1.3 | Backend | 🔴 Not started |
 | D3 | Slack incoming webhook URL | 1.2 | Business Ops | 🟡 Awaiting stakeholder |
 | D4 | Celery / Django-Q operational for async dispatch | 3.2 | Backend | 🔴 Not started |
 | D5 | Google Secret Manager for env secrets | 4.1 | Infrastructure | 🔴 Not started |
@@ -311,11 +311,11 @@ Transform Intrex Digital Hub from a feature-rich ERP into an **automated, event-
 
 | R# | Risk | Probability | Impact | Mitigation | Owner |
 |----|------|-------------|--------|------------|-------|
-| R1 | Google Cloud billing not approved | High | Critical | Escalate to management; prepare cost estimate | PM |
-| R2 | Cloud Functions cold start latency | Medium | Medium | Use min-instance setting; benchmark before production | Backend |
-| R3 | Webhook secret token exposure | Low | Critical | Auto-rotate via admin; store in Secret Manager only | Backend |
+| R1 | Database connection pool exhaustion | Medium | Critical | Monitor connection pool metrics; configure proper pool limits | Backend |
+| R2 | Background task queue backlog | Medium | Medium | Scale worker processes; set up queue monitoring alerts | Backend |
+| R3 | Webhook secret token exposure | Low | Critical | Auto-rotate via admin; store in environment variables only | Backend |
 | R4 | Slack webhook rate limiting | Medium | Low | Batch notifications; queue-based dispatch | Backend |
-| R5 | Team unfamiliar with Cloud Functions | Medium | Medium | Allocate 2 days spike/grooming in Sprint 8 | EM |
+| R5 | Team unfamiliar with Django signals and Celery | Medium | Medium | Allocate 2 days spike/grooming in Sprint 8 | EM |
 
 ---
 

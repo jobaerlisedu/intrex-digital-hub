@@ -1,12 +1,38 @@
+# Python
 venv/
-.env
-db.sqlite3
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.pytest_cache/
+*.log
+
+# Environment
+.env
+db.sqlite3
+
+# Credentials (historical)
 firebase-credentials.json
 firebase_credentials.json
+
+# Node
 node_modules/
-staticfiles/
 static/dist/
 
-# Firestore sync sentinel.last_firestore_sync
+# Django
+staticfiles/
+media/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db

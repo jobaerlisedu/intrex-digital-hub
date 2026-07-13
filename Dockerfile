@@ -19,8 +19,11 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build && python manage.py collectstatic --no-input
+RUN npm run build && python manage.py collectstatic --no-input --clear
+
+# Startup script — runs bootstrap tasks, then starts gunicorn
+RUN printf '#!/usr/bin/env bash\nset -o errexit\npython manage.py bootstrap\ngunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 4 --timeout 120 --access-logfile - --error-logfile -\n' > /start.sh && chmod +x /start.sh
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["/start.sh"]

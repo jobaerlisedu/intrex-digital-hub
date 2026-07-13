@@ -92,3 +92,43 @@ class DeliveryAdmin(admin.ModelAdmin):
     search_fields = ['challan_code', 'client_name']
     readonly_fields = ['id', 'created_at', 'updated_at']
     raw_id_fields = ['requisition']
+
+
+@admin.register(models.RequisitionItem)
+class RequisitionItemAdmin(admin.ModelAdmin):
+    list_display = ['requisition', 'item_name', 'quantity', 'unit_price']
+    search_fields = ['item_name']
+    raw_id_fields = ['requisition']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.RFQItem)
+class RFQItemAdmin(admin.ModelAdmin):
+    list_display = ['rfq', 'item_name', 'quantity', 'unit']
+    search_fields = ['item_name']
+    raw_id_fields = ['rfq']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.QuotationLineItem)
+class QuotationLineItemAdmin(admin.ModelAdmin):
+    list_display = ['quotation', 'item_name', 'quantity', 'unit_price', 'line_total']
+    search_fields = ['item_name']
+    raw_id_fields = ['quotation']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.PurchaseOrderItem)
+class PurchaseOrderItemAdmin(admin.ModelAdmin):
+    list_display = ['purchase_order', 'item_name', 'quantity', 'unit_price', 'line_total', 'received_qty']
+    search_fields = ['item_name']
+    raw_id_fields = ['purchase_order']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(models.GoodsReceiptItem)
+class GoodsReceiptItemAdmin(admin.ModelAdmin):
+    list_display = ['goods_receipt', 'item_name', 'ordered_qty', 'received_qty', 'unit_price', 'line_total']
+    search_fields = ['item_name']
+    raw_id_fields = ['goods_receipt']
+    readonly_fields = ['id', 'created_at']

@@ -1,6 +1,6 @@
 # Core Entity-Relationship (ER) Map & Database Schema
 
-This document details the database skeletons for both the SQLite (User Access and System Security Logs) and Google Firestore NoSQL (Core ERP Business Logic) databases.
+This document details the database skeletons for both the SQLite (User Access and System Security Logs) and MySQL (Core ERP Business Logic) databases.
 
 ---
 
@@ -51,15 +51,15 @@ erDiagram
 
 ### 1. Foundational Master Entities
 
-#### `contacts` (Firestore Collection)
+#### `contacts` (MySQL Table)
 Acts as the global registry of physical persons and institutions. Tracks email/phone overlap across modules.
 * **Fields:**
-  * `id` (String - Document ID)
-  * `legal_name` (String)
-  * `email` (String - Unique Index)
-  * `phone` (String)
-  * `roles` (Array of Strings: `['employee', 'student', 'investor', 'vendor', 'client']`)
-  * `created_at` (Timestamp)
+  * `id` (Integer - Primary Key, Auto-increment)
+  * `legal_name` (VARCHAR)
+  * `email` (VARCHAR - Unique Index)
+  * `phone` (VARCHAR)
+  * `roles` (JSON: `['employee', 'student', 'investor', 'vendor', 'client']`)
+  * `created_at` (DATETIME)
 
 #### `auth_user` (SQLite Table - Django Auth)
 Holds account credentials, administration flags, and default permissions.
@@ -70,31 +70,27 @@ Holds account credentials, administration flags, and default permissions.
   * `password` (String - PBKDF2 Hashed)
   * `is_staff` / `is_superuser` (Boolean)
 
-#### `chart_of_accounts` (Firestore Collection)
+#### `chart_of_accounts` (MySQL Table)
 Declares General Ledger accounts and financial classifications.
 * **Fields:**
-  * `id` (String - Document ID)
-  * `account_code` (String - e.g., `11100`, `11200`, `21100`, `41000`, `51000`)
-  * `name` (String - e.g., Cash, Accounts Receivable, Accounts Payable, Sales Revenue, Salary Expense)
-  * `account_type` (String - Asset, Liability, Equity, Revenue, Expense)
-  * `currency` (String)
-  * `is_active` (Boolean)
+  * `id` (Integer - Primary Key, Auto-increment)
+  * `account_code` (VARCHAR - e.g., `11100`, `11200`, `21100`, `41000`, `51000`)
+  * `name` (VARCHAR - e.g., Cash, Accounts Receivable, Accounts Payable, Sales Revenue, Salary Expense)
+  * `account_type` (VARCHAR - Asset, Liability, Equity, Revenue, Expense)
+  * `currency` (VARCHAR)
+  * `is_active` (BOOLEAN)
 
-#### `journal_entries` (Firestore Collection)
+#### `journal_entries` (MySQL Table)
 Maintains double-entry compliance records. Auto-posted by operational modules or created manually in the General Journal.
 * **Fields:**
-  * `id` (String - Document ID: `JE-YYYY-XXXX` or `AUTO-XXXX`)
-  * `entry_code` (String)
-  * `posting_date` (String - `YYYY-MM-DD`)
-  * `reference_document` (String - e.g., `Invoice INV-1002`, `Payroll period April 2026`)
-  * `narration` (String)
-  * `status` (String - Draft, Posted, Voided)
-  * `created_by` / `approved_by` (String)
-  * `created_at` (Timestamp)
-  * `lines` (Array of Maps):
-    * `account_id` (String - reference to `chart_of_accounts`)
-    * `debit_amount` (Double)
-    * `credit_amount` (Double)
+  * `id` (Integer - Primary Key, Auto-increment)
+  * `entry_code` (VARCHAR)
+  * `posting_date` (DATE - `YYYY-MM-DD`)
+  * `reference_document` (VARCHAR - e.g., `Invoice INV-1002`, `Payroll period April 2026`)
+  * `narration` (TEXT)
+  * `status` (VARCHAR - Draft, Posted, Voided)
+  * `created_by` / `approved_by` (VARCHAR)
+  * `created_at` (DATETIME)
 
 ---
 
@@ -102,7 +98,7 @@ Maintains double-entry compliance records. Auto-posted by operational modules or
 
 #### EdTech & Training (`training` module)
 * **`learn_registrations`:** Tracks student enrollment. Points to `contacts.id` via `contact_id`.
-* **`learn_payments`:** Maps financial fee schedules, installment arrangements, and payments. Points to `learn_registrations.id` (Document ID match).
+* **`learn_payments`:** Maps financial fee schedules, installment arrangements, and payments. Points to `learn_registrations.id` via foreign key.
 * **`learn_course_assessments`:** Logs exam scores and final course passing eligibility.
 * **`learn_certificates`:** Holds issued hashes for online certificate verification.
 

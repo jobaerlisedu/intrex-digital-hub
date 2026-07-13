@@ -6,7 +6,7 @@ This document outlines the API endpoints exposed by the Intrex ERP platform, inc
 
 ## 1. Public JSON API Endpoints
 
-These endpoints handle public submissions from the main website (e.g. course registrations and contact inquiries). They are implemented using Django views that interface directly with Google Firestore.
+These endpoints handle public submissions from the main website (e.g. course registrations and contact inquiries). They are implemented using Django views that store data in MySQL via Django ORM.
 
 ### A. Course Registration API
 Submits a student registration application directly to the training admissions pipeline.
@@ -85,8 +85,8 @@ Submits user questions and general training inquiries. Depending on the `source`
 | `source` | String | No | Origin tracker (defaults to `"training-page"`). |
 
 #### Routing Rules
-*   **`source = 'training-page'`**: Saves directly into the `learn_online_registrations` Firestore collection, returning a key prefixed with `REG-`. This links the inquiry to the admissions pipeline.
-*   **`source = 'contact-page'` (or other)**: Saves into the `learn_online_inquiries` Firestore collection, returning a key prefixed with `INQ-`. This links the inquiry to the general marketing sales queue.
+*   **`source = 'training-page'`**: Saves directly into the `learn_online_registrations` MySQL table, returning a key prefixed with `REG-`. This links the inquiry to the admissions pipeline.
+*   **`source = 'contact-page'` (or other)**: Saves into the `learn_online_inquiries` MySQL table, returning a key prefixed with `INQ-`. This links the inquiry to the general marketing sales queue.
 
 #### JSON Responses
 
@@ -119,41 +119,26 @@ Retrieves metadata of student certificates issued by the academy to confirm vali
 
 ---
 
-## 2. Internal Firestore Queries
+## 2. Internal Django ORM Queries
 
-Within the backend Python views, the connection to Google Firestore is established through the `db` client exported by the `config.firebase` module.
+Within the backend Python views, database access is performed through Django ORM models defined in each module.
 
 ### Query Snippets
 
 #### 1. Fetching Active Documents
 ```python
-from config.firebase import db
+from training.models import Course
 
 # Retrieve all active courses sorted by title
-courses_ref = db.collection('learn_courses')
-active_courses = []
-
-try:
-    docs = courses_ref.stream()
-    for doc in docs:
-        data = doc.to_dict()
-        data['id'] = doc.id
-        if data.get('status') == 'Active':
-            active_courses.append(data)
-    active_courses.sort(key=lambda x: x.get('title', ''))
-except Exception as e:
-    logger.error(f"Firestore query failed: {e}")
+active_courses = Course.objects.filter(status='Active').order_by('title')
 ```
 
-#### 2. Writing a Document with Server Timestamps
+#### 2. Creating a Record
 ```python
-from config.firebase import db
-from firebase_admin import firestore
+from training.models import OnlineRegistration
 
-doc_ref = db.collection('learn_online_registrations').document('REG-999999')
-doc_ref.set({
-    'fullName': 'Jane Doe',
-    'email': 'jane@example.com',
-    'createdAt': firestore.SERVER_TIMESTAMP
-})
+registration = OnlineRegistration.objects.create(
+    full_name='Jane Doe',
+    email='jane@example.com'
+)
 ```

@@ -17,36 +17,47 @@ class ActiveSessionMiddleware:
             session_key = request.session.session_key
             if session_key:
                 now = timezone.now()
-                # 1. Check or create active session record
-                active_sess, created = ActiveSession.objects.get_or_create(
-                    session_key=session_key,
-                    defaults={
-                        'user': request.user,
-                        'ip_address': get_client_ip(request),
-                        'user_agent': request.META.get('HTTP_USER_AGENT', '')[:255]
-                    }
+                idle_limit = timedelta(minutes=30)
+                cutoff = now - idle_limit
+
+                # Atomic upsert with timeout enforcement — prevents duplicate session records
+                updated = ActiveSession.objects.filter(
+                    session_key=session_key
+                ).filter(
+                    last_activity__gte=cutoff
+                ).update(
+                    last_activity=now,
+                    ip_address=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
                 )
 
-                # 2. Check for idle timeout (30 minutes)
-                idle_limit = timedelta(minutes=30)
-                if not created and (now - active_sess.last_activity) > idle_limit:
-                    # Session has expired due to inactivity
-                    log_action_async(
+                if updated == 0:
+                    # Either no record exists, or session expired
+                    ActiveSession.objects.filter(session_key=session_key).delete()
+                    ActiveSession.objects.create(
+                        session_key=session_key,
                         user=request.user,
-                        action='SESSION_TIMEOUT',
-                        module='auth',
-                        description=f"User session expired due to 30-minute idle timeout.",
-                        ip_address=get_client_ip(request)
+                        ip_address=get_client_ip(request),
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
                     )
-                    # Delete the active session and logout
-                    active_sess.delete()
-                    logout(request)
-                    messages.warning(request, "Your session has expired due to inactivity. Please log in again.")
-                    return redirect('login')
-                
-                # 3. Update last activity timestamp
-                active_sess.last_activity = now
-                active_sess.save(update_fields=['last_activity'])
+
+                    # If the session was expired (record existed but too old), log and logout
+                    expired = ActiveSession.objects.filter(
+                        session_key=session_key,
+                        last_activity__lt=cutoff,
+                    ).first()
+                    if expired:
+                        expired.delete()
+                        log_action_async(
+                            user=request.user,
+                            action='SESSION_TIMEOUT',
+                            module='auth',
+                            description="User session expired due to 30-minute idle timeout.",
+                            ip_address=get_client_ip(request),
+                        )
+                        logout(request)
+                        messages.warning(request, "Your session has expired due to inactivity. Please log in again.")
+                        return redirect('login')
         
         response = self.get_response(request)
         return response

@@ -23,13 +23,15 @@ def vite_assets(request):
     """
     ctx = {
         'use_vite_dev': settings.DEBUG,
-        'vite_dev_url': 'http://localhost:5173',
+        'vite_dev_url': os.environ.get('VITE_DEV_URL', 'http://localhost:5173'),
         'vite_js_url': '',
         'vite_css_url': '',
     }
 
     if settings.DEBUG:
-        ctx['vite_js_url'] = 'http://localhost:5173/static_src/js/main.js'
+        vite_dev = os.environ.get('VITE_DEV_URL', 'http://localhost:5173')
+        ctx['vite_dev_url'] = vite_dev
+        ctx['vite_js_url'] = f'{vite_dev}/static_src/js/main.js'
     else:
         manifest_path = os.path.join(settings.BASE_DIR, 'static', 'dist', 'manifest.json')
         if os.path.exists(manifest_path):

@@ -1,85 +1,74 @@
-from config.firebase import db
-from google.cloud import firestore
-from django.core.cache import cache
+from django.db import models
 from config.logger import hrm_logger
-from ..audit import enrich_with_audit
-from ..views_helpers import get_collection_data, get_cached_collection, invalidate_cache
-from django.contrib import messages
-from django.shortcuts import redirect
 
 
-class FirestoreService:
-    collection_name = None
-    cache_enabled = False
+class ORMService:
+    model = None
+    search_field = 'pk'
 
     @classmethod
-    def _col(cls):
-        return db.collection(cls.collection_name)
+    def get_all(cls, filters=None, order_by=None):
+        qs = cls.model.objects.all()
+        if filters:
+            qs = qs.filter(**filters)
+        if order_by:
+            qs = qs.order_by(order_by)
+        return list(qs)
 
     @classmethod
-    def get_all(cls, default=None):
-        return get_collection_data(cls.collection_name, default or [])
+    def get_by_id(cls, pk):
+        try:
+            return cls.model.objects.get(pk=pk)
+        except cls.model.DoesNotExist:
+            return None
 
     @classmethod
-    def get_cached(cls, timeout=60):
-        return get_cached_collection(cls.collection_name, timeout=timeout)
+    def create(cls, data, user=None):
+        instance = cls.model(**data)
+        if user:
+            instance.created_by = user
+            instance.updated_by = user
+        instance.save()
+        return str(instance.pk)
 
     @classmethod
-    def get_by_id(cls, doc_id):
-        doc = cls._col().document(doc_id).get()
-        if doc.exists:
-            item = doc.to_dict()
-            item['id'] = doc.id
-            return item
-        return None
+    def update(cls, pk, data, user=None):
+        if user:
+            data['updated_by'] = user
+        cls.model.objects.filter(pk=pk).update(**data)
+        return pk
 
     @classmethod
-    def create(cls, data, user):
-        data = enrich_with_audit(data, user, is_update=False)
-        _, ref = cls._col().add(data)
-        if cls.cache_enabled:
-            invalidate_cache(cls.collection_name)
-        return ref.id
+    def delete(cls, pk, soft=True):
+        if soft:
+            cls.model.objects.filter(pk=pk).update(is_active=False)
+        else:
+            cls.model.objects.filter(pk=pk).delete()
 
     @classmethod
-    def update(cls, doc_id, data, user):
-        data = enrich_with_audit(data, user, is_update=True)
-        cls._col().document(doc_id).update(data)
-        if cls.cache_enabled:
-            invalidate_cache(cls.collection_name)
-
-    @classmethod
-    def delete(cls, doc_id):
-        cls._col().document(doc_id).delete()
-        if cls.cache_enabled:
-            invalidate_cache(cls.collection_name)
-
-    @classmethod
-    def update_status(cls, doc_id, status, user):
-        cls._col().document(doc_id).update(
-            enrich_with_audit({'status': status}, user, is_update=True)
-        )
+    def update_status(cls, pk, status, user=None):
+        data = {'status': status}
+        if user:
+            data['updated_by'] = user
+        cls.model.objects.filter(pk=pk).update(**data)
 
     @classmethod
     def get_employee_list(cls):
         try:
-            docs = db.collection('hrm_employees').stream()
-            return [d.to_dict().get('name', '') for d in docs if d.to_dict().get('name')]
+            from ..models import Employee
+            return [e.name for e in Employee.objects.filter(is_active=True) if e.name]
         except Exception:
             return []
 
     @classmethod
-    def validate_and_act(cls, request, validator, on_success, redirect_name, form_data=None):
-        data = form_data or request.POST
-        errors = validator(data) if validator else []
-        if errors:
-            for e in errors:
-                messages.error(request, e)
-            return redirect(redirect_name)
+    def get_or_create_by_pk(cls, model_class, pk, defaults=None):
+        if not pk:
+            return None
         try:
-            result = on_success()
-            return result
-        except Exception as e:
-            hrm_logger.error(f"Error in {cls.__name__}: {e}")
-            messages.error(request, str(e))
-            return redirect(redirect_name)
+            obj, _ = model_class.objects.get_or_create(
+                pk=pk,
+                defaults=defaults or {},
+            )
+            return obj
+        except model_class.MultipleObjectsReturned:
+            return model_class.objects.filter(pk=pk).first()

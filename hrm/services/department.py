@@ -1,29 +1,42 @@
-from config.firebase import db
-from config.logger import hrm_logger
-from ..audit import enrich_with_audit
-from ..validators import validate_department_data, validate_position_data
-from ..views_helpers import invalidate_cache
-from .base import FirestoreService
+from .base import ORMService
+from ..models import Department, Position
 
 
-class DepartmentService(FirestoreService):
-    collection_name = 'org_departments'
-    cache_enabled = True
+class DepartmentService(ORMService):
+    model = Department
+
+    @staticmethod
+    def _resolve(doc_id, model_class):
+        if not doc_id:
+            return None
+        try:
+            return model_class.objects.get(pk=doc_id)
+        except (model_class.DoesNotExist, ValueError):
+            pass
+        return model_class.objects.filter(pk=doc_id).first()
 
     @classmethod
     def add_department(cls, data, user):
         doc_id = data.get('doc_id')
-        base_data = {
-            'name': data.get('name'),
-            'status': data.get('status', 'Active'),
-            'module_linking': data.getlist('module_linking') if hasattr(data, 'getlist') else data.get('module_linking', []),
-            'notes': data.get('notes', ''),
-        }
         if doc_id:
-            cls.update(doc_id, base_data, user)
+            dept = cls._resolve(doc_id, Department)
+            if dept:
+                dept.name = data.get('name', dept.name)
+                dept.status = data.get('status', 'Active')
+                dept.module_linking = data.getlist('module_linking') if hasattr(data, 'getlist') else data.get('module_linking', [])
+                dept.notes = data.get('notes', '')
+                dept.updated_by = user
+                dept.save()
             return 'updated'
         else:
-            cls.create(base_data, user)
+            dept = Department.objects.create(
+                name=data.get('name'),
+                status=data.get('status', 'Active'),
+                module_linking=data.getlist('module_linking') if hasattr(data, 'getlist') else data.get('module_linking', []),
+                notes=data.get('notes', ''),
+                created_by=user,
+                updated_by=user,
+            )
             return 'created'
 
     @classmethod
@@ -32,40 +45,31 @@ class DepartmentService(FirestoreService):
         if not parent_id:
             return None
 
-        name = data.get('name')
-        status = data.get('status', 'Active')
-        notes = data.get('notes', '')
-
-        parent_name = None
-        parent_doc = db.collection('org_departments').document(parent_id).get()
-        if parent_doc.exists:
-            parent_name = parent_doc.to_dict().get('name')
-
-        if not parent_name:
+        parent = cls._resolve(parent_id, Department)
+        if not parent:
             return None
 
         doc_id = data.get('doc_id')
-        base_data = {
-            'name': name,
-            'parent_id': parent_id,
-            'parent_name': parent_name,
-            'status': status,
-            'notes': notes,
-        }
-
         if doc_id:
-            db.collection('org_departments_sub').document(doc_id).update(
-                enrich_with_audit(base_data, user, is_update=True)
-            )
-            result = 'updated'
+            sub = cls._resolve(doc_id, Department)
+            if sub:
+                sub.name = data.get('name', sub.name)
+                sub.parent = parent
+                sub.status = data.get('status', 'Active')
+                sub.notes = data.get('notes', '')
+                sub.updated_by = user
+                sub.save()
+            return 'updated'
         else:
-            db.collection('org_departments_sub').add(
-                enrich_with_audit(base_data, user, is_update=False)
+            sub = Department.objects.create(
+                name=data.get('name'),
+                parent=parent,
+                status=data.get('status', 'Active'),
+                notes=data.get('notes', ''),
+                created_by=user,
+                updated_by=user,
             )
-            result = 'created'
-
-        invalidate_cache('org_departments_sub')
-        return result
+            return 'created'
 
     @classmethod
     def add_position(cls, data, user):
@@ -77,50 +81,43 @@ class DepartmentService(FirestoreService):
         if not dept_id or not title:
             return None
 
-        dept_name = None
-        dept_doc = db.collection('org_departments').document(dept_id).get()
-        if dept_doc.exists:
-            dept_name = dept_doc.to_dict().get('name')
-
-        if not dept_name:
+        dept = cls._resolve(dept_id, Department)
+        if not dept:
             return None
 
-        sub_dept_name = "None"
+        sub_dept = None
         if sub_dept_id:
-            sub_dept_doc = db.collection('org_departments_sub').document(sub_dept_id).get()
-            if sub_dept_doc.exists:
-                sub_dept_name = sub_dept_doc.to_dict().get('name')
-        else:
-            sub_dept_id = ""
+            sub_dept = cls._resolve(sub_dept_id, Department)
 
         doc_id = data.get('doc_id')
-        base_data = {
-            'title': title,
-            'dept_id': dept_id,
-            'dept_name': dept_name,
-            'sub_dept_id': sub_dept_id,
-            'sub_dept_name': sub_dept_name,
-            'status': status,
-        }
-
         if doc_id:
-            cls.update(doc_id, base_data, user)
-            result = 'updated'
+            pos = cls._resolve(doc_id, Position)
+            if pos:
+                pos.title = title
+                pos.department = dept
+                pos.sub_department = sub_dept
+                pos.status = status
+                pos.save()
+            return 'updated'
         else:
-            cls.create(base_data, user)
-            result = 'created'
-
-        invalidate_cache('org_positions')
-        return result
+            pos = Position.objects.create(
+                title=title,
+                department=dept,
+                sub_department=sub_dept,
+                status=status,
+            )
+            return 'created'
 
     @classmethod
     def delete_record(cls, action, doc_id):
-        col_map = {
-            'delete_department': 'org_departments',
-            'delete_sub_department': 'org_departments_sub',
-            'delete_position': 'org_positions',
+        model_map = {
+            'delete_department': Department,
+            'delete_sub_department': Department,
+            'delete_position': Position,
         }
-        col_name = col_map.get(action)
-        if col_name and doc_id:
-            db.collection(col_name).document(doc_id).delete()
-            invalidate_cache(col_name)
+        mc = model_map.get(action)
+        if mc and doc_id:
+            instance = cls._resolve(doc_id, mc)
+            if instance:
+                instance.is_active = False
+                instance.save(update_fields=['is_active'])

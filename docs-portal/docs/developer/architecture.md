@@ -13,7 +13,7 @@ flowchart TD
     %% Subgraphs for Topology
     subgraph CoreLayer ["Foundational Core Layer (Security & Ledger)"]
         A["Core Security & RBAC<br/>(accounts module / SQLite)"]
-        B["Accounts & Billing Ledger<br/>(billing module / Firestore)"]
+        B["Accounts & Billing Ledger<br/>(billing module / MySQL)"]
     end
 
     subgraph EdgeLayer ["Operational Edge Layer (Domain Services)"]
@@ -67,62 +67,62 @@ flowchart TD
     end
 
     subgraph CoreBilling ["Accounts & Billing ('billing')"]
-        COA[(Firestore: chart_of_accounts)]
-        JE[(Firestore: journal_entries)]
-        Invoices[(Firestore: invoices)]
-        Bills[(Firestore: vendor_bills)]
-        PayRecs[(Firestore: payments)]
+        COA[(MySQL: chart_of_accounts)]
+        JE[(MySQL: journal_entries)]
+        Invoices[(MySQL: invoices)]
+        Bills[(MySQL: vendor_bills)]
+        PayRecs[(MySQL: payments)]
     end
 
     subgraph SolMod ["IT Projects & Solutions ('solutions')"]
-        Projects[(Firestore: projects)]
-        ProjTasks[(Firestore: project_tasks)]
-        ProjReqs[(Firestore: project_requisitions)]
-        Licenses[(Firestore: software_licenses)]
+        Projects[(MySQL: projects)]
+        ProjTasks[(MySQL: project_tasks)]
+        ProjReqs[(MySQL: project_requisitions)]
+        Licenses[(MySQL: software_licenses)]
     end
 
     subgraph InvMod ["Procurement & Inventory ('inventory')"]
-        Reqs[(Firestore: requisitions)]
-        RFQs[(Firestore: rfqs)]
-        Quotes[(Firestore: quotations)]
-        POs[(Firestore: purchase_orders)]
-        GRNs[(Firestore: goods_receipts)]
-        Products[(Firestore: products)]
-        InvLedger[(Firestore: inventory_ledger)]
-        Vendors[(Firestore: vendors)]
-        Deliveries[(Firestore: deliveries)]
+        Reqs[(MySQL: requisitions)]
+        RFQs[(MySQL: rfqs)]
+        Quotes[(MySQL: quotations)]
+        POs[(MySQL: purchase_orders)]
+        GRNs[(MySQL: goods_receipts)]
+        Products[(MySQL: products)]
+        InvLedger[(MySQL: inventory_ledger)]
+        Vendors[(MySQL: vendors)]
+        Deliveries[(MySQL: deliveries)]
     end
 
     subgraph HRMMod ["Human Resource Management ('hrm')"]
-        Employees[(Firestore: employees)]
-        Attendance[(Firestore: hrm_attendance)]
-        Leaves[(Firestore: hrm_leaves)]
-        Payrolls[(Firestore: hrm_payrolls)]
-        Advances[(Firestore: hrm_advances)]
-        Claims[(Firestore: hrm_expense_claims)]
-        Assets[(Firestore: hrm_assets)]
+        Employees[(MySQL: employees)]
+        Attendance[(MySQL: hrm_attendance)]
+        Leaves[(MySQL: hrm_leaves)]
+        Payrolls[(MySQL: hrm_payrolls)]
+        Advances[(MySQL: hrm_advances)]
+        Claims[(MySQL: hrm_expense_claims)]
+        Assets[(MySQL: hrm_assets)]
     end
 
     subgraph TrainMod ["Training & EdTech ('training')"]
-        Courses[(Firestore: learn_courses)]
-        Batches[(Firestore: learn_batches)]
-        StudentRegs[(Firestore: learn_registrations)]
-        TrainPayments[(Firestore: learn_payments)]
-        Assessments[(Firestore: learn_course_assessments)]
-        Certificates[(Firestore: learn_certificates)]
-        Inquiries[(Firestore: learn_online_inquiries)]
+        Courses[(MySQL: learn_courses)]
+        Batches[(MySQL: learn_batches)]
+        StudentRegs[(MySQL: learn_registrations)]
+        TrainPayments[(MySQL: learn_payments)]
+        Assessments[(MySQL: learn_course_assessments)]
+        Certificates[(MySQL: learn_certificates)]
+        Inquiries[(MySQL: learn_online_inquiries)]
     end
 
     subgraph InvestMod ["Investor Management ('investment')"]
-        Investors[(Firestore: investors)]
-        InvTx[(Firestore: investment_transactions)]
-        Loans[(Firestore: investor_loans)]
-        Amort[(Firestore: loan_amortization_schedules)]
-        Outbound[(Firestore: outbound_investments)]
+        Investors[(MySQL: investors)]
+        InvTx[(MySQL: investment_transactions)]
+        Loans[(MySQL: investor_loans)]
+        Amort[(MySQL: loan_amortization_schedules)]
+        Outbound[(MySQL: outbound_investments)]
     end
 
     subgraph MasterEntities ["Shared Master Entity Directory"]
-        ContactsMaster[(Firestore: contacts)]
+        ContactsMaster[(MySQL: contacts)]
     end
 
     %% Flows
@@ -182,7 +182,7 @@ flowchart TD
 ### Key Integration Points
 1. **Automated Subledger Postings:** Collections on student installments (`learn_payments`) and payouts on payroll disbursements (`hrm_payrolls`) publish events directly to the General Ledger (`journal_entries`), auto-resolved to Chart of Accounts (COA) codes (e.g., `11100` Cash, `11200` AR, `51000` payroll/general expense).
 2. **Project Material Pipeline:** Project-scoped requisitions (`project_requisitions`) automatically populate the inventory `requisitions` queue. This triggers standard RFQ/Quotation processes.
-3. **Master Directory Linkage:** General contacts (`contacts`) are tracked under a single Firestore collection containing a role list. Operational details (banking, courses, portfolios) are maintained inside module directories, but refer to this contact database via a unique `contact_id`.
+3. **Master Directory Linkage:** General contacts (`contacts`) are tracked under a single MySQL table containing a role list. Operational details (banking, courses, portfolios) are maintained inside module tables, but refer to this contact database via a unique `contact_id`.
 
 ---
 
@@ -259,11 +259,11 @@ stateDiagram-v2
 
 To allow engineers to scale the ERP application without introducing coupling dependencies or breaking core financial ledger checks, we propose the following hook points:
 
-### 1. Firestore Cloud Triggers (Cloud Functions)
-Firestore documents are the primary data store for business operations. Google Cloud Functions can intercept write operations asynchronously:
-- **`onWrite` on `learn_payments`:** Triggers certificate validation pipelines. When `dueAmount <= 0`, queries `learn_course_assessments` to verify passed grades, and writes directly to `learn_certificates`.
-- **`onCreate` on `requisitions`:** Sends real-time slack notifications to the procurement channel whenever new approved project requisitions are added.
-- **`onUpdate` on `goods_receipts`:** Dispatches automatic inventory valuations to the accounting sub-ledger.
+### 1. Django Signal & Task Triggers
+MySQL is the primary data store for business operations. Django signals and background tasks (Celery/Django-Q) can intercept write operations asynchronously:
+- **`post_save` on `StudentPayment`:** Triggers certificate validation pipelines. When `due_amount <= 0`, queries `CourseAssessment` to verify passed grades, and creates a `Certificate` record.
+- **`post_save` on `Requisition`:** Sends real-time slack notifications to the procurement channel whenever new approved project requisitions are added.
+- **`post_save` on `GoodsReceipt`:** Dispatches automatic inventory valuations to the accounting sub-ledger.
 
 ### 2. Django signals (SQLite Context)
 For local authentication and security modules, Django signals intercept lifecycle actions:
@@ -271,7 +271,7 @@ For local authentication and security modules, Django signals intercept lifecycl
 - **`pre_delete` on `AuditLog`:** Enforces system immutability. Attempts to delete audit log entries automatically raise a `PermissionDenied` exception.
 
 ### 3. Webhook Dispatcher Engine
-We recommend building a central Webhook registration collection (`webhooks`) in Firestore:
+We recommend building a central Webhook registration model (`Webhook`) in Django:
 ```json
 {
   "event_type": "PO_FULFILLED",

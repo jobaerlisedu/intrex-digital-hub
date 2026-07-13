@@ -7,8 +7,7 @@ Welcome to the **Intrex Digital Hub & ERP System** codebase. This repository con
 ## 🚀 System Architecture & Tech Stack
 
 - **Backend Framework:** Django 4.2 (Python 3.9+)
-- **Primary Database (Business Operations):** Google Firebase Firestore (NoSQL, real-time sync for ERP modules)
-- **Secondary Database (User Auth):** Local SQLite3 (`db.sqlite3` for Django session data, user profiles, and permission groups)
+- **Database:** MySQL 8 (primary) with SQLite fallback for development
 - **Frontend Technologies:** HTML5, CSS3 (Custom Glassmorphism and CSS variables), Vanilla JavaScript, AJAX, Isotope Masonry, GSAP, Swiper, AOS, GLightbox, and FontAwesome.
 
 ---
@@ -22,9 +21,8 @@ intrex_digital_hub/
 ├── accounts/                  # User accounts, custom permission groups, and decorators (@module_access)
 ├── billing/                   # Billing & invoicing ERP module
 ├── config/                    # Django root project configuration (settings.py, urls.py, wsgi.py)
-│   └── firebase.py            # Firebase Firestore client initialization
 ├── frontend/                  # Public website views & controllers
-├── hrm/                       # HR Management ERP module (Firestore CRUD controllers and views)
+├── hrm/                       # HR Management ERP module (Django ORM viewsets)
 ├── inventory/                 # Inventory & stock tracking ERP module
 ├── investment/                # Investment & finance tracking ERP module
 ├── solutions/                 # Solutions delivery ERP module
@@ -50,7 +48,6 @@ intrex_digital_hub/
 │   │   └── reports.html       # Attendance, Leave & Payroll reports preview + CSV Export
 │   └── registration/          # Login and session registration templates
 ├── create_admin.py            # Helper script to bootstrap/reset local admin user
-├── firebase-credentials.json  # Google Cloud Firebase service account key (gitignore in production)
 ├── manage.py                  # Django administrative task manager
 ├── requirements.txt           # Python application dependencies
 └── README.md                  # System documentation
@@ -90,12 +87,13 @@ DJANGO_SECRET_KEY=your_secret_key
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=*
 
-# For local development:
-FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
-
-# For cloud production environments (e.g., Render, Heroku) where gitignores prevent credential files:
-# Add an environment variable named FIREBASE_CREDENTIALS_JSON containing the full stringified JSON content of your Firebase service account key file.
-# FIREBASE_CREDENTIALS_JSON='{"type": "service_account", "project_id": "...", ...}'
+# MySQL Database
+DB_ENGINE=django.db.backends.mysql
+DB_NAME=intrex_digital_hub
+DB_USER=root
+DB_PASSWORD=your-mysql-password
+DB_HOST=localhost
+DB_PORT=3306
 ```
 
 ### 2. Activate virtual environment
@@ -103,19 +101,29 @@ FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 source venv/bin/activate
 ```
 
-### 3. Run migrations (SQLite3 Auth Database)
+### 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Create the MySQL database
+```sql
+CREATE DATABASE intrex_digital_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 5. Run migrations
 ```bash
 python manage.py migrate
 ```
 
-### 4. Create an administrator
+### 6. Create an administrator
 Bootstrap the database with a default developer administrator:
 ```bash
 python create_admin.py
 # Default credentials: username "admin", password "admin123"
 ```
 
-### 5. Launch the Server
+### 7. Launch the Server
 ```bash
 python manage.py runserver
 ```

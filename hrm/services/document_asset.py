@@ -1,38 +1,51 @@
-from config.firebase import db
-from ..audit import enrich_with_audit
-from .base import FirestoreService
+from .base import ORMService
+from ..models import Document, Asset, Employee
 
 
-class DocumentAssetService(FirestoreService):
-    collection_name = 'hrm_documents'
+class DocumentAssetService(ORMService):
+    model = Document
+
+    @staticmethod
+    def _resolve(doc_id, model_class):
+        if not doc_id:
+            return None
+        try:
+            return model_class.objects.get(pk=doc_id)
+        except (model_class.DoesNotExist, ValueError):
+            pass
+        return model_class.objects.filter(pk=doc_id).first()
 
     @classmethod
     def add_document(cls, data, user):
-        cls.create({
-            'employee': data.get('employee'),
-            'document_type': data.get('document_type'),
-            'document_number': data.get('document_number', ''),
-            'expiry_date': data.get('expiry_date'),
-        }, user)
-
+        emp_name = data.get('employee')
+        emp = Employee.objects.filter(name=emp_name).first()
+        instance = Document.objects.create(
+            employee=emp,
+            document_type=data.get('document_type'),
+            document_number=data.get('document_number', ''),
+            expiry_date=data.get('expiry_date') or None,
+        )
     @classmethod
     def delete_document(cls, doc_id):
-        cls.delete(doc_id)
+        instance = cls._resolve(doc_id, Document)
+        if instance:
+            instance.is_active = False
+            instance.save(update_fields=['is_active'])
 
     @classmethod
     def assign_asset(cls, data, user):
-        db.collection('hrm_assets').add(
-            enrich_with_audit({
-                'employee': data.get('employee'),
-                'asset_name': data.get('asset_name'),
-                'asset_tag': data.get('asset_tag', ''),
-                'serial_number': data.get('serial_number', ''),
-                'status': 'Assigned',
-            }, user, is_update=False)
+        emp_name = data.get('employee')
+        emp = Employee.objects.filter(name=emp_name).first()
+        instance = Asset.objects.create(
+            employee=emp,
+            asset_name=data.get('asset_name'),
+            asset_tag=data.get('asset_tag', ''),
+            serial_number=data.get('serial_number', ''),
+            status='Assigned',
         )
-
     @classmethod
     def return_asset(cls, doc_id, user):
-        db.collection('hrm_assets').document(doc_id).update(
-            enrich_with_audit({'status': 'Returned'}, user, is_update=True)
-        )
+        instance = cls._resolve(doc_id, Asset)
+        if instance:
+            instance.status = 'Returned'
+            instance.save(update_fields=['status'])

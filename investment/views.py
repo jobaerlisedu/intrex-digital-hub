@@ -5,94 +5,74 @@ from accounts.decorators import module_access
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 from config.logger import investment_logger
-from config.firebase import bucket
 
+from investment.models import (
+    Investor, Transaction, Loan, LoanSchedule,
+    OutboundPlacement, FinancialInstrument, InstrumentPrice,
+    PLLedger, NavHistory, InvestorHolding,
+    FeeStructure, FeeAccrual,
+)
 from investment.services import (
-    FirestoreService as fs,
-    CodeGenerator,
-    AmortizationService as amt,
-    money_to_float,
-    money_to_str,
-    money_to_storage,
-    audit_create,
-    audit_update,
-    COLL_INVESTORS,
-    COLL_TRANSACTIONS,
-    COLL_LOANS,
-    COLL_LOAN_SCHEDULES,
-    COLL_OUTBOUND,
-    COLL_INSTRUMENTS,
-    COLL_INSTRUMENT_PRICES,
-    COLL_PL_LEDGER,
-    COLL_NAV_HISTORY,
-    COLL_INVESTOR_HOLDINGS,
-    COLL_FEE_STRUCTURES,
-    COLL_FEE_ACCRUALS,
-    NavService,
-    FeeService,
+    CodeGenerator, AmortizationService as amt,
+    money_to_float, money_to_str,
 )
 from config.services.integration_service import IntegrationService
 
 
 @module_access('investment')
 def index(request):
-    investors = fs.get_collection(COLL_INVESTORS)
-    loans = fs.get_collection(COLL_LOANS)
-    transactions = fs.get_collection(COLL_TRANSACTIONS)
-    outbound = fs.get_collection(COLL_OUTBOUND)
-    schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
+    investors = Investor.objects.filter(is_active=True)
+    loans = Loan.objects.filter(is_active=True)
+    transactions = Transaction.objects.filter(is_active=True)
+    outbound = OutboundPlacement.objects.filter(is_active=True)
+    schedules = LoanSchedule.objects.filter(is_active=True)
 
     total_capital_managed = 0.0
     total_outbound = 0.0
     total_interest_due = 0.0
 
     for tx in transactions:
-        if tx.get('status') == 'Cleared':
-            ttype = tx.get('transaction_type')
-            amt_val = money_to_float(tx.get('amount', '0.00'))
-            if ttype == 'Capital Influx':
+        if tx.status == 'Cleared':
+            amt_val = float(tx.amount)
+            if tx.transaction_type == 'Capital Influx':
                 total_capital_managed += amt_val
-            elif ttype == 'Capital Withdrawal':
+            elif tx.transaction_type == 'Capital Withdrawal':
                 total_capital_managed -= amt_val
 
     for loan in loans:
-        if loan.get('status') == 'Active':
-            total_capital_managed += money_to_float(loan.get('outstanding_balance', '0.00'))
+        if loan.status == 'Active':
+            total_capital_managed += float(loan.outstanding_balance)
 
     for out in outbound:
-        if out.get('status') == 'Active':
-            total_outbound += money_to_float(out.get('allocated_capital', '0.00'))
+        if out.status == 'Active':
+            total_outbound += float(out.allocated_capital)
 
     for sch in schedules:
-        if sch.get('payment_status') == 'Unpaid':
-            total_interest_due += money_to_float(sch.get('scheduled_interest', '0.00'))
+        if sch.payment_status == 'Unpaid':
+            total_interest_due += float(sch.scheduled_interest)
 
-    loan_map = {l['id']: l for l in loans}
-    investor_map = {i['id']: i for i in investors}
+    loan_map = {str(l.id): l for l in loans}
+    investor_map = {str(i.id): i for i in investors}
 
-    sorted_unpaid = sorted(
-        [s for s in schedules if s.get('payment_status') == 'Unpaid'],
-        key=lambda x: x.get('due_date', '')
-    )
+    sorted_unpaid = list(schedules.filter(payment_status='Unpaid').order_by('due_date'))
 
     upcoming_payables = []
     for sch in sorted_unpaid[:5]:
-        loan = loan_map.get(sch.get('loan_id', ''))
+        loan = loan_map.get(str(sch.loan_id) if sch.loan_id else '')
         investor_name = "Unknown Investor"
         if loan:
-            inv = investor_map.get(loan.get('investor_id', ''))
+            inv = investor_map.get(str(loan.investor_id) if loan.investor_id else '')
             if inv:
-                investor_name = inv.get('name', 'Unknown Investor')
+                investor_name = inv.name
         upcoming_payables.append({
-            'id': sch['id'],
+            'id': str(sch.id),
             'investor_name': investor_name,
-            'due_date': sch.get('due_date', ''),
-            'principal': money_to_float(sch.get('scheduled_principal', '0.00')),
-            'interest': money_to_float(sch.get('scheduled_interest', '0.00')),
-            'total': money_to_float(sch.get('scheduled_principal', '0.00')) + money_to_float(sch.get('scheduled_interest', '0.00')),
+            'due_date': sch.due_date.isoformat() if sch.due_date else '',
+            'principal': float(sch.scheduled_principal),
+            'interest': float(sch.scheduled_interest),
+            'total': float(sch.scheduled_principal) + float(sch.scheduled_interest),
         })
 
-    # Rolling 12-month chart
     today = date.today()
     chart_labels = []
     inflow_data = []
@@ -112,16 +92,18 @@ def index(request):
         inflow = 0.0
         outflow = 0.0
         for tx in transactions:
-            if tx.get('status') == 'Cleared' and tx.get('value_date'):
-                try:
-                    d = datetime.strptime(tx['value_date'], '%Y-%m-%d')
-                    if d.year == y and d.month == m:
-                        if tx.get('transaction_type') == 'Capital Influx':
-                            inflow += money_to_float(tx.get('amount', '0.00'))
-                        elif tx.get('transaction_type') in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
-                            outflow += money_to_float(tx.get('amount', '0.00'))
-                except (ValueError, TypeError):
-                    continue
+            if tx.status == 'Cleared' and tx.value_date:
+                d = tx.value_date
+                if isinstance(d, str):
+                    try:
+                        d = datetime.strptime(d, '%Y-%m-%d').date()
+                    except ValueError:
+                        continue
+                if d.year == y and d.month == m:
+                    if tx.transaction_type == 'Capital Influx':
+                        inflow += float(tx.amount)
+                    elif tx.transaction_type in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
+                        outflow += float(tx.amount)
         inflow_data.append(inflow)
         outflow_data.append(outflow)
 
@@ -133,8 +115,8 @@ def index(request):
         'chart_months': chart_labels,
         'inflow_data': inflow_data,
         'outflow_data': outflow_data,
-        'investors_count': len(investors),
-        'active_loans_count': len([l for l in loans if l.get('status') == 'Active']),
+        'investors_count': investors.count(),
+        'active_loans_count': loans.filter(status='Active').count(),
     }
     return render(request, 'investment/index.html', context)
 
@@ -170,30 +152,25 @@ def investor_list(request):
                 'bank_account_number': request.POST.get('bank_account_number', ''),
                 'bank_routing_code': request.POST.get('bank_routing_code', ''),
                 'contact_id': contact_id,
-                **audit_create(request.user),
             }
 
             if doc_id:
-                fs.update_document(COLL_INVESTORS, doc_id, data)
+                Investor.objects.filter(pk=doc_id).update(**data)
                 messages.success(request, "Investor profile updated successfully!")
             else:
-                # Hash password on creation for portal login
                 raw_password = request.POST.get('password', '')
                 if raw_password:
                     data['password_hash'] = make_password(raw_password)
-                fs.create_document(COLL_INVESTORS, data)
+                Investor.objects.create(**data)
                 messages.success(request, "Investor profile registered successfully!")
 
         elif action == 'upload_kyc' and doc_id:
             kyc_file = request.FILES.get('kyc_document')
             if kyc_file:
                 try:
-                    blob = bucket.blob(f'kyc/{doc_id}/{kyc_file.name}')
-                    blob.upload_from_file(kyc_file)
-                    signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
-                    fs.update_document(COLL_INVESTORS, doc_id, {
-                        'kyc_document_url': signed_url,
-                    })
+                    investor = Investor.objects.get(pk=doc_id)
+                    investor.kyc_document = kyc_file
+                    investor.save()
                     messages.success(request, "KYC document uploaded successfully!")
                 except Exception as e:
                     investment_logger.error(f"KYC upload error [{doc_id}]: {e}")
@@ -202,47 +179,47 @@ def investor_list(request):
                 messages.error(request, "No file selected for upload.")
 
         elif action == 'delete_investor' and doc_id:
-            fs.delete_document(COLL_INVESTORS, doc_id)
+            Investor.objects.filter(pk=doc_id).delete()
             messages.success(request, "Investor profile deleted successfully!")
 
         return redirect('investment:investor_list')
 
-    investors = fs.get_collection(COLL_INVESTORS)
-    transactions = fs.get_collection(COLL_TRANSACTIONS)
-    loans = fs.get_collection(COLL_LOANS)
+    investors = Investor.objects.filter(is_active=True)
+    transactions = Transaction.objects.filter(is_active=True)
+    loans = Loan.objects.filter(is_active=True)
 
     tx_by_investor = defaultdict(list)
     for tx in transactions:
-        inv_id = tx.get('investor_id')
+        inv_id = str(tx.investor_id) if tx.investor_id else None
         if inv_id:
             tx_by_investor[inv_id].append({
-                'id': tx.get('id'),
-                'transaction_type': tx.get('transaction_type'),
-                'amount': money_to_float(tx.get('amount', '0.00')),
-                'payment_method': tx.get('payment_method'),
-                'value_date': tx.get('value_date'),
-                'status': tx.get('status'),
-                'notes': tx.get('notes', ''),
+                'id': str(tx.id),
+                'transaction_type': tx.transaction_type,
+                'amount': float(tx.amount),
+                'payment_method': tx.payment_method,
+                'value_date': tx.value_date.isoformat() if tx.value_date else '',
+                'status': tx.status,
+                'notes': tx.notes or '',
             })
 
     loans_by_investor = defaultdict(list)
     for loan in loans:
-        inv_id = loan.get('investor_id')
+        inv_id = str(loan.investor_id) if loan.investor_id else None
         if inv_id:
             loans_by_investor[inv_id].append({
-                'id': loan.get('id'),
-                'principal_amount': money_to_float(loan.get('principal_amount', '0.00')),
-                'outstanding_balance': money_to_float(loan.get('outstanding_balance', '0.00')),
-                'interest_rate': money_to_float(loan.get('interest_rate', '0.00')),
-                'tenure_months': int(loan.get('tenure_months', 0)),
-                'disbursement_date': loan.get('disbursement_date'),
-                'status': loan.get('status'),
+                'id': str(loan.id),
+                'principal_amount': float(loan.principal_amount),
+                'outstanding_balance': float(loan.outstanding_balance),
+                'interest_rate': float(loan.interest_rate),
+                'tenure_months': loan.tenure_months,
+                'disbursement_date': loan.disbursement_date.isoformat() if loan.disbursement_date else '',
+                'status': loan.status,
             })
 
     for inv in investors:
-        inv_id = inv['id']
-        inv['transactions'] = tx_by_investor.get(inv_id, [])
-        inv['loans'] = loans_by_investor.get(inv_id, [])
+        inv_id = str(inv.id)
+        inv.transactions_list = tx_by_investor.get(inv_id, [])
+        inv.loans_list = loans_by_investor.get(inv_id, [])
 
     return render(request, 'investment/investors.html', {'investors': investors})
 
@@ -255,36 +232,42 @@ def inbound_list(request):
 
         if action == 'add_inbound':
             investor_id = request.POST.get('investor_id')
-            investor_doc = fs.get_document(COLL_INVESTORS, investor_id)
-            investor_name = investor_doc.get('name', 'Unknown') if investor_doc else 'Unknown'
+            try:
+                investor_obj = Investor.objects.get(pk=investor_id)
+                investor_name = investor_obj.name
+            except Investor.DoesNotExist:
+                investor_name = 'Unknown'
 
             data = {
                 'investor_id': investor_id,
                 'investor_name': investor_name,
                 'transaction_type': 'Capital Influx',
-                'amount': money_to_storage(request.POST.get('amount', 0.0)),
+                'amount': money_to_float(request.POST.get('amount', 0.0)),
                 'payment_method': request.POST.get('payment_method', 'Bank Wire'),
-                'value_date': request.POST.get('value_date', date.today().isoformat()),
                 'status': request.POST.get('status', 'Cleared'),
                 'notes': request.POST.get('notes', ''),
-                **audit_create(request.user),
             }
+            value_date_str = request.POST.get('value_date', date.today().isoformat())
+            try:
+                data['value_date'] = date.fromisoformat(value_date_str)
+            except ValueError:
+                data['value_date'] = date.today()
 
             if doc_id:
-                fs.update_document(COLL_TRANSACTIONS, doc_id, data)
+                Transaction.objects.filter(pk=doc_id).update(**data)
                 messages.success(request, "Inbound investment transaction updated successfully.")
             else:
-                fs.create_document(COLL_TRANSACTIONS, data)
+                Transaction.objects.create(**data)
                 messages.success(request, "Inbound investment transaction logged successfully.")
 
         elif action == 'delete_inbound' and doc_id:
-            fs.delete_document(COLL_TRANSACTIONS, doc_id)
+            Transaction.objects.filter(pk=doc_id).delete()
             messages.success(request, "Inbound investment transaction deleted successfully.")
 
         return redirect('investment:inbound_list')
 
-    transactions = fs.get_collection(COLL_TRANSACTIONS, [('transaction_type', '==', 'Capital Influx')])
-    investors = fs.get_collection(COLL_INVESTORS)
+    transactions = Transaction.objects.filter(is_active=True, transaction_type='Capital Influx')
+    investors = Investor.objects.filter(is_active=True)
     return render(request, 'investment/inbound.html', {'transactions': transactions, 'investors': investors})
 
 
@@ -301,53 +284,55 @@ def loans_list(request):
             tenure = int(request.POST.get('tenure_months', 1))
             disb_date_str = request.POST.get('disbursement_date')
 
-            investor_doc = fs.get_document(COLL_INVESTORS, investor_id)
-            investor_name = investor_doc.get('name', 'Unknown') if investor_doc else 'Unknown'
+            try:
+                investor_obj = Investor.objects.get(pk=investor_id)
+                investor_name = investor_obj.name
+            except Investor.DoesNotExist:
+                investor_name = 'Unknown'
 
-            loan_data = {
-                'investor_id': investor_id,
-                'investor_name': investor_name,
-                'principal_amount': money_to_storage(principal),
-                'outstanding_balance': money_to_storage(principal),
-                'interest_rate': rate_percent,
-                'tenure_months': tenure,
-                'disbursement_date': disb_date_str,
-                'status': 'Active',
-                **audit_create(request.user),
-            }
+            loan_obj = Loan.objects.create(
+                investor_id=investor_id,
+                investor_name=investor_name,
+                principal_amount=principal,
+                outstanding_balance=principal,
+                interest_rate=rate_percent,
+                tenure_months=tenure,
+                disbursement_date=date.fromisoformat(disb_date_str) if disb_date_str else date.today(),
+                status='Active',
+            )
+            loan_id = str(loan_obj.pk)
 
-            loan_id = fs.create_document(COLL_LOANS, loan_data)
-            if not loan_id:
-                messages.error(request, "Failed to create loan record.")
-                return redirect('investment:loans_list')
-
-            disb_date = datetime.strptime(disb_date_str, '%Y-%m-%d').date()
+            disb_date = date.fromisoformat(disb_date_str) if disb_date_str else date.today()
             schedule = amt.generate_schedule(principal, rate_percent, tenure, disb_date, loan_id)
 
-            ops = [('set', COLL_LOAN_SCHEDULES, None, s) for s in schedule]
-            fs.batch_write(ops)
+            for s in schedule:
+                due = s['due_date']
+                LoanSchedule.objects.create(
+                    loan=loan_obj,
+                    installment_number=s['installment_number'],
+                    due_date=date.fromisoformat(due) if isinstance(due, str) else due,
+                    scheduled_principal=s['scheduled_principal'],
+                    scheduled_interest=s['scheduled_interest'],
+                    paid_amount=s['paid_amount'],
+                    payment_status=s['payment_status'],
+                )
 
-            loan_data['id'] = loan_id
-            loan_data['loan_id'] = loan_id
             try:
-                IntegrationService.investment_loan_to_journal_entry(loan_data, request.user)
+                IntegrationService.investment_loan_to_journal_entry(loan_obj, request.user)
             except Exception as e:
                 investment_logger.error(f"Error auto-creating journal entry for loan: {e}")
 
             messages.success(request, "Investor loan and amortization schedule registered successfully.")
 
         elif action == 'delete_loan' and doc_id:
-            fs.delete_document(COLL_LOANS, doc_id)
-            schedules = fs.query_collection(COLL_LOAN_SCHEDULES, 'loan_id', '==', doc_id)
-            ops = [('delete', COLL_LOAN_SCHEDULES, s['id'], None) for s in schedules]
-            if ops:
-                fs.batch_write(ops)
+            LoanSchedule.objects.filter(loan_id=doc_id).delete()
+            Loan.objects.filter(pk=doc_id).delete()
             messages.success(request, "Investor loan and amortization schedule deleted successfully.")
 
         return redirect('investment:loans_list')
 
-    loans = fs.get_collection(COLL_LOANS)
-    investors = fs.get_collection(COLL_INVESTORS)
+    loans = Loan.objects.filter(is_active=True).select_related('investor')
+    investors = Investor.objects.filter(is_active=True)
     return render(request, 'investment/loans.html', {'loans': loans, 'investors': investors})
 
 
@@ -361,28 +346,32 @@ def outbound_list(request):
             data = {
                 'project_name': request.POST.get('project_name'),
                 'entity_type': request.POST.get('entity_type', 'Subsidiary'),
-                'allocated_capital': money_to_storage(request.POST.get('allocated_capital', 0.0)),
-                'current_valuation': money_to_storage(request.POST.get('current_valuation', 0.0)),
+                'allocated_capital': money_to_float(request.POST.get('allocated_capital', 0.0)),
+                'current_valuation': money_to_float(request.POST.get('current_valuation', 0.0)),
                 'roi_expected_annual': money_to_float(request.POST.get('roi_expected_annual', 0.0)),
-                'placement_date': request.POST.get('placement_date'),
                 'status': request.POST.get('status', 'Active'),
-                **audit_create(request.user),
             }
+            placement_date_str = request.POST.get('placement_date')
+            if placement_date_str:
+                try:
+                    data['placement_date'] = date.fromisoformat(placement_date_str)
+                except ValueError:
+                    pass
 
             if doc_id:
-                fs.update_document(COLL_OUTBOUND, doc_id, data)
+                OutboundPlacement.objects.filter(pk=doc_id).update(**data)
                 messages.success(request, "Outbound investment record updated successfully.")
             else:
-                fs.create_document(COLL_OUTBOUND, data)
+                OutboundPlacement.objects.create(**data)
                 messages.success(request, "Outbound investment record logged successfully.")
 
         elif action == 'delete_outbound' and doc_id:
-            fs.delete_document(COLL_OUTBOUND, doc_id)
+            OutboundPlacement.objects.filter(pk=doc_id).delete()
             messages.success(request, "Outbound investment record deleted successfully.")
 
         return redirect('investment:outbound_list')
 
-    outbound = fs.get_collection(COLL_OUTBOUND)
+    outbound = OutboundPlacement.objects.filter(is_active=True)
     return render(request, 'investment/outbound.html', {'outbound': outbound})
 
 
@@ -395,61 +384,67 @@ def instruments_list(request):
         if action == 'add_instrument':
             data = {
                 'instrument_code': request.POST.get('instrument_code'),
-                'type': request.POST.get('type', 'Common Stock'),
-                'face_value': money_to_storage(request.POST.get('face_value', 0.0)),
+                'instrument_type': request.POST.get('type', 'Common Stock'),
+                'face_value': money_to_float(request.POST.get('face_value', 0.0)),
                 'coupon_rate': money_to_float(request.POST.get('coupon_rate', 0.0)) if request.POST.get('coupon_rate') else 0.0,
                 'total_units_issued': int(request.POST.get('total_units_issued', 0)),
                 'units_outstanding': int(request.POST.get('units_outstanding', 0)),
-                'issue_date': request.POST.get('issue_date'),
-                **audit_create(request.user),
             }
+            issue_date_str = request.POST.get('issue_date')
+            if issue_date_str:
+                try:
+                    data['issue_date'] = date.fromisoformat(issue_date_str)
+                except ValueError:
+                    pass
 
             if doc_id:
-                fs.update_document(COLL_INSTRUMENTS, doc_id, data)
+                FinancialInstrument.objects.filter(pk=doc_id).update(**data)
                 messages.success(request, "Financial instrument updated successfully.")
             else:
-                fs.create_document(COLL_INSTRUMENTS, data)
+                FinancialInstrument.objects.create(**data)
                 messages.success(request, "Financial instrument registered successfully.")
 
         elif action == 'delete_instrument' and doc_id:
-            fs.delete_document(COLL_INSTRUMENTS, doc_id)
+            FinancialInstrument.objects.filter(pk=doc_id).delete()
             messages.success(request, "Financial instrument deleted successfully.")
 
         elif action == 'add_price':
             instrument_id = request.POST.get('instrument_id')
-            price_date = request.POST.get('price_date')
+            price_date_str = request.POST.get('price_date')
             price_value = money_to_float(request.POST.get('price', 0.0))
-            if not instrument_id or not price_date or price_value <= 0:
+            if not instrument_id or not price_date_str or price_value <= 0:
                 messages.error(request, "Invalid price data.")
                 return redirect('investment:instruments_list')
-            fs.create_document(COLL_INSTRUMENT_PRICES, {
-                'instrument_id': instrument_id,
-                'price_date': price_date,
-                'price': money_to_storage(price_value),
-                **audit_create(request.user),
-            })
-            messages.success(request, f"Price point {money_to_str(price_value)} recorded for {price_date}.")
+            try:
+                inst = FinancialInstrument.objects.get(pk=instrument_id)
+                InstrumentPrice.objects.create(
+                    instrument=inst,
+                    price_date=date.fromisoformat(price_date_str),
+                    price=price_value,
+                )
+                messages.success(request, f"Price point {money_to_str(price_value)} recorded for {price_date_str}.")
+            except (FinancialInstrument.DoesNotExist, ValueError):
+                messages.error(request, "Invalid instrument or date.")
 
         elif action == 'delete_price' and doc_id:
-            fs.delete_document(COLL_INSTRUMENT_PRICES, doc_id)
+            InstrumentPrice.objects.filter(pk=doc_id).delete()
             messages.success(request, "Price record deleted.")
 
         return redirect('investment:instruments_list')
 
-    instruments = fs.get_collection(COLL_INSTRUMENTS)
-    all_prices = fs.get_collection(COLL_INSTRUMENT_PRICES)
+    instruments = FinancialInstrument.objects.filter(is_active=True)
+    all_prices = InstrumentPrice.objects.filter(is_active=True).order_by('instrument_id', 'price_date')
     prices_by_instrument = defaultdict(list)
     for p in all_prices:
-        prices_by_instrument[p.get('instrument_id')].append({
-            'id': p['id'],
-            'price_date': p.get('price_date', ''),
-            'price': money_to_float(p.get('price', '0.00')),
+        inv_id = str(p.instrument_id) if p.instrument_id else ''
+        prices_by_instrument[inv_id].append({
+            'id': str(p.id),
+            'price_date': p.price_date.isoformat() if p.price_date else '',
+            'price': float(p.price),
         })
-    for inv_id in prices_by_instrument:
-        prices_by_instrument[inv_id].sort(key=lambda x: x['price_date'])
     for inst in instruments:
-        inst_prices = prices_by_instrument.get(inst.get('id', ''), [])
-        inst['last_price'] = inst_prices[-1]['price'] if inst_prices else None
+        inst_prices = prices_by_instrument.get(str(inst.id), [])
+        inst.last_price = inst_prices[-1]['price'] if inst_prices else None
     context = {
         'instruments': instruments,
         'prices_by_instrument': dict(prices_by_instrument),
@@ -468,33 +463,35 @@ def pl_list(request):
             revenue = money_to_float(request.POST.get('revenue', 0.0))
             opex = money_to_float(request.POST.get('opex', 0.0))
 
-            schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
-            interest_expense = amt.compute_interest_expense(month, schedules)
+            schedules = LoanSchedule.objects.filter(is_active=True, due_date__startswith=month)
+            interest_expense = amt.compute_interest_expense(month, [
+                {'scheduled_interest': str(s.scheduled_interest), 'due_date': s.due_date.isoformat() if s.due_date else ''}
+                for s in schedules
+            ])
             net_profit = revenue - opex - interest_expense
 
             data = {
                 'month': month,
-                'revenue': money_to_storage(revenue),
-                'opex': money_to_storage(opex),
-                'interest_expense': money_to_storage(interest_expense),
-                'net_profit': money_to_storage(net_profit),
-                **audit_create(request.user),
+                'revenue': revenue,
+                'opex': opex,
+                'interest_expense': interest_expense,
+                'net_profit': net_profit,
             }
 
             if doc_id:
-                fs.update_document(COLL_PL_LEDGER, doc_id, data)
+                PLLedger.objects.filter(pk=doc_id).update(**data)
                 messages.success(request, "Profit/Loss entry updated successfully.")
             else:
-                fs.create_document(COLL_PL_LEDGER, data)
+                PLLedger.objects.create(**data)
                 messages.success(request, "Profit/Loss entry registered successfully.")
 
         elif action == 'delete_pl' and doc_id:
-            fs.delete_document(COLL_PL_LEDGER, doc_id)
+            PLLedger.objects.filter(pk=doc_id).delete()
             messages.success(request, "Profit/Loss entry deleted successfully.")
 
         return redirect('investment:pl_list')
 
-    pl_entries = sorted(fs.get_collection(COLL_PL_LEDGER), key=lambda x: x.get('month', ''), reverse=True)
+    pl_entries = PLLedger.objects.filter(is_active=True).order_by('-month')
     return render(request, 'investment/pl_management.html', {'pl_entries': pl_entries})
 
 
@@ -505,46 +502,40 @@ def payables_list(request):
         sch_id = request.POST.get('schedule_id')
 
         if action == 'clear_payment' and sch_id:
-            sch = fs.get_document(COLL_LOAN_SCHEDULES, sch_id)
-            if not sch:
+            try:
+                sch = LoanSchedule.objects.get(pk=sch_id)
+            except LoanSchedule.DoesNotExist:
                 messages.error(request, "Schedule not found.")
                 return redirect('investment:payables_list')
 
-            principal = money_to_float(sch.get('scheduled_principal', '0.00'))
-            interest = money_to_float(sch.get('scheduled_interest', '0.00'))
+            principal = float(sch.scheduled_principal)
+            interest = float(sch.scheduled_interest)
             total = principal + interest
 
-            fs.update_document(COLL_LOAN_SCHEDULES, sch_id, {
-                'payment_status': 'Paid',
-                'paid_amount': money_to_storage(total),
-                'actual_payment_date': date.today().isoformat(),
-            })
+            sch.payment_status = 'Paid'
+            sch.paid_amount = total
+            sch.actual_payment_date = date.today()
+            sch.save()
 
-            loan_id = sch.get('loan_id')
-            loan = fs.get_document(COLL_LOANS, loan_id)
+            loan = sch.loan
             if loan:
-                curr_bal = money_to_float(loan.get('outstanding_balance', '0.00'))
+                curr_bal = float(loan.outstanding_balance)
                 new_bal = max(0.0, curr_bal - principal)
-                loan_status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
-                fs.update_document(COLL_LOANS, loan_id, {
-                    'outstanding_balance': money_to_storage(new_bal),
-                    'status': loan_status,
-                })
+                loan.outstanding_balance = new_bal
+                loan.status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
+                loan.save()
 
-                inv_id = loan.get('investor_id')
-                inv = fs.get_document(COLL_INVESTORS, inv_id)
-                inv_name = inv.get('name', 'Unknown') if inv else 'Unknown'
-
-                fs.create_document(COLL_TRANSACTIONS, {
-                    'investor_id': inv_id,
-                    'investor_name': inv_name,
-                    'transaction_type': 'Interest Payout',
-                    'amount': money_to_storage(total),
-                    'payment_method': 'Bank Wire',
-                    'value_date': date.today().isoformat(),
-                    'status': 'Cleared',
-                    'notes': f"Repayment installment #{sch.get('installment_number')} for loan {loan_id}.",
-                })
+                inv_name = loan.investor.name if loan.investor else 'Unknown'
+                Transaction.objects.create(
+                    investor=loan.investor,
+                    investor_name=inv_name,
+                    transaction_type='Interest Payout',
+                    amount=total,
+                    payment_method='Bank Wire',
+                    value_date=date.today(),
+                    status='Cleared',
+                    notes=f"Repayment installment #{sch.installment_number} for loan {str(loan.id)}.",
+                )
 
                 messages.success(request, "Loan installment payment cleared and payout logged successfully.")
 
@@ -554,15 +545,16 @@ def payables_list(request):
                 messages.error(request, "Invalid payment amount.")
                 return redirect('investment:payables_list')
 
-            sch = fs.get_document(COLL_LOAN_SCHEDULES, sch_id)
-            if not sch:
+            try:
+                sch = LoanSchedule.objects.get(pk=sch_id)
+            except LoanSchedule.DoesNotExist:
                 messages.error(request, "Schedule not found.")
                 return redirect('investment:payables_list')
 
-            scheduled_principal = money_to_float(sch.get('scheduled_principal', '0.00'))
-            scheduled_interest = money_to_float(sch.get('scheduled_interest', '0.00'))
+            scheduled_principal = float(sch.scheduled_principal)
+            scheduled_interest = float(sch.scheduled_interest)
             total_due = scheduled_principal + scheduled_interest
-            prev_paid = money_to_float(sch.get('paid_amount', '0.00'))
+            prev_paid = float(sch.paid_amount)
             new_paid = prev_paid + payment_amount
             capped = min(new_paid, total_due)
 
@@ -571,89 +563,65 @@ def payables_list(request):
             else:
                 principal_portion = 0.0
 
-            update_data = {
-                'paid_amount': money_to_storage(capped),
-            }
+            sch.paid_amount = capped
             if capped >= total_due - 0.01:
-                update_data['payment_status'] = 'Paid'
-                update_data['actual_payment_date'] = date.today().isoformat()
+                sch.payment_status = 'Paid'
+                sch.actual_payment_date = date.today()
+            sch.save()
 
-            fs.update_document(COLL_LOAN_SCHEDULES, sch_id, update_data)
-
-            loan_id = sch.get('loan_id')
-            loan = fs.get_document(COLL_LOANS, loan_id)
+            loan = sch.loan
             if loan:
-                curr_bal = money_to_float(loan.get('outstanding_balance', '0.00'))
+                curr_bal = float(loan.outstanding_balance)
                 new_bal = max(0.0, curr_bal - principal_portion)
-                loan_status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
-                fs.update_document(COLL_LOANS, loan_id, {
-                    'outstanding_balance': money_to_storage(new_bal),
-                    'status': loan_status,
-                })
+                loan.outstanding_balance = new_bal
+                loan.status = 'Fully Paid' if new_bal <= 0.01 else 'Active'
+                loan.save()
 
-                inv_id = loan.get('investor_id')
-                inv = fs.get_document(COLL_INVESTORS, inv_id)
-                inv_name = inv.get('name', 'Unknown') if inv else 'Unknown'
-
-                fs.create_document(COLL_TRANSACTIONS, {
-                    'investor_id': inv_id,
-                    'investor_name': inv_name,
-                    'transaction_type': 'Interest Payout',
-                    'amount': money_to_storage(payment_amount),
-                    'payment_method': 'Bank Wire',
-                    'value_date': date.today().isoformat(),
-                    'status': 'Cleared',
-                    'notes': f"Partial repayment installment #{sch.get('installment_number')} for loan {loan_id}.",
-                })
+                inv_name = loan.investor.name if loan.investor else 'Unknown'
+                Transaction.objects.create(
+                    investor=loan.investor,
+                    investor_name=inv_name,
+                    transaction_type='Interest Payout',
+                    amount=payment_amount,
+                    payment_method='Bank Wire',
+                    value_date=date.today(),
+                    status='Cleared',
+                    notes=f"Partial repayment installment #{sch.installment_number} for loan {str(loan.id)}.",
+                )
 
             msg = "Full payment" if capped >= total_due - 0.01 else "Partial payment"
             messages.success(request, f"{msg} of {money_to_str(payment_amount)} recorded successfully.")
 
         return redirect('investment:payables_list')
 
-    schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
-    loans = fs.get_collection(COLL_LOANS)
-    investors = fs.get_collection(COLL_INVESTORS)
-
-    loan_map = {l['id']: l for l in loans}
-    investor_map = {i['id']: i for i in investors}
-
+    schedules = LoanSchedule.objects.filter(is_active=True).select_related('loan__investor').order_by('due_date')
     joined_schedules = []
     for s in schedules:
-        loan = loan_map.get(s.get('loan_id', ''))
-        investor_name = "Unknown Investor"
-        if loan:
-            inv = investor_map.get(loan.get('investor_id', ''))
-            if inv:
-                investor_name = inv.get('name', 'Unknown Investor')
+        inv_name = s.loan.investor.name if s.loan and s.loan.investor else "Unknown Investor"
         joined_schedules.append({
-            'id': s['id'],
-            'installment_number': s.get('installment_number'),
-            'due_date': s.get('due_date'),
-            'scheduled_principal': money_to_float(s.get('scheduled_principal', '0.00')),
-            'scheduled_interest': money_to_float(s.get('scheduled_interest', '0.00')),
-            'total_due': money_to_float(s.get('scheduled_principal', '0.00')) + money_to_float(s.get('scheduled_interest', '0.00')),
-            'paid_amount': money_to_float(s.get('paid_amount', '0.00')),
-            'payment_status': s.get('payment_status'),
-            'actual_payment_date': s.get('actual_payment_date', '--'),
-            'investor_name': investor_name,
-            'loan_id': s.get('loan_id'),
+            'id': str(s.id),
+            'installment_number': s.installment_number,
+            'due_date': s.due_date.isoformat() if s.due_date else '',
+            'scheduled_principal': float(s.scheduled_principal),
+            'scheduled_interest': float(s.scheduled_interest),
+            'total_due': float(s.scheduled_principal) + float(s.scheduled_interest),
+            'paid_amount': float(s.paid_amount),
+            'payment_status': s.payment_status,
+            'actual_payment_date': s.actual_payment_date.isoformat() if s.actual_payment_date else '--',
+            'investor_name': inv_name,
+            'loan_id': str(s.loan_id) if s.loan_id else '',
         })
 
-    joined_schedules.sort(key=lambda x: x.get('due_date', ''))
     return render(request, 'investment/payables.html', {'schedules': joined_schedules})
 
 
 @module_access('investment')
 def nav_dashboard(request):
-    """NAV trend chart, current NAV, units outstanding, AUM."""
-    nav_history = fs.get_collection(COLL_NAV_HISTORY)
-    nav_history.sort(key=lambda r: r.get('nav_date', ''))
+    nav_history = NavHistory.objects.filter(is_active=True).order_by('nav_date')
+    holdings = InvestorHolding.objects.filter(is_active=True).select_related('investor')
+    fee_accruals = FeeAccrual.objects.filter(is_active=True).order_by('-accrual_date')
 
-    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
-    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
-    fee_accruals.sort(key=lambda r: r.get('accrual_date', ''), reverse=True)
-
+    from investment.services import NavService
     current_nav = NavService.get_current_nav()
 
     context = {
@@ -661,33 +629,33 @@ def nav_dashboard(request):
         'current_nav': current_nav,
         'holdings': holdings,
         'fee_accruals': fee_accruals,
-        'total_units': sum(money_to_float(h.get('units_held', '0.0000')) for h in holdings),
-        'total_invested': sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings),
+        'total_units': sum(float(h.units_held) for h in holdings),
+        'total_invested': sum(float(h.total_invested) for h in holdings),
     }
     return render(request, 'investment/nav.html', context)
 
 
 @module_access('investment')
 def investor_holdings_list(request):
-    """Per-investor unit balance, value, and P&L."""
-    investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
-    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
+    investors_map = {str(i.id): i for i in Investor.objects.filter(is_active=True)}
+    holdings = InvestorHolding.objects.filter(is_active=True).select_related('investor')
 
     joined = []
     for h in holdings:
-        inv = investors.get(h.get('investor_id', ''), {})
-        invested = money_to_float(h.get('total_invested', '0.00'))
-        pl = money_to_float(h.get('unrealized_pl', '0.00'))
+        inv = h.investor
+        inv_name = inv.name if inv else 'Unknown'
+        invested = float(h.total_invested)
+        pl = float(h.unrealized_pl)
         return_pct = round((pl / invested) * 100, 2) if invested > 0 else 0.0
         joined.append({
-            'id': h['id'],
-            'investor_id': h.get('investor_id'),
-            'investor_name': inv.get('name', 'Unknown'),
-            'units_held': h.get('units_held', '0.0000'),
-            'avg_cost_per_unit': h.get('avg_cost_per_unit', '0.0000'),
-            'total_invested': h.get('total_invested', '0.00'),
-            'current_value': h.get('current_value', '0.00'),
-            'unrealized_pl': h.get('unrealized_pl', '0.00'),
+            'id': str(h.id),
+            'investor_id': str(h.investor_id) if h.investor_id else '',
+            'investor_name': inv_name,
+            'units_held': h.units_held,
+            'avg_cost_per_unit': h.avg_cost_per_unit,
+            'total_invested': h.total_invested,
+            'current_value': h.current_value,
+            'unrealized_pl': h.unrealized_pl,
             'return_pct': f'{return_pct:.2f}',
         })
 
@@ -696,16 +664,10 @@ def investor_holdings_list(request):
 
 @module_access('investment')
 def fee_management(request):
-    """Fee structure CRUD and accrual history."""
-    fee_structs = fs.get_collection(COLL_FEE_STRUCTURES)
-    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
-    fee_accruals.sort(key=lambda r: r.get('accrual_date', ''), reverse=True)
+    fee_structs = FeeStructure.objects.filter(is_active=True)
+    fee_accruals = FeeAccrual.objects.filter(is_active=True).order_by('-accrual_date')
 
-    current_struct = None
-    for s in fee_structs:
-        if s.get('is_active', True):
-            current_struct = s
-            break
+    current_struct = fee_structs.first()
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -715,39 +677,35 @@ def fee_management(request):
                 'management_fee_annual_pct': request.POST.get('management_fee_annual_pct', '2.00'),
                 'performance_fee_pct': request.POST.get('performance_fee_pct', '20.00'),
                 'hurdle_rate_pct': request.POST.get('hurdle_rate_pct', '5.00'),
-                'high_water_mark': request.POST.get('high_water_mark', '0.0000'),
+                'high_water_mark': money_to_float(request.POST.get('high_water_mark', '0.0000')),
                 'fee_frequency': request.POST.get('fee_frequency', 'monthly'),
                 'is_active': True,
             }
             if current_struct:
-                fs.update_document(COLL_FEE_STRUCTURES, current_struct['id'], {
-                    **data, **audit_update(request.user),
-                })
+                FeeStructure.objects.filter(pk=current_struct.pk).update(**data)
                 messages.success(request, 'Fee structure updated.')
             else:
-                fs.create_document(COLL_FEE_STRUCTURES, {
-                    **data, **audit_create(request.user),
-                })
+                FeeStructure.objects.create(**data)
                 messages.success(request, 'Fee structure created.')
             return redirect('investment:fee_management')
 
         elif action == 'settle_fee':
             fee_id = request.POST.get('fee_id')
             if fee_id:
-                fs.update_document(COLL_FEE_ACCRUALS, fee_id, {
-                    'is_settled': True,
-                    'settled_date': date.today().isoformat(),
-                })
+                FeeAccrual.objects.filter(pk=fee_id).update(
+                    is_settled=True,
+                    settled_date=date.today(),
+                )
                 messages.success(request, 'Fee marked as settled.')
             return redirect('investment:fee_management')
 
     total_accrued_management = sum(
-        money_to_float(f.get('amount', '0.00'))
-        for f in fee_accruals if f.get('fee_type') == 'management' and not f.get('is_settled', False)
+        float(f.amount)
+        for f in fee_accruals if f.fee_type == 'management' and not f.is_settled
     )
     total_accrued_performance = sum(
-        money_to_float(f.get('amount', '0.00'))
-        for f in fee_accruals if f.get('fee_type') == 'performance' and not f.get('is_settled', False)
+        float(f.amount)
+        for f in fee_accruals if f.fee_type == 'performance' and not f.is_settled
     )
 
     context = {

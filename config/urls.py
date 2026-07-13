@@ -14,23 +14,21 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-import sys
 import logging
 
 urls_logger = logging.getLogger('config.urls')
-
-# Run database migrations and bootstrap admin on server startup
-if not any(arg in sys.argv for arg in ['makemigrations', 'migrate', 'collectstatic', 'check', 'shell', 'test']):
-    try:
-        from config.bootstrap import run_startup
-        run_startup()
-    except Exception as e:
-        urls_logger.exception("Django Startup Error")
 
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from config import views as config_views
+from config.exceptions import handler400, handler403, handler404, handler500
+
+
+handler400 = 'config.exceptions.handler400'
+handler403 = 'config.exceptions.handler403'
+handler404 = 'config.exceptions.handler404'
+handler500 = 'config.exceptions.handler500'
 
 urlpatterns = [
     path('health/', config_views.health_check, name='health_check'),

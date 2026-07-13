@@ -10,14 +10,14 @@
 ## Architecture Overview
 
 All phases follow the existing architecture patterns:
-- **Data**: Firestore collections (`invst_*`) with dataclass schemas in `models.py`
-- **Services**: Business logic in `services.py`, Firestore CRUD via `FirestoreService`
+- **Data**: MySQL tables via Django models in `models.py`
+- **Services**: Business logic in `services.py`, database CRUD via Django ORM
 - **Views**: Django views in `views.py` + REST ViewSets in `api/viewsets.py`
 - **Reports**: Static methods in `reports.py`, Chart.js in `reports.html`
 - **Tasks**: Celery `@shared_task` in `tasks.py`, registered in `config/settings.py`
 - **API**: DRF serializers in `api/serializers.py`, router in `api/urls.py`
 
-No new Python packages required beyond what is already installed (Django, DRF, Celery, Redis, Firebase Admin, Chart.js CDN).
+No new Python packages required beyond what is already installed (Django, DRF, Celery, Redis, mysqlclient, Chart.js CDN).
 
 ---
 
@@ -30,7 +30,7 @@ No new Python packages required beyond what is already installed (Django, DRF, C
 - `investment/api/viewsets.py`
 - `investment/api/serializers.py`
 - `investment/views.py` (`instruments_list`)
-- `investment/services.py` (collection constant already exists)
+- `investment/services.py` (model query already exists)
 - `templates/investment/instruments.html`
 
 **Changes**:
@@ -42,24 +42,17 @@ router.register(r'instrument-prices', InstrumentPriceViewSet, basename='investme
 
 2. **`api/viewsets.py`** — Add `InstrumentPriceViewSet`:
 ```python
-class InstrumentPriceViewSet(viewsets.ViewSet):
-    def list(self, request):
-        data = fs.get_collection(COLL_INSTRUMENT_PRICES)
-        serializer = InstrumentPriceSerializer(data, many=True)
-        return Response(serializer.data)
-    # create, retrieve, update, partial_update, destroy following existing pattern
+class InstrumentPriceViewSet(viewsets.ModelViewSet):
+    queryset = InstrumentPrice.objects.all()
+    serializer_class = InstrumentPriceSerializer
 ```
 
 3. **`api/serializers.py`** — Add `InstrumentPriceSerializer`:
 ```python
-class InstrumentPriceSerializer(serializers.Serializer):
-    id = serializers.CharField(read_only=True)
-    instrument_id = serializers.CharField(max_length=255)
-    price_date = serializers.CharField(max_length=10)
-    price = serializers.FloatField()
-    is_active = serializers.BooleanField(default=True)
-    created_at = serializers.DateTimeField(read_only=True)
-    updated_at = serializers.DateTimeField(read_only=True)
+class InstrumentPriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InstrumentPrice
+        fields = '__all__'
 ```
 
 4. **`views.py`** — In `instruments_list`, add price history edit/delete actions and pass prices to template context.
@@ -69,9 +62,11 @@ class InstrumentPriceSerializer(serializers.Serializer):
    - Table of recent prices
    - Form to add new price point (in modal)
 
-6. **`reports.py`** — In `instrument_performance()`, incorporate latest price from `COLL_INSTRUMENT_PRICES` to calculate market value:
+6. **`reports.py`** — In `instrument_performance()`, incorporate latest price from `InstrumentPrice` model to calculate market value:
 ```python
-latest_prices = _get_latest_prices()  # group by instrument_id, take max date
+latest_prices = InstrumentPrice.objects.values('instrument_id').annotate(
+    max_date=Max('price_date')
+)
 market_value = latest_price * units_outstanding
 ```
 
@@ -85,7 +80,7 @@ market_value = latest_price * units_outstanding
 - `investment/tests.py` (update test assertions)
 
 **Strategy**:
-- Firestore does not natively support `Decimal`. Store monetary values as **strings** with format `"1234.56"` (2 decimal places).
+- Monetary values are stored as **strings** with format `"1234.56"` (2 decimal places) to ensure precision across all operations.
 - Add helper functions in `services.py`:
 
 ```python
@@ -102,10 +97,10 @@ def money_add(*args) -> str:
     return f"{total:.2f}"
 ```
 
-- All Firestore reads convert string → Decimal internally.
-- All Firestore writes convert Decimal → string.
+- All database reads convert string → Decimal internally.
+- All database writes convert Decimal → string.
 
-**Migration note**: Existing Firestore docs with `float` fields will be read via `money_to_float()` for backward compatibility. New writes use `money_to_str()`.
+**Migration note**: Existing database records with `float` fields will be read via `money_to_float()` for backward compatibility. New writes use `money_to_str()`.
 
 ---
 
@@ -120,7 +115,7 @@ def money_add(*args) -> str:
 ```python
 @dataclass
 class NavSchema:
-    """Collection: invst_nav_history"""
+    """Table: invst_nav_history"""
     nav_date: str                          # YYYY-MM-DD
     nav_per_unit: str                       # stored as "123.4567" (4 decimal places)
     total_units: str                        # outstanding units
@@ -136,7 +131,7 @@ class NavSchema:
 
 @dataclass
 class InvestorHoldingSchema:
-    """Collection: invst_investor_holdings"""
+    """Table: invst_investor_holdings"""
     investor_id: str
     units_held: str                         # "0.0000"
     avg_cost_per_unit: str = "0.0000"
@@ -151,7 +146,7 @@ class InvestorHoldingSchema:
 
 @dataclass
 class FeeStructureSchema:
-    """Collection: invst_fee_structures (singleton or per-fund)"""
+    """Table: invst_fee_structures (singleton or per-fund)"""
     management_fee_annual_pct: str = "2.00"
     performance_fee_pct: str = "20.00"
     hurdle_rate_pct: str = "5.00"
@@ -165,7 +160,7 @@ class FeeStructureSchema:
 
 @dataclass
 class FeeAccrualSchema:
-    """Collection: invst_fee_accruals"""
+    """Table: invst_fee_accruals"""
     accrual_date: str                       # YYYY-MM-DD
     fee_type: str                           # management / performance
     amount: str
@@ -180,13 +175,13 @@ class FeeAccrualSchema:
     updated_by: str = ""
 ```
 
-### 5.2 Collection Constants — `services.py`
+### 5.2 Table Name Constants — `services.py`
 
 ```python
-COLL_NAV_HISTORY = 'invst_nav_history'
-COLL_INVESTOR_HOLDINGS = 'invst_investor_holdings'
-COLL_FEE_STRUCTURES = 'invst_fee_structures'
-COLL_FEE_ACCRUALS = 'invst_fee_accruals'
+TABLE_NAV_HISTORY = 'invst_nav_history'
+TABLE_INVESTOR_HOLDINGS = 'invst_investor_holdings'
+TABLE_FEE_STRUCTURES = 'invst_fee_structures'
+TABLE_FEE_ACCRUALS = 'invst_fee_accruals'
 ```
 
 ### 5.3 NAV Engine — `services.py`
@@ -325,7 +320,7 @@ def fee_impact():
 ### 5.10 Tests — `tests.py`
 
 New test classes:
-- `NavCalculationTests` — mock Firestore data, verify NAV math
+- `NavCalculationTests` — mock database data, verify NAV math
 - `FeeCalculationTests` — management fee, performance fee, high-water mark
 - `UnitIssuanceTests` — unit math, holding updates
 - `NavCeleryTaskTests` — mock task execution
@@ -450,7 +445,7 @@ Already detailed in **I-2**. Full conversion includes:
 - Create `services.py` helper functions
 - Replace all `float()` calls in `views.py` with `money_to_float()`
 - Update all schema defaults to strings
-- Add migration script `scripts/migrate_float_to_str.py` to convert existing docs
+- Add migration script `scripts/migrate_float_to_str.py` to convert existing records
 
 ### 7.2 Compliance Monitoring — `tasks.py` & `services.py`
 
@@ -519,14 +514,14 @@ New tab: **Compliance** with:
 ```python
 @dataclass
 class CurrencyConfigSchema:
-    """Collection: invst_currency_config"""
+    """Table: invst_currency_config"""
     base_currency: str = "BDT"
     fx_rate_source: str = "manual"     # manual / api
     last_updated: Optional[str] = None
 
 @dataclass
 class FxRateSchema:
-    """Collection: invst_fx_rates"""
+    """Table: invst_fx_rates"""
     from_currency: str
     to_currency: str
     rate: str                            # "1.0000" format
@@ -698,21 +693,21 @@ router.register(r'portal/statements', PortalStatementViewSet, basename='portal-s
 
 ### Data Migration
 
-For each phase involving new collections or schema changes:
+For each phase involving new tables or schema changes:
 
 1. **Create script**: `investment/scripts/migrate_<feature>.py`
 2. **Script pattern**:
-   - Read existing docs from source collection
+   - Read existing records from source table
    - Transform data (float→string, add new fields)
-   - Write to new collection
+   - Write to new table
    - Log summary: count migrated, errors
 3. **Safety**: All migrations are idempotent — safe to re-run
 
-### Firestore Indexes
+### Database Indexes
 
-New composite indexes required:
+New composite indexes required (created via Django model `Meta.indexes` or `migrations.AddIndex`):
 
-| Collection | Fields | Use Case |
+| Table | Fields | Use Case |
 |-----------|--------|----------|
 | `invst_nav_history` | `nav_date` DESC | Latest NAV query |
 | `invst_investor_holdings` | `investor_id` | Per-investor lookup |
@@ -724,7 +719,7 @@ New composite indexes required:
 
 | Phase | Deploy Window | Rollback Mechanism |
 |-------|--------------|--------------------|
-| I-1, I-2 | Sprint 1 | Revert Firestore data via backup |
+| I-1, I-2 | Sprint 1 | Revert database data via backup |
 | Phase 5 | Sprint 2-3 | `invst_nav_history` is append-only; disable task |
 | Phase 6 | Sprint 3-4 | `PerformanceService` is additive; remove from reports |
 | Phase 7 | Sprint 4 | Compliance tasks are log-only initially |
@@ -773,15 +768,15 @@ New composite indexes required:
 
 ## Architecture Decisions & Trade-offs
 
-### Why Firestore for NAV (not a relational DB)
-- NAV calculations are read-heavy (all holdings, all loans, all transactions)
-- Firestore's real-time updates enable live NAV dashboards
-- No complex JOINs needed — aggregation is already in application code
-- **Trade-off**: Consistency for concurrent unit issuance requires Firestore transactions
+### Why MySQL for NAV
+- NAV calculations are read-heavy (all holdings, all loans, all transactions) — MySQL handles concurrent reads efficiently
+- Aggregation queries use Django ORM annotations and aggregations for optimal performance
+- Django ORM provides atomic transactions for consistent concurrent unit issuance and fee accrual
+- **Trade-off**: Requires careful index design on high-volume queries
 
 ### Why string-based monetary storage
-- Firestore float64 has 15-17 significant digits → BDT amounts with 2 decimal places lose precision at ~10^13
-- String preserves exact decimal representation
+- Django DecimalField is used at the model level, but string serialization ensures precision across API, reports, and CSV exports
+- String format guarantees exact decimal representation during JSON serialization (avoiding float64 precision loss)
 - **Trade-off**: Requires conversion helper functions; slight read/write overhead
 
 ### Why TWRR over IRR/MWRR for default reporting
@@ -789,10 +784,10 @@ New composite indexes required:
 - IRR is investor-specific (depends on timing of their cash flows)
 - **Decision**: Show TWRR as primary metric, MWRR as supplemental per-investor metric
 
-### Why separate collections over subcollections
+### Why separate tables over embedded models
 - NAV history, holdings, and fee accruals need cross-investor queries (e.g., "total AUM")
-- Firestore subcollections are harder to query across all investors
-- **Decision**: Top-level collections for all entities
+- Django ORM handles joins and aggregation across tables efficiently
+- **Decision**: Separate tables with foreign key references for all entities
 
 ---
 
@@ -800,8 +795,8 @@ New composite indexes required:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Firestore read limits exceeded at scale | Low | High | Implement pagination in `get_collection`; add Redis caching layer for NAV data |
-| Concurrent unit issuance race condition | Medium | Medium | Use Firestore `transaction` for issue/redeem operations (same pattern as `CodeGenerator`) |
+| Database query performance at scale | Low | High | Implement pagination in all list views; add Redis caching layer for NAV data |
+| Concurrent unit issuance race condition | Medium | Medium | Use Django ORM `select_for_update()` and `atomic()` transactions for issue/redeem operations |
 | Fee calculation disputes with investors | Medium | High | Maintain full audit trail in `FeeAccrualSchema`; add independent calculation verification task |
 | Performance fee high-water mark rollback | Low | High | HWM is append-only; never update in place — always write new record with reference to previous |
 
@@ -817,4 +812,4 @@ The six-phase plan (Immediate + Phases 5-9) transforms the current loan-and-inve
 4. **Forecasting** (P8) — enables strategic planning
 5. **Client Portal & PDF** (P9) — enables investor self-service
 
-Each phase is independently deployable, backward-compatible with existing Firestore data, and follows the established architecture patterns. Recommend prioritizing I-1, I-2, and Phase 5 as the critical path to unblock fund operations.
+Each phase is independently deployable, backward-compatible with existing database data, and follows the established architecture patterns. Recommend prioritizing I-1, I-2, and Phase 5 as the critical path to unblock fund operations.

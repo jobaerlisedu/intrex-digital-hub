@@ -4,14 +4,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .serializers import FirestoreTokenObtainPairSerializer, LogoutSerializer
+from .serializers import CustomTokenObtainPairSerializer, LogoutSerializer
 
 
-class FirestoreTokenObtainPairView(TokenObtainPairView):
-    serializer_class = FirestoreTokenObtainPairSerializer
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
-class FirestoreTokenRefreshView(TokenRefreshView):
+class CustomTokenRefreshView(TokenRefreshView):
     pass
 
 

@@ -10,7 +10,7 @@ env:
   DJANGO_SETTINGS_MODULE: config.settings
   DJANGO_SECRET_KEY: ci-secret-key-not-for-production
   DJANGO_DEBUG: "False"
-  FIREBASE_CREDENTIALS_JSON: '{"type":"service_account","project_id":"ci-test"}'
+  DB_ENGINE: django.db.backends.sqlite3
 
 jobs:
   lint:

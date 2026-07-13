@@ -1,102 +1,100 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from config.firebase import db
 from accounts.decorators import module_access
-from datetime import datetime
-import json
+from datetime import datetime, date
+from django.db import models
 from config.workflow_integration import ensure_workflow, try_transition, INVOICE_TRIGGER_MAP
+from config.logger import hrm_logger
+from .models import (
+    ChartOfAccount, JournalEntry, JournalEntryLine, Invoice,
+    InvoiceLine, VendorBill, VendorBillLine, Payment, TaxCode, AuditTrail,
+)
 
-# Helper to serialize Firestore docs
-def serialize_doc(doc):
-    d = doc.to_dict()
-    d['id'] = doc.id
-    return d
 
-def log_audit(action_type, performed_by, before=None, after=None):
-    db.collection('fin_audit_trail').add({
-        'action_type': action_type,
-        'performed_by': performed_by,
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'payload_before': before or {},
-        'payload_after': after or {}
-    })
+def log_audit(action_type, performed_by_name, before=None, after=None):
+    AuditTrail.objects.create(
+        action_type=action_type,
+        performed_by_name=performed_by_name,
+        payload_before=before or {},
+        payload_after=after or {},
+    )
 
-# Automated double-entry helper
+
 def create_automated_journal(entry_code, posting_date, ref_doc, narration, lines, user):
-    je_data = {
-        'entry_code': entry_code,
-        'posting_date': posting_date,
-        'reference_document': ref_doc,
-        'narration': narration,
-        'status': 'Posted', # Auto-generated entries from AR/AP subledgers are pre-verified & posted
-        'created_by': 'System',
-        'approved_by': user.username,
-        'lines': lines,
-        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }
-    db.collection('fin_journal_entries').add(je_data)
+    je = JournalEntry.objects.create(
+        entry_code=entry_code,
+        posting_date=posting_date,
+        reference_document=ref_doc,
+        narration=narration,
+        status='Posted',
+        created_by_name='System',
+        approved_by_name=user.username if user else 'System',
+    )
+    for line in lines:
+        account = ChartOfAccount.objects.filter(pk=line['account_id']).first()
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=account,
+            debit_amount=line.get('debit_amount', 0),
+            credit_amount=line.get('credit_amount', 0),
+        )
+
+
+def _resolve(doc_id, model_class):
+    if not doc_id:
+        return None
+    try:
+        return model_class.objects.get(pk=doc_id)
+    except (model_class.DoesNotExist, ValueError):
+        pass
+    return model_class.objects.filter(pk=doc_id).first()
+
+
+def _account_map():
+    return {str(a.pk): f"{a.account_code} - {a.name}" for a in ChartOfAccount.objects.filter(is_active=True)}
+
 
 @login_required
 @module_access('billing')
 def index(request):
-    # Dashboard view
-    coa_docs = db.collection('fin_chart_of_accounts').stream()
-    accounts = [serialize_doc(a) for a in coa_docs]
+    accounts = list(ChartOfAccount.objects.filter(is_active=True).values('pk', 'name', 'account_code', 'account_type'))
+    journals = JournalEntry.objects.filter(is_active=True).prefetch_related('lines__account')
+    invoices = Invoice.objects.filter(is_active=True)
+    bills = VendorBill.objects.filter(is_active=True)
 
-    je_docs = db.collection('fin_journal_entries').stream()
-    journals = [serialize_doc(j) for j in je_docs]
-
-    inv_docs = db.collection('fin_invoices').stream()
-    invoices = [serialize_doc(i) for i in inv_docs]
-
-    bill_docs = db.collection('fin_vendor_bills').stream()
-    bills = [serialize_doc(b) for b in bill_docs]
-
-    # Calculate Cash Balance from posted journal lines
-    cash_accounts = [a['id'] for a in accounts if 'cash' in a['name'].lower() or 'bank' in a['name'].lower()]
+    cash_accounts = [str(a['pk']) for a in accounts if 'cash' in a['name'].lower() or 'bank' in a['name'].lower()]
     cash_balance = 0.0
     for j in journals:
-        if j.get('status') == 'Posted':
-            for line in j.get('lines', []):
-                if line.get('account_id') in cash_accounts:
-                    cash_balance += float(line.get('debit_amount', 0.0)) - float(line.get('credit_amount', 0.0))
+        if j.status == 'Posted':
+            for line in j.lines.all():
+                acc_id = str(line.account_id)
+                if acc_id in cash_accounts:
+                    cash_balance += float(line.debit_amount) - float(line.credit_amount)
 
-    # Calculate Receivables Overdue
-    today_str = datetime.now().strftime('%Y-%m-%d')
+    today_str = str(date.today())
     receivables_overdue = sum(
-        float(i.get('grand_total', 0.0)) for i in invoices 
-        if i.get('status') != 'Paid' and i.get('due_date', '') < today_str
+        float(i.grand_total) for i in invoices
+        if i.status != 'Paid' and str(i.due_date) < today_str
     )
+    payables_due = sum(float(b.grand_total) for b in bills if b.status != 'Paid')
 
-    # Calculate Payables Due
-    payables_due = sum(
-        float(b.get('grand_total', 0.0)) for b in bills 
-        if b.get('status') != 'Paid'
-    )
-
-    # Calculate Net Profit (Posted Revenues - Posted Expenses)
-    revenue_accounts = [a['id'] for a in accounts if a.get('account_type') == 'Revenue']
-    expense_accounts = [a['id'] for a in accounts if a.get('account_type') == 'Expense']
-    
+    revenue_ids = [str(a['pk']) for a in accounts if a['account_type'] == 'Revenue']
+    expense_ids = [str(a['pk']) for a in accounts if a['account_type'] == 'Expense']
     total_revenue = 0.0
     total_expense = 0.0
     for j in journals:
-        if j.get('status') == 'Posted':
-            for line in j.get('lines', []):
-                acc_id = line.get('account_id')
-                if acc_id in revenue_accounts:
-                    # Revenue increases with credit
-                    total_revenue += float(line.get('credit_amount', 0.0)) - float(line.get('debit_amount', 0.0))
-                elif acc_id in expense_accounts:
-                    # Expense increases with debit
-                    total_expense += float(line.get('debit_amount', 0.0)) - float(line.get('credit_amount', 0.0))
+        if j.status == 'Posted':
+            for line in j.lines.all():
+                acc_id = str(line.account_id)
+                if acc_id in revenue_ids:
+                    total_revenue += float(line.credit_amount) - float(line.debit_amount)
+                elif acc_id in expense_ids:
+                    total_expense += float(line.debit_amount) - float(line.credit_amount)
 
     net_profit = total_revenue - total_expense
     net_profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0.0
-
-    # Maker-Checker: unposted journals list
-    unposted_journals = [j for j in journals if j.get('status') == 'Draft']
+    unposted_journals = [j for j in journals if j.status == 'Draft']
 
     context = {
         'cash_balance': cash_balance,
@@ -105,8 +103,8 @@ def index(request):
         'net_profit': net_profit,
         'net_profit_margin': net_profit_margin,
         'unposted_journals': unposted_journals,
-        'recent_invoices': invoices[:5],
-        'recent_bills': bills[:5],
+        'recent_invoices': invoices.order_by('-created_at')[:5],
+        'recent_bills': bills.order_by('-created_at')[:5],
     }
     return render(request, 'billing/dashboard.html', context)
 
@@ -117,43 +115,41 @@ def chart_of_accounts(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
-
         if action == 'add_account':
             data = {
                 'account_code': request.POST.get('account_code'),
                 'name': request.POST.get('name'),
                 'account_type': request.POST.get('account_type'),
                 'currency': request.POST.get('currency', 'BDT'),
-                'is_active': request.POST.get('is_active') == 'True'
+                'is_active': request.POST.get('is_active') == 'True',
             }
-
             if doc_id:
-                old_snap = db.collection('fin_chart_of_accounts').document(doc_id).get().to_dict()
-                db.collection('fin_chart_of_accounts').document(doc_id).update(data)
-                log_audit('UPDATE_ACCOUNT', request.user.username, old_snap, data)
+                old = _resolve(doc_id, ChartOfAccount)
+                ChartOfAccount.objects.filter(pk=old.pk if old else doc_id).update(**data)
+                log_audit('UPDATE_ACCOUNT', request.user.username, {'old': str(old) if old else ''}, data)
                 messages.success(request, "Account updated successfully.")
             else:
-                db.collection('fin_chart_of_accounts').add(data)
+                obj = ChartOfAccount.objects.create(**data)
                 log_audit('CREATE_ACCOUNT', request.user.username, {}, data)
                 messages.success(request, "Account created successfully.")
-
         elif action == 'delete_account' and doc_id:
-            old_snap = db.collection('fin_chart_of_accounts').document(doc_id).get().to_dict()
-            db.collection('fin_chart_of_accounts').document(doc_id).delete()
-            log_audit('DELETE_ACCOUNT', request.user.username, old_snap, {})
-            messages.success(request, "Account deleted successfully.")
-
+            acc = _resolve(doc_id, ChartOfAccount)
+            if acc:
+                acc.is_active = False
+                acc.save(update_fields=['is_active'])
+                log_audit('DELETE_ACCOUNT', request.user.username, {'code': acc.account_code}, {})
+                messages.success(request, "Account deleted successfully.")
         return redirect('billing:chart_of_accounts')
 
-    coa_docs = db.collection('fin_chart_of_accounts').stream()
-    accounts = [serialize_doc(a) for a in coa_docs]
-    # Sort by account code
-    accounts.sort(key=lambda x: x.get('account_code', ''))
-    accounts_json = json.dumps(accounts)
-
+    accounts = list(ChartOfAccount.objects.filter(is_active=True).order_by('account_code').values(
+        'pk', 'account_code', 'name', 'account_type', 'currency', 'is_active',
+    ))
+    for a in accounts:
+        a['id'] = a.pop('pk') or ''
+    import json
     return render(request, 'billing/chart_of_accounts.html', {
         'accounts': accounts,
-        'accounts_json': accounts_json
+        'accounts_json': json.dumps(accounts),
     })
 
 
@@ -169,110 +165,122 @@ def general_journal(request):
             debits = request.POST.getlist('line_debit[]')
             credits = request.POST.getlist('line_credit[]')
 
-            lines = []
+            lines_data = []
             total_debit = 0.0
             total_credit = 0.0
-
             for acc, deb, cred in zip(acc_ids, debits, credits):
                 if acc:
                     d_val = float(deb or 0.0)
                     c_val = float(cred or 0.0)
-                    lines.append({
-                        'account_id': acc,
-                        'debit_amount': d_val,
-                        'credit_amount': c_val
-                    })
+                    lines_data.append({'account_id': acc, 'debit_amount': d_val, 'credit_amount': c_val})
                     total_debit += d_val
                     total_credit += c_val
 
-            # Enforce double-entry integrity
             if abs(total_debit - total_credit) > 0.001:
-                messages.error(request, f"Unbalanced Journal: Sum of Debits (BDT {total_debit}) must equal Credits (BDT {total_credit})!")
+                messages.error(request, f"Unbalanced Journal: Debits BDT {total_debit} != Credits BDT {total_credit}")
                 return redirect('billing:general_journal')
 
-            data = {
-                'posting_date': request.POST.get('posting_date'),
-                'reference_document': request.POST.get('reference_document', ''),
-                'narration': request.POST.get('narration', ''),
-                'status': 'Draft', # Maker-Checker: Default is Draft
-                'created_by': request.user.username,
-                'lines': lines,
-                'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-
             if doc_id:
-                old_snap = db.collection('fin_journal_entries').document(doc_id).get().to_dict()
-                db.collection('fin_journal_entries').document(doc_id).update(data)
-                log_audit('UPDATE_JOURNAL', request.user.username, old_snap, data)
+                je = _resolve(doc_id, JournalEntry)
+                if je:
+                    je.posting_date = request.POST.get('posting_date')
+                    je.reference_document = request.POST.get('reference_document', '')
+                    je.narration = request.POST.get('narration', '')
+                    je.save(update_fields=['posting_date', 'reference_document', 'narration'])
+                    je.lines.all().delete()
+                    for ld in lines_data:
+                        acc = ChartOfAccount.objects.filter(pk=ld['account_id']).first()
+                        JournalEntryLine.objects.create(journal_entry=je, account=acc, debit_amount=ld['debit_amount'], credit_amount=ld['credit_amount'])
+                log_audit('UPDATE_JOURNAL', request.user.username, {}, {})
                 messages.success(request, "Journal entry draft updated successfully.")
             else:
-                count = len(list(db.collection('fin_journal_entries').stream()))
-                data['entry_code'] = f"JE-{datetime.now().year}-{count + 1001}"
-                data['created_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                db.collection('fin_journal_entries').add(data)
-                log_audit('CREATE_JOURNAL', request.user.username, {}, data)
+                count = JournalEntry.objects.count()
+                entry_code = f"JE-{datetime.now().year}-{count + 1001}"
+                je = JournalEntry.objects.create(
+                    entry_code=entry_code,
+                    posting_date=request.POST.get('posting_date'),
+                    reference_document=request.POST.get('reference_document', ''),
+                    narration=request.POST.get('narration', ''),
+                    status='Draft',
+                    created_by_name=request.user.username,
+                )
+                for ld in lines_data:
+                    acc = ChartOfAccount.objects.filter(pk=ld['account_id']).first()
+                    JournalEntryLine.objects.create(journal_entry=je, account=acc, debit_amount=ld['debit_amount'], credit_amount=ld['credit_amount'])
+                log_audit('CREATE_JOURNAL', request.user.username, {}, {'entry_code': entry_code})
                 messages.success(request, "Journal entry draft created successfully.")
 
         elif action == 'post_journal' and doc_id:
-            je_ref = db.collection('fin_journal_entries').document(doc_id)
-            je_data = je_ref.get().to_dict()
-            
-            # Recheck balance logic before approval
-            total_debit = sum(float(l.get('debit_amount', 0.0)) for l in je_data.get('lines', []))
-            total_credit = sum(float(l.get('credit_amount', 0.0)) for l in je_data.get('lines', []))
-            if abs(total_debit - total_credit) > 0.001:
-                messages.error(request, "Cannot approve: Journal is unbalanced.")
-                return redirect('billing:general_journal')
-
-            je_ref.update({
-                'status': 'Posted',
-                'approved_by': request.user.username
-            })
-            log_audit('POST_JOURNAL', request.user.username, je_data, {'status': 'Posted', 'approved_by': request.user.username})
-            messages.success(request, "Journal entry approved and posted successfully.")
+            je = _resolve(doc_id, JournalEntry)
+            if je:
+                total_debit = sum(float(l.debit_amount) for l in je.lines.all())
+                total_credit = sum(float(l.credit_amount) for l in je.lines.all())
+                if abs(total_debit - total_credit) > 0.001:
+                    messages.error(request, "Cannot approve: Journal is unbalanced.")
+                else:
+                    je.status = 'Posted'
+                    je.approved_by_name = request.user.username
+                    je.save(update_fields=['status', 'approved_by_name'])
+                    log_audit('POST_JOURNAL', request.user.username, {}, {'status': 'Posted'})
+                    messages.success(request, "Journal entry approved and posted successfully.")
 
         elif action == 'void_journal' and doc_id:
-            je_ref = db.collection('fin_journal_entries').document(doc_id)
-            je_data = je_ref.get().to_dict()
-            je_ref.update({'status': 'Voided'})
-            log_audit('VOID_JOURNAL', request.user.username, je_data, {'status': 'Voided'})
-            messages.success(request, "Journal entry voided successfully.")
+            je = _resolve(doc_id, JournalEntry)
+            if je:
+                je.status = 'Voided'
+                je.save(update_fields=['status'])
+                log_audit('VOID_JOURNAL', request.user.username, {}, {'status': 'Voided'})
+                messages.success(request, "Journal entry voided successfully.")
 
         elif action == 'delete_journal' and doc_id:
-            old_snap = db.collection('fin_journal_entries').document(doc_id).get().to_dict()
-            # Strict protection: Posted journals cannot be deleted
-            if old_snap.get('status') == 'Posted':
-                messages.error(request, "Compliance protection: Posted general journals cannot be deleted!")
-            else:
-                db.collection('fin_journal_entries').document(doc_id).delete()
-                log_audit('DELETE_JOURNAL', request.user.username, old_snap, {})
-                messages.success(request, "Journal entry draft deleted successfully.")
-
+            je = _resolve(doc_id, JournalEntry)
+            if je:
+                if je.status == 'Posted':
+                    messages.error(request, "Posted journals cannot be deleted!")
+                else:
+                    je.is_active = False
+                    je.save(update_fields=['is_active'])
+                    log_audit('DELETE_JOURNAL', request.user.username, {'entry_code': je.entry_code}, {})
+                    messages.success(request, "Journal entry deleted successfully.")
         return redirect('billing:general_journal')
 
-    # GET context
-    coa_docs = db.collection('fin_chart_of_accounts').where('is_active', '==', True).stream()
-    accounts = [serialize_doc(a) for a in coa_docs]
-    accounts.sort(key=lambda x: x.get('account_code', ''))
-
-    je_docs = db.collection('fin_journal_entries').stream()
-    journals = [serialize_doc(j) for j in je_docs]
-    journals.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-
-    # Attach account names for UI listing clarity
+    accounts = list(ChartOfAccount.objects.filter(is_active=True).order_by('account_code').values(
+        'pk', 'account_code', 'name',
+    ))
+    for a in accounts:
+        a['id'] = str(a.pop('pk'))
     acc_map = {a['id']: f"{a['account_code']} - {a['name']}" for a in accounts}
+
+    journals = JournalEntry.objects.filter(is_active=True).prefetch_related('lines__account').order_by('-created_at')
+    journal_list = []
     for j in journals:
-        for line in j.get('lines', []):
-            line['account_name'] = acc_map.get(line.get('account_id'), 'Unknown Account')
+        lines = []
+        for line in j.lines.all():
+            lines.append({
+                'account_id': str(line.account_id) if line.account else '',
+                'account_name': acc_map.get(str(line.account_id), 'Unknown'),
+                'debit_amount': float(line.debit_amount),
+                'credit_amount': float(line.credit_amount),
+            })
+        journal_list.append({
+            'id': j.pk or str(j.pk),
+            'entry_code': j.entry_code,
+            'posting_date': str(j.posting_date),
+            'reference_document': j.reference_document or '',
+            'narration': j.narration or '',
+            'status': j.status,
+            'created_by': j.created_by_name or '',
+            'approved_by': j.approved_by_name or '',
+            'lines': lines,
+            'created_at': j.created_at.isoformat() if j.created_at else '',
+        })
 
-    journals_json = json.dumps(journals)
-    accounts_json = json.dumps(accounts)
-
+    import json
     return render(request, 'billing/general_journal.html', {
-        'journals': journals,
+        'journals': journal_list,
         'accounts': accounts,
-        'journals_json': journals_json,
-        'accounts_json': accounts_json
+        'journals_json': json.dumps(journal_list),
+        'accounts_json': json.dumps(accounts),
     })
 
 
@@ -289,119 +297,119 @@ def ar_invoices(request):
             tax_amount = subtotal * (tax_rate / 100)
             grand_total = subtotal + tax_amount
 
-            data = {
-                'client_name': request.POST.get('client_name'),
-                'invoice_number': request.POST.get('invoice_number'),
-                'issue_date': request.POST.get('issue_date'),
-                'due_date': request.POST.get('due_date'),
-                'subtotal': subtotal,
-                'tax_amount': tax_amount,
-                'grand_total': grand_total,
-                'status': request.POST.get('status', 'Pending'),
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-
             if doc_id:
-                old_snap = db.collection('fin_invoices').document(doc_id).get().to_dict()
-                db.collection('fin_invoices').document(doc_id).update(data)
-                log_audit('UPDATE_INVOICE', request.user.username, old_snap, data)
-                ensure_workflow('billing', 'invoice', doc_id, request=request)
+                inv = _resolve(doc_id, Invoice)
+                if inv:
+                    inv.client_name = request.POST.get('client_name')
+                    inv.invoice_number = request.POST.get('invoice_number')
+                    inv.issue_date = request.POST.get('issue_date')
+                    inv.due_date = request.POST.get('due_date')
+                    inv.subtotal = subtotal
+                    inv.tax_amount = tax_amount
+                    inv.grand_total = grand_total
+                    inv.status = request.POST.get('status', 'Pending')
+                    inv.save()
+                    ensure_workflow('billing', 'invoice', str(inv.pk), request=request)
+                log_audit('UPDATE_INVOICE', request.user.username, {}, {})
                 messages.success(request, "Invoice updated successfully.")
             else:
-                _, inv_ref = db.collection('fin_invoices').add(data)
-                inv_id = inv_ref.id
-                log_audit('CREATE_INVOICE', request.user.username, {}, data)
+                inv = Invoice.objects.create(
+                    invoice_number=request.POST.get('invoice_number'),
+                    client_name=request.POST.get('client_name'),
+                    issue_date=request.POST.get('issue_date'),
+                    due_date=request.POST.get('due_date'),
+                    subtotal=subtotal,
+                    tax_amount=tax_amount,
+                    grand_total=grand_total,
+                    status=request.POST.get('status', 'Pending'),
+                )
+                log_audit('CREATE_INVOICE', request.user.username, {}, {'invoice_number': inv.invoice_number})
 
-                # Automated Double-entry: Debit AR asset and Credit Sales revenue
-                coa_ar = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11200').stream())
-                coa_sales = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '41000').stream())
-                if coa_ar and coa_sales:
-                    ar_acc_id = coa_ar[0].id
-                    sales_acc_id = coa_sales[0].id
+                ar_account = ChartOfAccount.objects.filter(account_code='11200').first()
+                sales_account = ChartOfAccount.objects.filter(account_code='41000').first()
+                if ar_account and sales_account:
                     lines = [
-                        {'account_id': ar_acc_id, 'debit_amount': grand_total, 'credit_amount': 0.0},
-                        {'account_id': sales_acc_id, 'debit_amount': 0.0, 'credit_amount': grand_total}
+                        {'account_id': str(ar_account.pk), 'debit_amount': grand_total, 'credit_amount': 0.0},
+                        {'account_id': str(sales_account.pk), 'debit_amount': 0.0, 'credit_amount': grand_total},
                     ]
                     create_automated_journal(
-                        entry_code=f"AUTO-INV-{data['invoice_number']}",
-                        posting_date=data['issue_date'],
-                        ref_doc=data['invoice_number'],
-                        narration=f"Auto sales journal posting for Invoice {data['invoice_number']}",
+                        entry_code=f"AUTO-INV-{inv.invoice_number}",
+                        posting_date=str(inv.issue_date),
+                        ref_doc=inv.invoice_number,
+                        narration=f"Auto sales journal for Invoice {inv.invoice_number}",
                         lines=lines,
-                        user=request.user
+                        user=request.user,
                     )
-                ensure_workflow('billing', 'invoice', inv_ref.id, request=request)
-                messages.success(request, "Invoice created and automated journal entries posted successfully.")
+                ensure_workflow('billing', 'invoice', str(inv.pk), request=request)
+                messages.success(request, "Invoice created with automated journal entries.")
 
         elif action == 'record_payment' and doc_id:
-            inv_ref = db.collection('fin_invoices').document(doc_id)
-            inv_data = inv_ref.get().to_dict()
+            inv = _resolve(doc_id, Invoice)
+            if inv:
+                pay_amount = float(request.POST.get('amount', 0.0))
+                grand_total = float(inv.grand_total)
 
-            # Settlement calculation
-            pay_amount = float(request.POST.get('amount', 0.0))
-            grand_total = float(inv_data.get('grand_total', 0.0))
-
-            # Record settlement
-            db.collection('fin_payments').add({
-                'receipt_code': f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                'invoice_id': doc_id,
-                'payment_date': request.POST.get('payment_date'),
-                'amount': pay_amount,
-                'payment_method': request.POST.get('payment_method'),
-                'bank_reference': request.POST.get('bank_reference', ''),
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            })
-
-            # Check status shifts
-            new_status = 'Paid' if pay_amount >= grand_total else 'Partially Paid'
-            inv_ref.update({'status': new_status})
-            log_audit('RECORD_AR_PAYMENT', request.user.username, inv_data, {'status': new_status})
-            ensure_workflow('billing', 'invoice', doc_id, request=request)
-            trigger = INVOICE_TRIGGER_MAP.get(new_status)
-            if trigger:
-                try_transition('billing', 'invoice', doc_id, trigger, request=request)
-
-            # Automated Double-entry: Debit Cash/Bank Asset and Credit AR Asset
-            coa_cash = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11100').stream())
-            coa_ar = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11200').stream())
-            if coa_cash and coa_ar:
-                cash_id = coa_cash[0].id
-                ar_id = coa_ar[0].id
-                lines = [
-                    {'account_id': cash_id, 'debit_amount': pay_amount, 'credit_amount': 0.0},
-                    {'account_id': ar_id, 'debit_amount': 0.0, 'credit_amount': pay_amount}
-                ]
-                create_automated_journal(
-                    entry_code=f"AUTO-REC-{inv_data['invoice_number']}",
-                    posting_date=request.POST.get('payment_date'),
-                    ref_doc=inv_data['invoice_number'],
-                    narration=f"Auto payment clearing sales posting for Invoice {inv_data['invoice_number']}",
-                    lines=lines,
-                    user=request.user
+                pmt = Payment.objects.create(
+                    receipt_code=f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    invoice=inv,
+                    payment_date=request.POST.get('payment_date'),
+                    amount=pay_amount,
+                    payment_method=request.POST.get('payment_method', 'Cash'),
+                    bank_reference=request.POST.get('bank_reference', ''),
                 )
-            messages.success(request, "Payment receipt logged and automated settlement journal entries posted successfully.")
+                new_status = 'Paid' if pay_amount >= grand_total else 'Partially Paid'
+                inv.status = new_status
+                inv.save(update_fields=['status'])
+                log_audit('RECORD_AR_PAYMENT', request.user.username, {}, {'status': new_status})
+                ensure_workflow('billing', 'invoice', str(inv.pk), request=request)
+                trigger = INVOICE_TRIGGER_MAP.get(new_status)
+                if trigger:
+                    try_transition('billing', 'invoice', str(inv.pk), trigger, request=request)
+
+                cash_account = ChartOfAccount.objects.filter(account_code='11100').first()
+                ar_account = ChartOfAccount.objects.filter(account_code='11200').first()
+                if cash_account and ar_account:
+                    lines = [
+                        {'account_id': str(cash_account.pk), 'debit_amount': pay_amount, 'credit_amount': 0.0},
+                        {'account_id': str(ar_account.pk), 'debit_amount': 0.0, 'credit_amount': pay_amount},
+                    ]
+                    create_automated_journal(
+                        entry_code=f"AUTO-REC-{inv.invoice_number}",
+                        posting_date=request.POST.get('payment_date'),
+                        ref_doc=inv.invoice_number,
+                        narration=f"Auto payment clearing for Invoice {inv.invoice_number}",
+                        lines=lines,
+                        user=request.user,
+                    )
+                messages.success(request, "Payment logged and automated journal entries posted.")
 
         elif action == 'delete_invoice' and doc_id:
-            old_snap = db.collection('fin_invoices').document(doc_id).get().to_dict()
-            db.collection('fin_invoices').document(doc_id).delete()
-            log_audit('DELETE_INVOICE', request.user.username, old_snap, {})
-            messages.success(request, "Invoice deleted successfully.")
-
+            inv = _resolve(doc_id, Invoice)
+            if inv:
+                inv.is_active = False
+                inv.save(update_fields=['is_active'])
+                log_audit('DELETE_INVOICE', request.user.username, {'invoice_number': inv.invoice_number}, {})
+                messages.success(request, "Invoice deleted successfully.")
         return redirect('billing:ar_invoices')
 
-    # GET context
-    inv_docs = db.collection('fin_invoices').stream()
-    invoices = [serialize_doc(i) for i in inv_docs]
-    invoices.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    invoices_json = json.dumps(invoices)
+    invoices = list(Invoice.objects.filter(is_active=True).order_by('-created_at').values(
+        'pk', 'invoice_number', 'client_name', 'issue_date', 'due_date',
+        'subtotal', 'tax_amount', 'grand_total', 'status',
+    ))
+    for i in invoices:
+        i['id'] = i.pop('pk') or ''
+        for f in ('issue_date', 'due_date'):
+            i[f] = str(i[f]) if i[f] else ''
 
-    tax_docs = db.collection('fin_tax_codes').stream()
-    taxes = [serialize_doc(t) for t in tax_docs]
+    import json
+    taxes = list(TaxCode.objects.filter(is_active=True).values('pk', 'tax_code', 'name', 'rate_percentage'))
+    for t in taxes:
+        t['id'] = t.pop('pk') or ''
 
     return render(request, 'billing/ar_invoices.html', {
         'invoices': invoices,
-        'invoices_json': invoices_json,
-        'taxes': taxes
+        'invoices_json': json.dumps(invoices),
+        'taxes': taxes,
     })
 
 
@@ -414,91 +422,92 @@ def ap_bills(request):
 
         if action == 'add_bill':
             grand_total = float(request.POST.get('grand_total', 0.0))
-            data = {
-                'bill_number': request.POST.get('bill_number'),
-                'vendor_name': request.POST.get('vendor_name'),
-                'issue_date': request.POST.get('issue_date'),
-                'due_date': request.POST.get('due_date'),
-                'grand_total': grand_total,
-                'status': request.POST.get('status', 'Pending'),
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-
             if doc_id:
-                old_snap = db.collection('fin_vendor_bills').document(doc_id).get().to_dict()
-                db.collection('fin_vendor_bills').document(doc_id).update(data)
-                log_audit('UPDATE_BILL', request.user.username, old_snap, data)
+                bill = _resolve(doc_id, VendorBill)
+                if bill:
+                    bill.bill_number = request.POST.get('bill_number')
+                    bill.vendor_name = request.POST.get('vendor_name')
+                    bill.issue_date = request.POST.get('issue_date')
+                    bill.due_date = request.POST.get('due_date')
+                    bill.grand_total = grand_total
+                    bill.status = request.POST.get('status', 'Pending')
+                    bill.save()
+                log_audit('UPDATE_BILL', request.user.username, {}, {})
                 messages.success(request, "Vendor bill updated successfully.")
             else:
-                db.collection('fin_vendor_bills').add(data)
-                log_audit('CREATE_BILL', request.user.username, {}, data)
+                bill = VendorBill.objects.create(
+                    bill_number=request.POST.get('bill_number'),
+                    vendor_name=request.POST.get('vendor_name'),
+                    issue_date=request.POST.get('issue_date'),
+                    due_date=request.POST.get('due_date'),
+                    grand_total=grand_total,
+                    status=request.POST.get('status', 'Pending'),
+                )
+                log_audit('CREATE_BILL', request.user.username, {}, {'bill_number': bill.bill_number})
 
-                # Automated Double-entry: Debit Expense and Credit Accounts Payable Liability
-                coa_ap = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '21100').stream())
-                coa_exp = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '51000').stream())
-                if coa_ap and coa_exp:
-                    ap_id = coa_ap[0].id
-                    exp_id = coa_exp[0].id
+                ap_account = ChartOfAccount.objects.filter(account_code='21100').first()
+                exp_account = ChartOfAccount.objects.filter(account_code='51000').first()
+                if ap_account and exp_account:
                     lines = [
-                        {'account_id': exp_id, 'debit_amount': grand_total, 'credit_amount': 0.0},
-                        {'account_id': ap_id, 'debit_amount': 0.0, 'credit_amount': grand_total}
+                        {'account_id': str(exp_account.pk), 'debit_amount': grand_total, 'credit_amount': 0.0},
+                        {'account_id': str(ap_account.pk), 'debit_amount': 0.0, 'credit_amount': grand_total},
                     ]
                     create_automated_journal(
-                        entry_code=f"AUTO-BILL-{data['bill_number']}",
-                        posting_date=data['issue_date'],
-                        ref_doc=data['bill_number'],
-                        narration=f"Auto expense posting for Vendor Bill {data['bill_number']}",
+                        entry_code=f"AUTO-BILL-{bill.bill_number}",
+                        posting_date=str(bill.issue_date),
+                        ref_doc=bill.bill_number,
+                        narration=f"Auto expense posting for Vendor Bill {bill.bill_number}",
                         lines=lines,
-                        user=request.user
+                        user=request.user,
                     )
-                messages.success(request, "Vendor bill created and automated expense journal entries posted successfully.")
+                messages.success(request, "Vendor bill created with automated journal entries.")
 
         elif action == 'pay_bill' and doc_id:
-            bill_ref = db.collection('fin_vendor_bills').document(doc_id)
-            bill_data = bill_ref.get().to_dict()
-            
-            pay_amount = float(bill_data.get('grand_total', 0.0))
+            bill = _resolve(doc_id, VendorBill)
+            if bill:
+                pay_amount = float(bill.grand_total)
+                bill.status = 'Paid'
+                bill.save(update_fields=['status'])
+                log_audit('PAY_VENDOR_BILL', request.user.username, {}, {'status': 'Paid'})
 
-            bill_ref.update({'status': 'Paid'})
-            log_audit('PAY_VENDOR_BILL', request.user.username, bill_data, {'status': 'Paid'})
-
-            # Automated Double-entry: Debit Accounts Payable Liability and Credit Cash Asset
-            coa_ap = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '21100').stream())
-            coa_cash = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11100').stream())
-            if coa_ap and coa_cash:
-                ap_id = coa_ap[0].id
-                cash_id = coa_cash[0].id
-                lines = [
-                    {'account_id': ap_id, 'debit_amount': pay_amount, 'credit_amount': 0.0},
-                    {'account_id': cash_id, 'debit_amount': 0.0, 'credit_amount': pay_amount}
-                ]
-                create_automated_journal(
-                    entry_code=f"AUTO-PAY-{bill_data['bill_number']}",
-                    posting_date=datetime.now().strftime('%Y-%m-%d'),
-                    ref_doc=bill_data['bill_number'],
-                    narration=f"Auto settlement clearing entry for Bill {bill_data['bill_number']}",
-                    lines=lines,
-                    user=request.user
-                )
-            messages.success(request, "Vendor bill status set to Paid and automated payment clearing journal entries posted successfully.")
+                ap_account = ChartOfAccount.objects.filter(account_code='21100').first()
+                cash_account = ChartOfAccount.objects.filter(account_code='11100').first()
+                if ap_account and cash_account:
+                    lines = [
+                        {'account_id': str(ap_account.pk), 'debit_amount': pay_amount, 'credit_amount': 0.0},
+                        {'account_id': str(cash_account.pk), 'debit_amount': 0.0, 'credit_amount': pay_amount},
+                    ]
+                    create_automated_journal(
+                        entry_code=f"AUTO-PAY-{bill.bill_number}",
+                        posting_date=str(date.today()),
+                        ref_doc=bill.bill_number,
+                        narration=f"Auto settlement for Bill {bill.bill_number}",
+                        lines=lines,
+                        user=request.user,
+                    )
+                messages.success(request, "Vendor bill paid and clearing entries posted.")
 
         elif action == 'delete_bill' and doc_id:
-            old_snap = db.collection('fin_vendor_bills').document(doc_id).get().to_dict()
-            db.collection('fin_vendor_bills').document(doc_id).delete()
-            log_audit('DELETE_BILL', request.user.username, old_snap, {})
-            messages.success(request, "Vendor bill deleted successfully.")
-
+            bill = _resolve(doc_id, VendorBill)
+            if bill:
+                bill.is_active = False
+                bill.save(update_fields=['is_active'])
+                log_audit('DELETE_BILL', request.user.username, {'bill_number': bill.bill_number}, {})
+                messages.success(request, "Vendor bill deleted successfully.")
         return redirect('billing:ap_bills')
 
-    # GET context
-    bill_docs = db.collection('fin_vendor_bills').stream()
-    bills = [serialize_doc(b) for b in bill_docs]
-    bills.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    bills_json = json.dumps(bills)
+    bills = list(VendorBill.objects.filter(is_active=True).order_by('-created_at').values(
+        'pk', 'bill_number', 'vendor_name', 'issue_date', 'due_date', 'grand_total', 'status',
+    ))
+    for b in bills:
+        b['id'] = b.pop('pk') or ''
+        for f in ('issue_date', 'due_date'):
+            b[f] = str(b[f]) if b[f] else ''
 
+    import json
     return render(request, 'billing/ap_bills.html', {
         'vendor_bills': bills,
-        'bills_json': bills_json
+        'bills_json': json.dumps(bills),
     })
 
 
@@ -508,131 +517,109 @@ def tax_center(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         doc_id = request.POST.get('doc_id')
-
         if action == 'add_tax_code':
             data = {
                 'tax_code': request.POST.get('tax_code'),
                 'name': request.POST.get('name'),
                 'rate_percentage': float(request.POST.get('rate_percentage', 0.0)),
-                'tax_authority': request.POST.get('tax_authority', 'National Revenue Authority')
+                'tax_authority': request.POST.get('tax_authority', 'National Revenue Authority'),
             }
-
             if doc_id:
-                old_snap = db.collection('fin_tax_codes').document(doc_id).get().to_dict()
-                db.collection('fin_tax_codes').document(doc_id).update(data)
-                log_audit('UPDATE_TAX_CODE', request.user.username, old_snap, data)
-                messages.success(request, "Tax code details updated successfully.")
+                tc = _resolve(doc_id, TaxCode)
+                if tc:
+                    TaxCode.objects.filter(pk=tc.pk).update(**data)
+                log_audit('UPDATE_TAX_CODE', request.user.username, {}, data)
+                messages.success(request, "Tax code updated.")
             else:
-                db.collection('fin_tax_codes').add(data)
+                obj = TaxCode.objects.create(**data)
                 log_audit('CREATE_TAX_CODE', request.user.username, {}, data)
-                messages.success(request, "Tax code created successfully.")
-
+                messages.success(request, "Tax code created.")
         elif action == 'delete_tax_code' and doc_id:
-            old_snap = db.collection('fin_tax_codes').document(doc_id).get().to_dict()
-            db.collection('fin_tax_codes').document(doc_id).delete()
-            log_audit('DELETE_TAX_CODE', request.user.username, old_snap, {})
-            messages.success(request, "Tax code deleted successfully.")
-
+            tc = _resolve(doc_id, TaxCode)
+            if tc:
+                tc.is_active = False
+                tc.save(update_fields=['is_active'])
+                log_audit('DELETE_TAX_CODE', request.user.username, {'code': tc.tax_code}, {})
+                messages.success(request, "Tax code deleted.")
         return redirect('billing:tax_center')
 
-    tax_docs = db.collection('fin_tax_codes').stream()
-    taxes = [serialize_doc(t) for t in tax_docs]
-    taxes_json = json.dumps(taxes)
+    taxes = list(TaxCode.objects.filter(is_active=True).order_by('tax_code').values(
+        'pk', 'tax_code', 'name', 'rate_percentage', 'tax_authority',
+    ))
+    for t in taxes:
+        t['id'] = t.pop('pk') or ''
 
-    # Aggregates liability: Sum tax amounts from all invoices
-    inv_docs = db.collection('fin_invoices').stream()
-    total_tax_liability = sum(float(i.get('tax_amount', 0.0)) for i in inv_docs)
+    total_tax_liability = Invoice.objects.filter(is_active=True).aggregate(total=models.Sum('tax_amount'))['total'] or 0
 
+    import json
     return render(request, 'billing/tax_center.html', {
         'tax_codes': taxes,
-        'taxes_json': taxes_json,
-        'total_tax_liability': total_tax_liability
+        'taxes_json': json.dumps(taxes),
+        'total_tax_liability': float(total_tax_liability),
     })
 
 
 @login_required
 @module_access('billing')
 def financial_statements(request):
-    # Generates Real-time Trial Balance, Balance Sheet and Income Statement (P&L)
-    coa_docs = db.collection('fin_chart_of_accounts').stream()
-    accounts = [serialize_doc(a) for a in coa_docs]
+    accounts = list(ChartOfAccount.objects.filter(is_active=True).values('pk', 'account_code', 'name', 'account_type'))
+    journals = JournalEntry.objects.filter(is_active=True, status='Posted').prefetch_related('lines__account')
 
-    je_docs = db.collection('fin_journal_entries').where('status', '==', 'Posted').stream()
-    journals = [serialize_doc(j) for j in je_docs]
-
-    # Map transaction balances per account ID
-    balances = {a['id']: {'debit': 0.0, 'credit': 0.0} for a in accounts}
+    balances = {str(a['pk']): {'debit': 0.0, 'credit': 0.0} for a in accounts}
     for j in journals:
-        for line in j.get('lines', []):
-            acc_id = line.get('account_id')
+        for line in j.lines.all():
+            acc_id = str(line.account_id)
             if acc_id in balances:
-                balances[acc_id]['debit'] += float(line.get('debit_amount', 0.0))
-                balances[acc_id]['credit'] += float(line.get('credit_amount', 0.0))
+                balances[acc_id]['debit'] += float(line.debit_amount)
+                balances[acc_id]['credit'] += float(line.credit_amount)
 
-    # Compile structures
     trial_balance = []
-    balance_sheet = {'assets': [], 'liabilities': [], 'equity': [], 'total_assets': 0.0, 'total_liabilities': 0.0, 'total_equity': 0.0}
-    income_statement = {'revenues': [], 'expenses': [], 'total_revenue': 0.0, 'total_expense': 0.0, 'net_profit': 0.0}
+    bs = {'assets': [], 'liabilities': [], 'equity': [], 'total_assets': 0.0, 'total_liabilities': 0.0, 'total_equity': 0.0}
+    inc = {'revenues': [], 'expenses': [], 'total_revenue': 0.0, 'total_expense': 0.0, 'net_profit': 0.0}
 
     for a in accounts:
-        acc_id = a['id']
+        acc_id = str(a['pk'])
         deb = balances[acc_id]['debit']
         cred = balances[acc_id]['credit']
-        bal = deb - cred # Default asset sign
+        bal = deb - cred
+        trial_balance.append({'account_code': a['account_code'], 'name': a['name'], 'type': a['account_type'], 'debit': deb, 'credit': cred})
 
-        # Trial Balance
-        trial_balance.append({
-            'account_code': a.get('account_code'),
-            'name': a.get('name'),
-            'type': a.get('account_type'),
-            'debit': deb,
-            'credit': cred
-        })
+        if a['account_type'] == 'Asset':
+            bs['assets'].append({'name': a['name'], 'code': a['account_code'], 'balance': bal})
+            bs['total_assets'] += bal
+        elif a['account_type'] == 'Liability':
+            bs['liabilities'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
+            bs['total_liabilities'] += -bal
+        elif a['account_type'] == 'Equity':
+            bs['equity'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
+            bs['total_equity'] += -bal
+        elif a['account_type'] == 'Revenue':
+            inc['revenues'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
+            inc['total_revenue'] += -bal
+        elif a['account_type'] == 'Expense':
+            inc['expenses'].append({'name': a['name'], 'code': a['account_code'], 'balance': bal})
+            inc['total_expense'] += bal
 
-        # Balance Sheet categorizations
-        if a.get('account_type') == 'Asset':
-            balance_sheet['assets'].append({'name': a['name'], 'code': a['account_code'], 'balance': bal})
-            balance_sheet['total_assets'] += bal
-        elif a.get('account_type') == 'Liability':
-            # Liability is negative of asset bal
-            balance_sheet['liabilities'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
-            balance_sheet['total_liabilities'] += -bal
-        elif a.get('account_type') == 'Equity':
-            balance_sheet['equity'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
-            balance_sheet['total_equity'] += -bal
-
-        # Income statement categorizations
-        elif a.get('account_type') == 'Revenue':
-            income_statement['revenues'].append({'name': a['name'], 'code': a['account_code'], 'balance': -bal})
-            income_statement['total_revenue'] += -bal
-        elif a.get('account_type') == 'Expense':
-            income_statement['expenses'].append({'name': a['name'], 'code': a['account_code'], 'balance': bal})
-            income_statement['total_expense'] += bal
-
-    # Factor Net Profit into Balance Sheet Equity
-    net_profit = income_statement['total_revenue'] - income_statement['total_expense']
-    income_statement['net_profit'] = net_profit
-    balance_sheet['equity'].append({'name': 'Retained Earnings / Net Profit', 'code': '--', 'balance': net_profit})
-    balance_sheet['total_equity'] += net_profit
+    net_profit = inc['total_revenue'] - inc['total_expense']
+    inc['net_profit'] = net_profit
+    bs['equity'].append({'name': 'Retained Earnings / Net Profit', 'code': '--', 'balance': net_profit})
+    bs['total_equity'] += net_profit
 
     return render(request, 'billing/financial_statements.html', {
         'trial_balance': trial_balance,
-        'balance_sheet': balance_sheet,
-        'income_statement': income_statement
+        'balance_sheet': bs,
+        'income_statement': inc,
     })
 
 
 @login_required
 @module_access('billing')
 def audit_trail(request):
-    audit_docs = db.collection('fin_audit_trail').stream()
-    trail = [serialize_doc(t) for t in audit_docs]
-    # Sort descending by timestamp
-    trail.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-
-    trail_json = json.dumps(trail)
-
+    trail = list(AuditTrail.objects.filter(is_active=True).order_by('-created_at').values(
+        'action_type', 'performed_by_name', 'payload_before', 'payload_after', 'created_at',
+    ))
+    import json
     return render(request, 'billing/audit_trail.html', {
         'trail': trail,
-        'trail_json': trail_json
+        'trail_json': json.dumps(trail),
     })

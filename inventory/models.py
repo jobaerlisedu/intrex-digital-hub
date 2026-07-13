@@ -5,7 +5,6 @@ from django.conf import settings
 
 class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     item_name = models.CharField(max_length=255)
     sku = models.CharField(max_length=100, unique=True, blank=True, null=True)
     category = models.CharField(max_length=255, default='General Sourcing')
@@ -29,7 +28,6 @@ class Product(models.Model):
 
 class Vendor(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     vendor_code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
     contact_name = models.CharField(max_length=255, blank=True, null=True)
@@ -72,7 +70,6 @@ class Requisition(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     requisition_code = models.CharField(max_length=50, unique=True)
     client_name = models.CharField(max_length=255, blank=True, null=True)
     requested_by = models.CharField(max_length=255, blank=True, null=True)
@@ -106,7 +103,6 @@ class RFQ(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     rfq_code = models.CharField(max_length=50, unique=True)
     requisition = models.ForeignKey(Requisition, on_delete=models.SET_NULL, blank=True, null=True, related_name='rfqs')
     deadline = models.DateField(blank=True, null=True)
@@ -136,7 +132,6 @@ class Quotation(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     rfq = models.ForeignKey(RFQ, on_delete=models.SET_NULL, blank=True, null=True, related_name='quotations')
     vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, blank=True, null=True, related_name='quotations')
     quotation_reference = models.CharField(max_length=255, blank=True, null=True)
@@ -171,7 +166,6 @@ class PurchaseOrder(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     po_code = models.CharField(max_length=50, unique=True, verbose_name='PO Code')
     vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, blank=True, null=True, related_name='purchase_orders')
     requisition = models.ForeignKey(Requisition, on_delete=models.SET_NULL, blank=True, null=True, related_name='purchase_orders')
@@ -198,7 +192,6 @@ class PurchaseOrder(models.Model):
 
 class GoodsReceipt(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     grn_code = models.CharField(max_length=50, unique=True, verbose_name='GRN Code')
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, blank=True, null=True, related_name='goods_receipts')
     received_by = models.CharField(max_length=255, blank=True, null=True)
@@ -349,7 +342,6 @@ class Delivery(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     challan_code = models.CharField(max_length=50, unique=True)
     requisition = models.ForeignKey(Requisition, on_delete=models.SET_NULL, blank=True, null=True, related_name='deliveries')
     client_name = models.CharField(max_length=255, blank=True, null=True)

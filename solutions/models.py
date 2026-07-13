@@ -13,7 +13,6 @@ class Project(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project_code = models.CharField(max_length=100, unique=True)
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=255, blank=True, null=True)
@@ -45,7 +44,6 @@ class ProjectPhase(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='phases')
     phase_name = models.CharField(max_length=255)
     budget_allocation = models.DecimalField(max_digits=16, decimal_places=2, default=0)
@@ -80,7 +78,6 @@ class Task(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     phase = models.ForeignKey(ProjectPhase, on_delete=models.CASCADE, related_name='tasks')
     task_name = models.CharField(max_length=255)
     assigned_to = models.CharField(max_length=255, default='Unassigned')
@@ -111,7 +108,6 @@ class ProjectRequisition(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='requisitions')
     phase = models.ForeignKey(ProjectPhase, on_delete=models.SET_NULL, blank=True, null=True, related_name='requisitions')
     item_name = models.CharField(max_length=255)
@@ -148,7 +144,6 @@ class SoftwareLicense(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='licenses')
     license_name = models.CharField(max_length=255)
     license_key = models.CharField(max_length=255, blank=True, null=True)
@@ -180,7 +175,6 @@ class ProjectStakeholder(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='stakeholders')
     contact_name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255, blank=True, null=True)
@@ -202,7 +196,6 @@ class ProjectStakeholder(models.Model):
 
 class Meeting(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='meetings')
     title = models.CharField(max_length=255)
     meeting_date = models.DateField()

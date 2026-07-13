@@ -32,9 +32,9 @@ def _employee_to_user(emp):
     """Get the auth User linked to an Employee via registry.Person."""
     try:
         from registry.models import Person
-        if not emp.firestore_id:
+        if not emp.email:
             return None
-        person = Person.objects.filter(firestore_employee_id=emp.firestore_id).first()
+        person = Person.objects.filter(email=emp.email, person_type='employee').first()
         if person and person.auth_user:
             return person.auth_user
     except Exception:

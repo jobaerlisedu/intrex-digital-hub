@@ -142,3 +142,11 @@ class ClassSessionAdmin(admin.ModelAdmin):
     search_fields = ['class_title', 'course__title']
     readonly_fields = ['id', 'created_at', 'updated_at']
     raw_id_fields = ['course']
+
+
+@admin.register(models.PaymentInstallment)
+class PaymentInstallmentAdmin(admin.ModelAdmin):
+    list_display = ['payment', 'installment_number', 'due_date', 'amount', 'status']
+    list_filter = ['status']
+    raw_id_fields = ['payment']
+    readonly_fields = ['id', 'created_at']

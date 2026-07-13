@@ -1,5 +1,4 @@
-from rest_framework import viewsets, permissions
-from .base import FirestoreViewSet
+from .base import ORMViewSet
 from .. import models
 from .serializers import (
     DepartmentSerializer,
@@ -63,22 +62,16 @@ from .serializers import (
 )
 
 
-class DepartmentViewSet(FirestoreViewSet):
-    collection_name = 'org_departments'
+class DepartmentViewSet(ORMViewSet):
     serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PositionViewSet(FirestoreViewSet):
-    collection_name = 'org_positions'
+class PositionViewSet(ORMViewSet):
     serializer_class = PositionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class EmployeeViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employees'
+class EmployeeViewSet(ORMViewSet):
     serializer_class = EmployeeSerializer
-    permission_classes = [permissions.IsAuthenticated]
     filterset_fields = [
         'emp_id', 'department', 'position', 'employee_type',
         'status', 'gender', 'is_active',
@@ -89,360 +82,261 @@ class EmployeeViewSet(FirestoreViewSet):
     ]
 
 
-class RecruitmentCandidateViewSet(FirestoreViewSet):
-    collection_name = 'hrm_recruitment_candidates'
+class RecruitmentCandidateViewSet(ORMViewSet):
     serializer_class = RecruitmentCandidateSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class RecruitmentShortlistViewSet(FirestoreViewSet):
-    collection_name = 'hrm_recruitment_shortlists'
+class RecruitmentShortlistViewSet(ORMViewSet):
     serializer_class = RecruitmentShortlistSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class RecruitmentInterviewViewSet(FirestoreViewSet):
-    collection_name = 'hrm_recruitment_interviews'
+class RecruitmentInterviewViewSet(ORMViewSet):
     serializer_class = RecruitmentInterviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class RecruitmentSelectionViewSet(FirestoreViewSet):
-    collection_name = 'hrm_recruitment_selections'
+class RecruitmentSelectionViewSet(ORMViewSet):
     serializer_class = RecruitmentSelectionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class AttendanceViewSet(FirestoreViewSet):
-    collection_name = 'hrm_attendances'
+class AttendanceViewSet(ORMViewSet):
     serializer_class = AttendanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class LeaveViewSet(FirestoreViewSet):
-    collection_name = 'hrm_leaves'
+class LeaveViewSet(ORMViewSet):
     serializer_class = LeaveSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class HolidayViewSet(FirestoreViewSet):
-    collection_name = 'hrm_holidays'
+class HolidayViewSet(ORMViewSet):
     serializer_class = HolidaySerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class AdvanceSalaryViewSet(FirestoreViewSet):
-    collection_name = 'hrm_advances'
+class AdvanceSalaryViewSet(ORMViewSet):
     serializer_class = AdvanceSalarySerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PayrollViewSet(FirestoreViewSet):
-    collection_name = 'hrm_payrolls'
+class PayrollViewSet(ORMViewSet):
     serializer_class = PayrollSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PayrollEmployeeViewSet(FirestoreViewSet):
-    collection_name = 'hrm_payroll_employees'
+class PayrollEmployeeViewSet(ORMViewSet):
     serializer_class = PayrollEmployeeSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class EmployeeShiftViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employee_shifts'
+class EmployeeShiftViewSet(ORMViewSet):
     serializer_class = EmployeeShiftSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class OnboardingTaskViewSet(FirestoreViewSet):
-    collection_name = 'hrm_onboarding_tasks'
+class OnboardingTaskViewSet(ORMViewSet):
     serializer_class = OnboardingTaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class ExitClearanceViewSet(FirestoreViewSet):
-    collection_name = 'hrm_exit_clearances'
+class ExitClearanceViewSet(ORMViewSet):
     serializer_class = ExitClearanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class ExpenseClaimViewSet(FirestoreViewSet):
-    collection_name = 'hrm_expense_claims'
+class ExpenseClaimViewSet(ORMViewSet):
     serializer_class = ExpenseClaimSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class DocumentViewSet(FirestoreViewSet):
-    collection_name = 'hrm_documents'
+class DocumentViewSet(ORMViewSet):
     serializer_class = DocumentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class AssetViewSet(FirestoreViewSet):
-    collection_name = 'hrm_assets'
+class AssetViewSet(ORMViewSet):
     serializer_class = AssetSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class HRMSettingViewSet(FirestoreViewSet):
-    collection_name = 'hrm_settings'
+class HRMSettingViewSet(ORMViewSet):
     serializer_class = HRMSettingSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Performance Management ─────────────────────────────────────────────
+# -- Performance Management -------------------------------------------------
 
-class ReviewCycleViewSet(FirestoreViewSet):
-    collection_name = 'hrm_review_cycles'
+
+class ReviewCycleViewSet(ORMViewSet):
     serializer_class = ReviewCycleSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class RatingTemplateViewSet(FirestoreViewSet):
-    collection_name = 'hrm_rating_templates'
+class RatingTemplateViewSet(ORMViewSet):
     serializer_class = RatingTemplateSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class RatingScaleViewSet(FirestoreViewSet):
-    collection_name = 'hrm_rating_scales'
+class RatingScaleViewSet(ORMViewSet):
     serializer_class = RatingScaleSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class KPIViewSet(FirestoreViewSet):
-    collection_name = 'hrm_kpis'
+class KPIViewSet(ORMViewSet):
     serializer_class = KPISerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class EmployeeKPIViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employee_kpis'
+class EmployeeKPIViewSet(ORMViewSet):
     serializer_class = EmployeeKPISerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PerformanceReviewViewSet(FirestoreViewSet):
-    collection_name = 'hrm_performance_reviews'
+class PerformanceReviewViewSet(ORMViewSet):
     serializer_class = PerformanceReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PerformanceImprovementPlanViewSet(FirestoreViewSet):
-    collection_name = 'hrm_pips'
+class PerformanceImprovementPlanViewSet(ORMViewSet):
     serializer_class = PerformanceImprovementPlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class PIPMilestoneViewSet(FirestoreViewSet):
-    collection_name = 'hrm_pip_milestones'
+class PIPMilestoneViewSet(ORMViewSet):
     serializer_class = PIPMilestoneSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Leave Balance ──────────────────────────────────────────────────────
+# -- Leave Balance -----------------------------------------------------------
 
-class LeavePolicyViewSet(FirestoreViewSet):
-    collection_name = 'hrm_leave_policies'
+
+class LeavePolicyViewSet(ORMViewSet):
     serializer_class = LeavePolicySerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class LeaveBalanceViewSet(FirestoreViewSet):
-    collection_name = 'hrm_leave_balances'
+class LeaveBalanceViewSet(ORMViewSet):
     serializer_class = LeaveBalanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Training & Development ─────────────────────────────────────────────
+# -- Training & Development --------------------------------------------------
 
-class TrainingNeedViewSet(FirestoreViewSet):
-    collection_name = 'hrm_training_needs'
+
+class TrainingNeedViewSet(ORMViewSet):
     serializer_class = TrainingNeedSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class DevelopmentPlanViewSet(FirestoreViewSet):
-    collection_name = 'hrm_development_plans'
+class DevelopmentPlanViewSet(ORMViewSet):
     serializer_class = DevelopmentPlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class TrainingNominationViewSet(FirestoreViewSet):
-    collection_name = 'hrm_training_nominations'
+class TrainingNominationViewSet(ORMViewSet):
     serializer_class = TrainingNominationSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Notifications ─────────────────────────────────────────────────────
+# -- Notifications -----------------------------------------------------------
 
-class NotificationViewSet(FirestoreViewSet):
-    collection_name = 'hrm_notifications'
+
+class NotificationViewSet(ORMViewSet):
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class NotificationPreferenceViewSet(FirestoreViewSet):
-    collection_name = 'hrm_notification_preferences'
+class NotificationPreferenceViewSet(ORMViewSet):
     serializer_class = NotificationPreferenceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class DeviceTokenViewSet(FirestoreViewSet):
-    collection_name = 'hrm_device_tokens'
+class DeviceTokenViewSet(ORMViewSet):
     serializer_class = DeviceTokenSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Succession Planning ───────────────────────────────────────────────
+# -- Succession Planning -----------------------------------------------------
 
-class KeyPositionViewSet(FirestoreViewSet):
-    collection_name = 'hrm_key_positions'
+
+class KeyPositionViewSet(ORMViewSet):
     serializer_class = KeyPositionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class SuccessorCandidateViewSet(FirestoreViewSet):
-    collection_name = 'hrm_successor_candidates'
+class SuccessorCandidateViewSet(ORMViewSet):
     serializer_class = SuccessorCandidateSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class SuccessionPlanViewSet(FirestoreViewSet):
-    collection_name = 'hrm_succession_plans'
+class SuccessionPlanViewSet(ORMViewSet):
     serializer_class = SuccessionPlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Employee Skills & Education ─────────────────────────────────────────────────
+# -- Employee Skills & Education ---------------------------------------------
 
-class EmployeeEducationViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employee_education'
+
+class EmployeeEducationViewSet(ORMViewSet):
     serializer_class = EmployeeEducationSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class EmployeeExperienceViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employee_experience'
+class EmployeeExperienceViewSet(ORMViewSet):
     serializer_class = EmployeeExperienceSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class EmployeeSkillViewSet(FirestoreViewSet):
-    collection_name = 'hrm_employee_skills'
+class EmployeeSkillViewSet(ORMViewSet):
     serializer_class = EmployeeSkillSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class CompetencyViewSet(FirestoreViewSet):
-    collection_name = 'hrm_competencies'
+class CompetencyViewSet(ORMViewSet):
     serializer_class = CompetencySerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class CompetencyRatingViewSet(FirestoreViewSet):
-    collection_name = 'hrm_competency_ratings'
+class CompetencyRatingViewSet(ORMViewSet):
     serializer_class = CompetencyRatingSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class CandidateDocumentViewSet(FirestoreViewSet):
-    collection_name = 'hrm_candidate_documents'
+class CandidateDocumentViewSet(ORMViewSet):
     serializer_class = CandidateDocumentSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── 360 Feedback ────────────────────────────────────────────────────────────────
+# -- 360 Feedback ------------------------------------------------------------
 
-class FeedbackQuestionViewSet(FirestoreViewSet):
-    collection_name = 'hrm_feedback_questions'
+
+class FeedbackQuestionViewSet(ORMViewSet):
     serializer_class = FeedbackQuestionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class FeedbackRequestViewSet(FirestoreViewSet):
-    collection_name = 'hrm_feedback_requests'
+class FeedbackRequestViewSet(ORMViewSet):
     serializer_class = FeedbackRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class FeedbackResponseViewSet(FirestoreViewSet):
-    collection_name = 'hrm_feedback_responses'
+class FeedbackResponseViewSet(ORMViewSet):
     serializer_class = FeedbackResponseSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Engagement Surveys ───────────────────────────────────────────────────────────
+# -- Engagement Surveys ------------------------------------------------------
 
-class EngagementSurveyViewSet(FirestoreViewSet):
-    collection_name = 'hrm_engagement_surveys'
+
+class EngagementSurveyViewSet(ORMViewSet):
     serializer_class = EngagementSurveySerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class SurveyQuestionViewSet(FirestoreViewSet):
-    collection_name = 'hrm_survey_questions'
+class SurveyQuestionViewSet(ORMViewSet):
     serializer_class = SurveyQuestionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class SurveyResponseViewSet(FirestoreViewSet):
-    collection_name = 'hrm_survey_responses'
+class SurveyResponseViewSet(ORMViewSet):
     serializer_class = SurveyResponseSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Compliance Calendar ──────────────────────────────────────────────────────────
+# -- Compliance Calendar -----------------------------------------------------
 
-class ComplianceReminderViewSet(FirestoreViewSet):
-    collection_name = 'hrm_compliance_reminders'
+
+class ComplianceReminderViewSet(ORMViewSet):
     serializer_class = ComplianceReminderSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Talent Review & 9-Box ────────────────────────────────────────────────────────
+# -- Talent Review & 9-Box --------------------------------------------------
 
-class TalentReviewMeetingViewSet(FirestoreViewSet):
-    collection_name = 'hrm_talent_review_meetings'
+
+class TalentReviewMeetingViewSet(ORMViewSet):
     serializer_class = TalentReviewMeetingSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class NineBoxCellViewSet(FirestoreViewSet):
-    collection_name = 'hrm_nine_box_cells'
+class NineBoxCellViewSet(ORMViewSet):
     serializer_class = NineBoxCellSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-# ── Disciplinary Management ───────────────────────────────────────────────
+# -- Disciplinary Management -------------------------------------------------
 
-class DisciplinaryCaseViewSet(FirestoreViewSet):
-    collection_name = 'hrm_disciplinary_cases'
+
+class DisciplinaryCaseViewSet(ORMViewSet):
     serializer_class = DisciplinaryCaseSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         from hrm.services.discipline import DisciplineService
         serializer.save(case_number=DisciplineService._next_case_number())
 
 
-class DisciplinaryHearingViewSet(FirestoreViewSet):
-    collection_name = 'hrm_disciplinary_hearings'
+class DisciplinaryHearingViewSet(ORMViewSet):
     serializer_class = DisciplinaryHearingSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
-class DisciplinaryActionViewSet(FirestoreViewSet):
-    collection_name = 'hrm_disciplinary_actions'
+class DisciplinaryActionViewSet(ORMViewSet):
     serializer_class = DisciplinaryActionSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(issued_by=self.request.user)
 
 
-class DisciplinaryAppealViewSet(FirestoreViewSet):
-    collection_name = 'hrm_disciplinary_appeals'
+class DisciplinaryAppealViewSet(ORMViewSet):
     serializer_class = DisciplinaryAppealSerializer
-    permission_classes = [permissions.IsAuthenticated]

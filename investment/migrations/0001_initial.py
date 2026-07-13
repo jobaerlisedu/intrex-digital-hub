@@ -1,9 +1,6 @@
 """
-Firebase-only architecture — no Django ORM tables.
-
-All investment data is stored in Firestore collections (invst_*).
-This migration is a no-op placeholder. No SQLite tables are created
-or managed by this app.
+Investment module initial migration — Django ORM tables are
+created by subsequent migrations.
 
 Migration Plan
 ──────────────

@@ -30,10 +30,6 @@ class Person(models.Model):
         related_name='registry_person'
     )
 
-    firestore_contact_id = models.CharField(max_length=255, blank=True, help_text='sys_contacts doc ID')
-    firestore_employee_id = models.CharField(max_length=255, blank=True, help_text='hrm_employees doc ID')
-    firestore_student_id = models.CharField(max_length=255, blank=True, help_text='trn_registrations doc ID')
-    firestore_investor_id = models.CharField(max_length=255, blank=True, help_text='invst_investors doc ID')
 
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
@@ -71,9 +67,6 @@ class Organization(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     address = models.TextField(blank=True)
     website = models.URLField(blank=True)
-
-    firestore_vendor_id = models.CharField(max_length=255, blank=True, help_text='inv_vendors doc ID')
-    firestore_institute_id = models.CharField(max_length=255, blank=True, help_text='trn_institutes doc ID')
 
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)

@@ -60,7 +60,7 @@ graph TD
 ### B. Issuing Certificates
 1. When a student passes all requirements, navigate to **Training** -> **Certificates**.
 2. Select the student and click **Issue Certificate**.
-3. The system generates a certificate record in Firestore with a unique key prefixed with `INTREX-CERT-`.
+3. The system generates a certificate record in MySQL with a unique key prefixed with `INTREX-CERT-`.
 4. Graduated students can show employers this key, which can be verified at `/verify-certificate/`.
 
 ### C. Job Placement

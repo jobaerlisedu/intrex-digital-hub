@@ -13,7 +13,6 @@ class ChartOfAccount(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     account_code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
     account_type = models.CharField(max_length=50, choices=ACCOUNT_TYPE_CHOICES)
@@ -41,7 +40,6 @@ class JournalEntry(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     entry_code = models.CharField(max_length=50, unique=True)
     posting_date = models.DateField()
     reference_document = models.CharField(max_length=255, blank=True, null=True)
@@ -91,7 +89,6 @@ class Invoice(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     invoice_number = models.CharField(max_length=100, unique=True)
     client_name = models.CharField(max_length=255)
     issue_date = models.DateField()
@@ -142,7 +139,6 @@ class VendorBill(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     bill_number = models.CharField(max_length=100, unique=True)
     vendor_name = models.CharField(max_length=255)
     issue_date = models.DateField()
@@ -191,7 +187,6 @@ class Payment(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     receipt_code = models.CharField(max_length=100, unique=True)
     invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, blank=True, null=True, related_name='payments')
     vendor_bill = models.ForeignKey(VendorBill, on_delete=models.SET_NULL, blank=True, null=True, related_name='payments')
@@ -216,7 +211,6 @@ class Payment(models.Model):
 
 class TaxCode(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     tax_code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
     rate_percentage = models.DecimalField(max_digits=6, decimal_places=2)
@@ -238,7 +232,6 @@ class TaxCode(models.Model):
 
 class AuditTrail(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     action_type = models.CharField(max_length=100)
     performed_by_name = models.CharField(max_length=255, blank=True, null=True)
     payload_before = models.JSONField(default=dict, blank=True)

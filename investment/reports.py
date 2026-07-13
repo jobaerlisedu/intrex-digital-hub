@@ -2,7 +2,7 @@
 Investment Analytics & Reporting Service
 
 Provides data aggregation, report generation, and CSV export
-for the investment module. All data sourced from Firestore.
+for the investment module. All data sourced from Django ORM.
 """
 
 import csv
@@ -13,61 +13,46 @@ from collections import defaultdict
 from django.http import HttpResponse
 
 from investment.services import (
-    FirestoreService as fs,
     money_to_float,
     money_to_str,
-    COLL_INVESTORS,
-    COLL_TRANSACTIONS,
-    COLL_LOANS,
-    COLL_LOAN_SCHEDULES,
-    COLL_OUTBOUND,
-    COLL_INSTRUMENTS,
-    COLL_INSTRUMENT_PRICES,
-    COLL_PL_LEDGER,
+)
+from investment.models import (
+    Investor, Transaction, Loan, LoanSchedule,
+    OutboundPlacement, FinancialInstrument, InstrumentPrice,
+    PLLedger, NavHistory, InvestorHolding,
+    FeeStructure, FeeAccrual,
 )
 
 
 class ReportService:
     """Static report generators returning serializable dicts."""
 
-    # ── Capital Overview ─────────────────────────────────────────
-
     @staticmethod
     def capital_overview():
-        investors = fs.get_collection(COLL_INVESTORS)
-        transactions = fs.get_collection(COLL_TRANSACTIONS)
-        loans = fs.get_collection(COLL_LOANS)
-        outbound = fs.get_collection(COLL_OUTBOUND)
-        schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
+        investors = Investor.objects.filter(is_active=True)
+        transactions = Transaction.objects.filter(is_active=True)
+        loans = Loan.objects.filter(is_active=True)
+        outbound = OutboundPlacement.objects.filter(is_active=True)
+        schedules = LoanSchedule.objects.filter(is_active=True)
 
         total_inflow = 0.0
         total_outflow = 0.0
         for tx in transactions:
-            if tx.get('status') == 'Cleared':
-                amt = money_to_float(tx.get('amount', 0.0))
-                ttype = tx.get('transaction_type')
-                if ttype == 'Capital Influx':
+            if tx.status == 'Cleared':
+                amt = float(tx.amount)
+                if tx.transaction_type == 'Capital Influx':
                     total_inflow += amt
-                elif ttype in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
+                elif tx.transaction_type in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
                     total_outflow += amt
 
-        loan_principal = sum(
-            money_to_float(l.get('principal_amount', 0.0)) for l in loans
-        )
-        total_outstanding = sum(
-            money_to_float(l.get('outstanding_balance', 0.0)) for l in fs.get_collection(COLL_LOANS, [('status', '==', 'Active')])
-        )
-        total_outbound_alloc = sum(
-            money_to_float(o.get('allocated_capital', 0.0)) for o in fs.get_collection(COLL_OUTBOUND, [('status', '==', 'Active')])
-        )
+        loan_principal = sum(float(l.principal_amount) for l in loans)
+        total_outstanding = sum(float(l.outstanding_balance) for l in loans.filter(status='Active'))
+        total_outbound_alloc = sum(float(o.allocated_capital) for o in outbound.filter(status='Active'))
         total_capital_managed = total_inflow - total_outflow + total_outstanding
 
-        interest_due = sum(
-            money_to_float(s.get('scheduled_interest', 0.0))
-            for s in fs.get_collection(COLL_LOAN_SCHEDULES, [('payment_status', '==', 'Unpaid')])
-        )
+        interest_due = sum(float(s.scheduled_interest) for s in schedules.filter(payment_status='Unpaid'))
 
-        monthly_trend = ReportService._monthly_capital_trend(transactions, loans)
+        monthly_trend = ReportService._monthly_capital_trend(transactions)
         source_breakdown = {
             'Investor Capital Inflow': round(total_inflow, 2),
             'Active Loan Principal': round(loan_principal, 2),
@@ -81,28 +66,32 @@ class ReportService:
             'total_outstanding': round(total_outstanding, 2),
             'total_outbound_allocated': round(total_outbound_alloc, 2),
             'interest_due': round(interest_due, 2),
-            'investors_count': len(investors),
+            'investors_count': investors.count(),
             'loan_principal_total': round(loan_principal, 2),
             'source_breakdown': source_breakdown,
             'monthly_trend': monthly_trend,
         }
 
     @staticmethod
-    def _monthly_capital_trend(transactions, loans):
+    def _monthly_capital_trend(transactions):
         trend = defaultdict(lambda: {'inflow': 0.0, 'outflow': 0.0})
         for tx in transactions:
-            if tx.get('status') == 'Cleared' and tx.get('value_date'):
-                try:
-                    d = datetime.strptime(tx['value_date'], '%Y-%m-%d')
+            if tx.status == 'Cleared' and tx.value_date:
+                d = tx.value_date
+                if isinstance(d, date):
                     key = d.strftime('%Y-%m')
-                    amt = money_to_float(tx.get('amount', 0.0))
-                    ttype = tx.get('transaction_type')
-                    if ttype == 'Capital Influx':
-                        trend[key]['inflow'] += amt
-                    elif ttype in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
-                        trend[key]['outflow'] += amt
-                except (ValueError, TypeError):
+                elif isinstance(d, str):
+                    try:
+                        key = datetime.strptime(d[:7], '%Y-%m').strftime('%Y-%m')
+                    except ValueError:
+                        continue
+                else:
                     continue
+                amt = float(tx.amount)
+                if tx.transaction_type == 'Capital Influx':
+                    trend[key]['inflow'] += amt
+                elif tx.transaction_type in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
+                    trend[key]['outflow'] += amt
         labels = sorted(trend.keys())
         return {
             'labels': labels,
@@ -110,12 +99,9 @@ class ReportService:
             'outflow': [round(trend[m]['outflow'], 2) for m in labels],
         }
 
-    # ── Loan Portfolio ───────────────────────────────────────────
-
     @staticmethod
     def loan_portfolio():
-        loans = fs.get_collection(COLL_LOANS)
-        investors = {i['id']: i for i in fs.get_collection(COLL_INVESTORS)}
+        loans = Loan.objects.filter(is_active=True).select_related('investor')
 
         by_status = defaultdict(lambda: {'count': 0, 'principal': 0.0, 'outstanding': 0.0})
         by_category = defaultdict(lambda: {'count': 0, 'principal': 0.0})
@@ -124,9 +110,9 @@ class ReportService:
         total_outstanding = 0.0
 
         for loan in loans:
-            status = loan.get('status', 'Active')
-            principal = money_to_float(loan.get('principal_amount', 0.0))
-            outstanding = money_to_float(loan.get('outstanding_balance', 0.0))
+            status = loan.status
+            principal = float(loan.principal_amount)
+            outstanding = float(loan.outstanding_balance)
             total_principal += principal
             total_outstanding += outstanding
 
@@ -134,66 +120,54 @@ class ReportService:
             by_status[status]['principal'] += principal
             by_status[status]['outstanding'] += outstanding
 
-            inv = investors.get(loan.get('investor_id', ''))
-            cat = inv.get('category', 'Unknown') if inv else 'Unknown'
+            cat = loan.investor.category if loan.investor else 'Unknown'
             by_category[cat]['count'] += 1
             by_category[cat]['principal'] += principal
 
-        active_count = by_status.get('Active', {}).get('count', 0)
-        paid_count = by_status.get('Fully Paid', {}).get('count', 0)
-        defaulted_count = by_status.get('Defaulted', {}).get('count', 0)
-
         return {
-            'total_loans': len(loans),
+            'total_loans': loans.count(),
             'total_principal': round(total_principal, 2),
             'total_outstanding': round(total_outstanding, 2),
-            'active_count': active_count,
-            'paid_count': paid_count,
-            'defaulted_count': defaulted_count,
+            'active_count': by_status.get('Active', {}).get('count', 0),
+            'paid_count': by_status.get('Fully Paid', {}).get('count', 0),
+            'defaulted_count': by_status.get('Defaulted', {}).get('count', 0),
             'by_status': dict(by_status),
             'by_category': dict(by_category),
         }
 
-    # ── P&L Statement ────────────────────────────────────────────
-
     @staticmethod
     def pl_summary():
-        pl_entries = fs.get_collection(COLL_PL_LEDGER)
-        schedules = fs.get_collection(COLL_LOAN_SCHEDULES)
+        pl_entries = PLLedger.objects.filter(is_active=True).order_by('month')
+        schedules = LoanSchedule.objects.filter(is_active=True)
 
-        sorted_entries = sorted(pl_entries, key=lambda x: x.get('month', ''))
         total_revenue = 0.0
         total_opex = 0.0
         total_interest = 0.0
         total_net = 0.0
 
         monthly_data = []
-        for entry in sorted_entries:
-            rev = money_to_float(entry.get('revenue', 0.0))
-            opex = money_to_float(entry.get('opex', 0.0))
-            interest = money_to_float(entry.get('interest_expense', 0.0))
-            net = money_to_float(entry.get('net_profit', 0.0))
+        for entry in pl_entries:
+            rev = float(entry.revenue)
+            opex = float(entry.opex)
+            interest = float(entry.interest_expense)
+            net = float(entry.net_profit)
             total_revenue += rev
             total_opex += opex
             total_interest += interest
             total_net += net
             monthly_data.append({
-                'month': entry.get('month', ''),
+                'month': entry.month,
                 'revenue': rev,
                 'opex': opex,
                 'interest_expense': interest,
                 'net_profit': net,
             })
 
-        # Compute interest from schedules for months not yet in P&L
         computed_interest = {}
         for s in schedules:
-            due = s.get('due_date', '')
-            if due:
-                month_key = due[:7]
-                computed_interest[month_key] = computed_interest.get(month_key, 0.0) + money_to_float(
-                    s.get('scheduled_interest', 0.0)
-                )
+            if s.due_date:
+                month_key = s.due_date.strftime('%Y-%m')
+                computed_interest[month_key] = computed_interest.get(month_key, 0.0) + float(s.scheduled_interest)
 
         return {
             'total_revenue': round(total_revenue, 2),
@@ -205,39 +179,37 @@ class ReportService:
             'months_covered': len(monthly_data),
         }
 
-    # ── Investor Activity ────────────────────────────────────────
-
     @staticmethod
     def investor_activity():
-        investors = fs.get_collection(COLL_INVESTORS)
-        transactions = fs.get_collection(COLL_TRANSACTIONS)
+        investors = Investor.objects.filter(is_active=True)
+        transactions = Transaction.objects.filter(is_active=True).select_related('investor')
 
         top_investors = defaultdict(lambda: {'inflow': 0.0, 'outflow': 0.0, 'count': 0})
-        investor_map = {i['id']: i.get('name', 'Unknown') for i in investors}
 
         for tx in transactions:
-            inv_id = tx.get('investor_id', '')
+            inv_id = str(tx.investor_id) if tx.investor_id else ''
             if not inv_id:
                 continue
-            amt = money_to_float(tx.get('amount', 0.0))
-            ttype = tx.get('transaction_type')
+            amt = float(tx.amount)
             top_investors[inv_id]['count'] += 1
-            if ttype == 'Capital Influx':
+            if tx.transaction_type == 'Capital Influx':
                 top_investors[inv_id]['inflow'] += amt
-            else:
+            elif tx.transaction_type in ('Capital Withdrawal', 'Interest Payout', 'Dividend Payout'):
                 top_investors[inv_id]['outflow'] += amt
 
         ranked = sorted(
             [
                 {
                     'investor_id': k,
-                    'investor_name': investor_map.get(k, 'Unknown'),
+                    'investor_name': v.get('name', 'Unknown'),
                     'inflow': round(v['inflow'], 2),
                     'outflow': round(v['outflow'], 2),
                     'net': round(v['inflow'] - v['outflow'], 2),
                     'transaction_count': v['count'],
                 }
                 for k, v in top_investors.items()
+                for inv_obj in [Investor.objects.filter(pk=k).first()] if inv_obj
+                for v in [{'name': inv_obj.name, **v}]
             ],
             key=lambda x: x['inflow'] + x['outflow'],
             reverse=True,
@@ -247,28 +219,26 @@ class ReportService:
         total_outflow = sum(r['outflow'] for r in ranked)
 
         return {
-            'total_investors': len(investors),
+            'total_investors': investors.count(),
             'total_inflow': round(total_inflow, 2),
             'total_outflow': round(total_outflow, 2),
             'net_flow': round(total_inflow - total_outflow, 2),
             'top_investors': ranked[:10],
-            'active_investor_count': len(fs.get_collection(COLL_INVESTORS, [('is_active', '==', True)])),
+            'active_investor_count': investors.count(),
         }
-
-    # ── Instrument Performance ────────────────────────────────────
 
     @staticmethod
     def instrument_performance():
-        instruments = fs.get_collection(COLL_INSTRUMENTS)
-        prices = fs.get_collection(COLL_INSTRUMENT_PRICES)
+        instruments = FinancialInstrument.objects.filter(is_active=True)
+        prices = InstrumentPrice.objects.filter(is_active=True).order_by('instrument_id', '-price_date')
 
         latest_prices = {}
         for p in prices:
-            inv_id = p.get('instrument_id')
-            p_date = p.get('price_date', '')
-            p_price = money_to_float(p.get('price', 0.0))
-            if inv_id and (inv_id not in latest_prices or p_date > latest_prices[inv_id]['date']):
-                latest_prices[inv_id] = {'date': p_date, 'price': p_price}
+            inv_id = str(p.instrument_id)
+            p_date = p.price_date
+            p_price = float(p.price)
+            if inv_id and (inv_id not in latest_prices or p_date.isoformat() > latest_prices[inv_id]['date']):
+                latest_prices[inv_id] = {'date': p_date.isoformat(), 'price': p_price}
 
         by_type = defaultdict(lambda: {'count': 0, 'face_value_total': 0.0, 'units_total': 0, 'market_value_total': 0.0})
         total_face_value = 0.0
@@ -276,10 +246,10 @@ class ReportService:
         total_market_value = 0.0
 
         for inst in instruments:
-            itype = inst.get('type', inst.get('instrument_type', 'Other'))
-            fv = money_to_float(inst.get('face_value', 0.0))
-            units = int(inst.get('total_units_issued', 0))
-            instr_id = inst.get('id', '')
+            itype = inst.instrument_type
+            fv = float(inst.face_value)
+            units = inst.total_units_issued
+            instr_id = str(inst.id)
             lp = latest_prices.get(instr_id, {})
             mv = lp.get('price', 0.0) * units if lp else 0.0
             total_face_value += fv
@@ -292,23 +262,23 @@ class ReportService:
 
         instr_list = []
         for inst in instruments:
-            lp = latest_prices.get(inst.get('id', ''), {})
+            lp = latest_prices.get(str(inst.id), {})
             instr_list.append({
-                'code': inst.get('instrument_code', ''),
-                'type': inst.get('type', inst.get('instrument_type', 'Other')),
-                'face_value': money_to_float(inst.get('face_value', 0.0)),
-                'units_issued': int(inst.get('total_units_issued', 0)),
-                'units_outstanding': int(inst.get('units_outstanding', 0)),
-                'issue_date': inst.get('issue_date', ''),
-                'maturity_date': inst.get('maturity_date', ''),
-                'sector': inst.get('sector', ''),
-                'isin': inst.get('isin', ''),
+                'code': inst.instrument_code,
+                'type': inst.instrument_type,
+                'face_value': float(inst.face_value),
+                'units_issued': inst.total_units_issued,
+                'units_outstanding': inst.units_outstanding,
+                'issue_date': inst.issue_date.isoformat() if inst.issue_date else '',
+                'maturity_date': inst.maturity_date.isoformat() if inst.maturity_date else '',
+                'sector': inst.sector or '',
+                'isin': inst.isin or '',
                 'latest_price': lp.get('price', 0.0),
-                'market_value': round(lp.get('price', 0.0) * int(inst.get('units_outstanding', 0)), 2),
+                'market_value': round(lp.get('price', 0.0) * inst.units_outstanding, 2),
             })
 
         return {
-            'total_instruments': len(instruments),
+            'total_instruments': instruments.count(),
             'total_face_value': round(total_face_value, 2),
             'total_units_issued': total_units,
             'total_market_value': round(total_market_value, 2),
@@ -318,17 +288,22 @@ class ReportService:
 
     @staticmethod
     def nav_summary() -> dict:
-        """NAV trend, AUM history, unit issuance/redemption activity."""
-        from investment.services import NavService, COLL_NAV_HISTORY, COLL_INVESTOR_HOLDINGS
-        nav_history = fs.get_collection(COLL_NAV_HISTORY)
-        nav_history.sort(key=lambda r: r.get('nav_date', ''))
+        from investment.services import NavService
+        nav_history = list(NavHistory.objects.filter(is_active=True).order_by('nav_date'))
 
-        holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS)
-        total_units = sum(money_to_float(h.get('units_held', '0.0000')) for h in holdings)
-        total_invested = sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings)
-        total_value = sum(money_to_float(h.get('current_value', '0.00')) for h in holdings)
+        holdings = InvestorHolding.objects.filter(is_active=True)
+        total_units = sum(float(h.units_held) for h in holdings)
+        total_invested = sum(float(h.total_invested) for h in holdings)
+        total_value = sum(float(h.current_value) for h in holdings)
 
         current_nav = NavService.get_current_nav()
+
+        def serialize_nav(n):
+            d = {}
+            for f in n._meta.fields:
+                val = getattr(n, f.attname)
+                d[f.attname] = val.isoformat() if isinstance(val, (date, datetime)) else val
+            return d
 
         return {
             'current_nav_per_unit': current_nav['nav_per_unit'] if current_nav else '0.0000',
@@ -337,72 +312,77 @@ class ReportService:
             'total_invested': f'{total_invested:.2f}',
             'total_value': f'{total_value:.2f}',
             'total_pl': f'{round(total_value - total_invested, 2):.2f}',
-            'nav_history': nav_history,
+            'nav_history': [serialize_nav(n) for n in nav_history],
         }
 
     @staticmethod
     def fee_impact() -> dict:
-        """Show cumulative fees deducted from returns."""
-        from investment.services import COLL_FEE_ACCRUALS
-        mgmt_fees = fs.get_collection(COLL_FEE_ACCRUALS, [('fee_type', '==', 'management')])
-        perf_fees = fs.get_collection(COLL_FEE_ACCRUALS, [('fee_type', '==', 'performance')])
-        total_mgmt = sum(money_to_float(f.get('amount', '0.00')) for f in mgmt_fees)
-        total_perf = sum(money_to_float(f.get('amount', '0.00')) for f in perf_fees)
+        mgmt_fees = FeeAccrual.objects.filter(is_active=True, fee_type='management')
+        perf_fees = FeeAccrual.objects.filter(is_active=True, fee_type='performance')
+        total_mgmt = sum(float(f.amount) for f in mgmt_fees)
+        total_perf = sum(float(f.amount) for f in perf_fees)
+        unsettled_mgmt = sum(float(f.amount) for f in mgmt_fees if not f.is_settled)
+        unsettled_perf = sum(float(f.amount) for f in perf_fees if not f.is_settled)
+
+        def serialize_fee(f):
+            return {
+                'id': str(f.id),
+                'accrual_date': f.accrual_date.isoformat() if f.accrual_date else '',
+                'fee_type': f.fee_type,
+                'amount': str(f.amount),
+                'nav_before_fee': str(f.nav_before_fee),
+                'nav_after_fee': str(f.nav_after_fee),
+                'is_settled': f.is_settled,
+                'settled_date': f.settled_date.isoformat() if f.settled_date else None,
+            }
+
         return {
             'total_management_fees': f'{total_mgmt:.2f}',
             'total_performance_fees': f'{total_perf:.2f}',
             'total_fees': f'{round(total_mgmt + total_perf, 2):.2f}',
-            'unsettled_management': f'{sum(money_to_float(f.get("amount", "0.00")) for f in mgmt_fees if not f.get("is_settled", False)):.2f}',
-            'unsettled_performance': f'{sum(money_to_float(f.get("amount", "0.00")) for f in perf_fees if not f.get("is_settled", False)):.2f}',
-            'fee_accruals': mgmt_fees + perf_fees,
+            'unsettled_management': f'{unsettled_mgmt:.2f}',
+            'unsettled_performance': f'{unsettled_perf:.2f}',
+            'fee_accruals': [serialize_fee(f) for f in list(mgmt_fees) + list(perf_fees)],
         }
 
     @staticmethod
     def performance_metrics(investor_id: str | None = None) -> dict:
-        """Aggregate all performance metrics.
+        from investment.services import PerformanceService as perf
 
-        Uses NAV history and holding data. If investor_id is provided,
-        metrics are scoped to that investor's holdings.
-        """
-        from investment.services import (
-            PerformanceService as perf,
-            COLL_NAV_HISTORY, COLL_INVESTOR_HOLDINGS,
-        )
+        nav_history = list(NavHistory.objects.filter(is_active=True).order_by('nav_date'))
 
-        nav_history = fs.get_collection(COLL_NAV_HISTORY)
-        nav_history.sort(key=lambda r: r.get('nav_date', ''))
+        if investor_id:
+            holdings = InvestorHolding.objects.filter(investor__id=investor_id, is_active=True)
+        else:
+            holdings = InvestorHolding.objects.filter(is_active=True)
 
-        holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', investor_id)]) if investor_id else fs.get_collection(COLL_INVESTOR_HOLDINGS)
+        def nav_to_dict(n):
+            return {'nav_per_unit': str(n.nav_per_unit), 'nav_date': n.nav_date.isoformat() if n.nav_date else ''}
 
-        nav_values = [money_to_float(n.get('nav_per_unit', 0)) for n in nav_history if money_to_float(n.get('nav_per_unit', 0)) > 0]
+        nav_dicts = [nav_to_dict(n) for n in nav_history]
+        nav_values = [float(n.nav_per_unit) for n in nav_history if float(n.nav_per_unit) > 0]
+
         if len(nav_values) < 2:
             return {'error': 'Insufficient NAV data for performance calculation'}
 
-        # Periodic returns from NAV series
         returns = []
         for i in range(1, len(nav_values)):
             if nav_values[i - 1] > 0:
                 returns.append((nav_values[i] - nav_values[i - 1]) / nav_values[i - 1])
 
-        twrr = perf.time_weighted_return(nav_history)
-        max_dd = perf.max_drawdown(nav_history)
-        rolling_12m = perf.rolling_return(nav_history, 12)
-        total_invested = sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings)
-        total_value = sum(money_to_float(h.get('current_value', '0.00')) for h in holdings)
+        twrr = perf.time_weighted_return(nav_dicts)
+        max_dd = perf.max_drawdown(nav_dicts)
+        rolling_12m = perf.rolling_return(nav_dicts, 12)
+        total_invested = sum(float(h.total_invested) for h in holdings)
+        total_value = sum(float(h.current_value) for h in holdings)
         total_return = (total_value - total_invested) / total_invested if total_invested > 0 else 0.0
 
         years = 0.0
         if len(nav_history) >= 2:
-            first_date = nav_history[0].get('nav_date', '')
-            last_date = nav_history[-1].get('nav_date', '')
+            first_date = nav_history[0].nav_date
+            last_date = nav_history[-1].nav_date
             if first_date and last_date:
-                from datetime import date
-                try:
-                    d1 = date.fromisoformat(first_date)
-                    d2 = date.fromisoformat(last_date)
-                    years = (d2 - d1).days / 365.25
-                except ValueError:
-                    years = 0.0
+                years = (last_date - first_date).days / 365.25
 
         return {
             'twrr': round(twrr * 100, 4),
@@ -429,7 +409,6 @@ class ReportService:
 
     @staticmethod
     def compliance_overview() -> dict:
-        """Compliance dashboard: KYC status, concentration, sector exposure, alerts."""
         from investment.services import ComplianceService
 
         kyc = ComplianceService.kyc_compliance_report()
@@ -458,7 +437,6 @@ class ReportService:
 
     @staticmethod
     def cash_flow_forecast(months: int = 12) -> dict:
-        """Combined view: projected inflows (repayments) vs outflows (calls, expenses)."""
         from investment.services import CashFlowForecastService
 
         payables = CashFlowForecastService.forecast_payables(months)
@@ -466,7 +444,6 @@ class ReportService:
         nav_growth = CashFlowForecastService.forecast_nav_growth(months)
         scenario = CashFlowForecastService.what_if_default_rate()
 
-        # Merge payables and outbound by month
         inflow_map = {p['month']: p['projected_inflow'] for p in payables}
         outflow_map = {o['month']: o['projected_outflow'] for o in outbound}
         aum_map = {n['month']: n['projected_aum'] for n in nav_growth}

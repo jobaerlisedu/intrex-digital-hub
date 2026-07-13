@@ -8,6 +8,29 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: intrex_digital_hub
+      MYSQL_USER: intrex_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootchangeme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build: .
@@ -15,10 +38,18 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - redis
+      redis: { condition: service_healthy }
+      db: { condition: service_healthy }
     env_file:
       - .env
     environment:
+      DJANGO_DEBUG: "False"
+      DB_ENGINE: django.db.backends.mysql
+      DB_NAME: intrex_digital_hub
+      DB_USER: intrex_app
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_HOST: db
+      DB_PORT: "3306"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       REDIS_URL: redis://redis:6379/0
@@ -30,25 +61,44 @@ services:
     restart: unless-stopped
     command: celery -A config worker --loglevel=info
     depends_on:
-      - redis
+      redis: { condition: service_healthy }
+      db: { condition: service_healthy }
     env_file:
       - .env
     environment:
+      DJANGO_DEBUG: "False"
+      DB_ENGINE: django.db.backends.mysql
+      DB_NAME: intrex_digital_hub
+      DB_USER: intrex_app
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_HOST: db
+      DB_PORT: "3306"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
 
   celery_beat:
     build: .
     restart: unless-stopped
-    command: celery -A config beat --loglevel=info
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     depends_on:
-      - redis
+      redis: { condition: service_healthy }
+      db: { condition: service_healthy }
     env_file:
       - .env
     environment:
+      DJANGO_DEBUG: "False"
+      DB_ENGINE: django.db.backends.mysql
+      DB_NAME: intrex_digital_hub
+      DB_USER: intrex_app
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      DB_HOST: db
+      DB_PORT: "3306"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
 
 volumes:
   redis_data:
+  mysql_data:
   static_volume:

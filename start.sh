@@ -2,8 +2,10 @@
 # exit on error
 set -o errexit
 
-# Activate project virtual environment (Render creates this during build)
-if [ -d .venv ]; then
+# Activate project virtual environment
+if [ -d venv ]; then
+    source venv/bin/activate
+elif [ -d .venv ]; then
     source .venv/bin/activate
 fi
 

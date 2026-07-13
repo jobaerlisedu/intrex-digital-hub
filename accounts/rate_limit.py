@@ -70,6 +70,10 @@ class RateLimitMiddleware:
         if self._lock is None:
             self._lock = threading.Lock()
         with self._lock:
+            # Periodic cleanup: trim store every 100 checks to prevent unbounded growth
+            if len(self._store) > 1000:
+                cutoff = now - 300  # keep only last 5 minutes
+                self._store = {k: v for k, v in self._store.items() if any(t > cutoff for t in v)}
             records = self._store.get(key, [])
             records = [t for t in records if now - t < window_seconds]
             if len(records) >= max_requests:

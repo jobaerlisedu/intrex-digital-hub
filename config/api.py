@@ -8,6 +8,7 @@ app_routers = [
     ('training/', 'training.api.urls'),
     ('solutions/', 'solutions.api.urls'),
     ('investment/', 'investment.api.urls'),
+    ('workflow/', 'workflow.api.urls'),
 ]
 
 urlpatterns = [path(prefix, include(module)) for prefix, module in app_routers]

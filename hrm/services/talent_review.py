@@ -1,48 +1,67 @@
-from datetime import datetime
-from config.firebase import db
+from ..models import TalentReviewMeeting, NineBoxCell, Employee
 
 
 class TalentReviewService:
     @staticmethod
+    def _resolve_talent_meeting(meeting_id):
+        if not meeting_id:
+            return None
+        try:
+            return TalentReviewMeeting.objects.get(pk=meeting_id)
+        except (TalentReviewMeeting.DoesNotExist, ValueError):
+            pass
+        return TalentReviewMeeting.objects.filter(pk=meeting_id).first()
+
+    @staticmethod
+    def _resolve_employee(emp_id):
+        if not emp_id:
+            return None
+        try:
+            return Employee.objects.get(pk=emp_id)
+        except (Employee.DoesNotExist, ValueError):
+            pass
+        return Employee.objects.filter(pk=emp_id).first()
+
+    @staticmethod
     def add_meeting(data):
         doc_id = data.get('doc_id')
-        payload = {
-            'title': data.get('title'),
-            'meeting_date': data.get('meeting_date'),
-            'notes': data.get('notes', ''),
-            'status': data.get('status', 'Draft'),
-            'is_active': True,
-            'updated_at': datetime.now().isoformat(),
-        }
         if doc_id:
-            db.collection('hrm_talent_review_meetings').document(doc_id).update(payload)
+            meeting = TalentReviewService._resolve_talent_meeting(doc_id)
+            if meeting:
+                meeting.title = data.get('title', meeting.title)
+                meeting.meeting_date = data.get('meeting_date', meeting.meeting_date)
+                meeting.notes = data.get('notes', '')
+                meeting.status = data.get('status', meeting.status)
+                meeting.save()
             return 'updated'
-        payload['created_at'] = datetime.now().isoformat()
-        db.collection('hrm_talent_review_meetings').add(payload)
-        return 'created'
+        else:
+            meeting = TalentReviewMeeting.objects.create(
+                title=data.get('title'),
+                meeting_date=data.get('meeting_date'),
+                notes=data.get('notes', ''),
+                status=data.get('status', 'Draft'),
+            )
+            return 'created'
 
     @staticmethod
     def set_nine_box(data):
-        meeting_id = data.get('meeting_id')
-        emp_id = data.get('employee_id')
-        if not meeting_id or not emp_id:
+        meeting = TalentReviewService._resolve_talent_meeting(data.get('meeting_id'))
+        emp = TalentReviewService._resolve_employee(data.get('employee_id'))
+        if not meeting or not emp:
             return None
-        docs = list(db.collection('hrm_nine_box_cells')
-                    .where('talent_review', '==', meeting_id)
-                    .where('employee', '==', emp_id)
-                    .limit(1).stream())
-        payload = {
-            'talent_review': meeting_id,
-            'employee': emp_id,
-            'performance': data.get('performance'),
-            'potential': data.get('potential'),
-            'notes': data.get('notes', ''),
-            'is_active': True,
-            'updated_at': datetime.now().isoformat(),
-        }
-        if docs:
-            db.collection('hrm_nine_box_cells').document(docs[0].id).update(payload)
+
+        existing = NineBoxCell.objects.filter(talent_review=meeting, employee=emp).first()
+        if existing:
+            existing.performance = data.get('performance', existing.performance)
+            existing.potential = data.get('potential', existing.potential)
+            existing.notes = data.get('notes', '')
+            existing.save()
         else:
-            payload['created_at'] = datetime.now().isoformat()
-            db.collection('hrm_nine_box_cells').add(payload)
+            NineBoxCell.objects.create(
+                talent_review=meeting,
+                employee=emp,
+                performance=data.get('performance'),
+                potential=data.get('potential'),
+                notes=data.get('notes', ''),
+            )
         return 'saved'

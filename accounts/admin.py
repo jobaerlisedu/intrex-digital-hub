@@ -43,3 +43,11 @@ class ActiveSessionAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'ip_address', 'session_key']
     readonly_fields = ['session_key', 'created_at']
     date_hierarchy = 'last_activity'
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'phone', 'tenant']
+    list_filter = ['tenant']
+    search_fields = ['user__username', 'phone']
+    raw_id_fields = ['user']

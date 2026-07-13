@@ -44,52 +44,13 @@ class AuditLog(models.Model):
     def save(self, *args, **kwargs):
         if self.pk is not None:
             raise PermissionDenied("Audit logs are immutable and cannot be updated.")
-        
-        # Cryptographic Hash Chain Calculation
-        prev_hash = "0" * 64
-        use_firestore = False
-        import sys
-        if 'test' not in sys.argv:
-            try:
-                from config.firebase import db
-                from google.cloud import firestore as google_firestore
-                logs_ref = db.collection('sys_audit_logs')
-                query = logs_ref.order_by('timestamp', direction=google_firestore.Query.DESCENDING).limit(1)
-                docs = list(query.stream())
-                if docs:
-                    prev_hash = docs[0].to_dict().get('sha256_hash') or "0" * 64
-                use_firestore = True
-            except Exception as e:
-                accounts_logger.warning(f"Could not fetch last hash chain from Firestore, falling back to SQLite: {e}")
-        
-        if not use_firestore:
-            last_log = AuditLog.objects.order_by('-id').first()
-            prev_hash = last_log.sha256_hash if last_log and last_log.sha256_hash else "0" * 64
+
+        last_log = AuditLog.objects.order_by('-id').first()
+        prev_hash = last_log.sha256_hash if last_log and last_log.sha256_hash else "0" * 64
 
         payload = f"{self.user_id or ''}|{self.action}|{self.module}|{self.description}|{self.ip_address or ''}|{prev_hash}"
         self.sha256_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()
         super().save(*args, **kwargs)
-
-        # Write to Firestore
-        if use_firestore:
-            try:
-                from config.firebase import db
-                from google.cloud import firestore as google_firestore
-                
-                db.collection('sys_audit_logs').add({
-                    'user_id': self.user_id,
-                    'username': self.user.username if self.user else 'Anonymous',
-                    'action': self.action,
-                    'module': self.module,
-                    'description': self.description,
-                    'ip_address': self.ip_address,
-                    'before_state': self.before_state,
-                    'after_state': self.after_state,
-                    'sha256_hash': self.sha256_hash,
-                    'timestamp': google_firestore.SERVER_TIMESTAMP
-                })
-            except Exception as e:
-                accounts_logger.error(f"Failed to write audit log to Firestore: {e}")
 
     def __str__(self):
         user_str = self.user.username if self.user else "Anonymous"

@@ -85,7 +85,7 @@ class WorkflowInstance(TenantAwareModel):
         related_name='instances'
     )
     entity_id = models.CharField(max_length=255, db_index=True,
-                                 help_text='Firestore doc ID or entity key')
+                                 help_text='Entity key or document ID')
     entity_label = models.CharField(max_length=255, blank=True,
                                     help_text='Human-readable label for the entity')
     current_state = models.ForeignKey(

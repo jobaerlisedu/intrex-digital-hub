@@ -1,8 +1,8 @@
 import logging
-from datetime import datetime
-from config.firebase import db
-from config.firestore_utils import fs_create
+from datetime import datetime, date
 from .event_bus import event_bus
+from billing.models import ChartOfAccount, JournalEntry, JournalEntryLine, VendorBill
+from inventory.models import PurchaseOrder
 
 logger = logging.getLogger(__name__)
 
@@ -11,38 +11,45 @@ class IntegrationService:
 
     @staticmethod
     def grn_to_vendor_bill(grn_data, po_data, user):
-        """When a GRN is created, auto-generate an AP Vendor Bill."""
         try:
-            bill_count = len(list(db.collection('fin_vendor_bills').stream()))
-            bill_number = f"BILL-{datetime.now().year}-{bill_count + 1001}"
-
             total_amount = sum(
                 float(item.get('quantity_accepted', 0)) * float(item.get('unit_price', 0))
                 for item in grn_data.get('items', [])
             )
 
-            bill_data = {
-                'bill_number': bill_number,
-                'vendor_name': po_data.get('vendor_name', 'Unknown Vendor'),
-                'vendor_id': po_data.get('vendor_id', ''),
-                'issue_date': grn_data.get('received_date', datetime.now().strftime('%Y-%m-%d')),
-                'due_date': '',
-                'po_reference': po_data.get('po_code', ''),
-                'grn_reference': grn_data.get('grn_code', ''),
-                'grand_total': total_amount,
-                'status': 'Pending',
-                'notes': f'Auto-generated from GRN {grn_data.get("grn_code", "")} for PO {po_data.get("po_code", "")}',
-                'created_by': user.username,
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            }
-            fs_create('fin_vendor_bills', bill_data)
-            logger.info(f"AP Bill {bill_number} auto-created from GRN {grn_data.get('grn_code')}")
+            po_code = ''
+            grn_code = ''
+            vendor_name = 'Unknown Vendor'
+            if hasattr(po_data, 'po_code'):
+                po_code = po_data.po_code
+                vendor_name = po_data.vendor.name if po_data.vendor else 'Unknown Vendor'
+                grn_code = grn_data.get('grn_code', '')
+                vendor_id = str(po_data.vendor_id) if po_data.vendor_id else ''
+            else:
+                po_code = po_data.get('po_code', '')
+                vendor_name = po_data.get('vendor_name', 'Unknown Vendor')
+                vendor_id = po_data.get('vendor_id', '')
+                grn_code = grn_data.get('grn_code', '')
+
+            bill_count = VendorBill.objects.count()
+            bill_number = f"BILL-{datetime.now().year}-{bill_count + 1001}"
+
+            bill = VendorBill.objects.create(
+                bill_number=bill_number,
+                vendor_name=vendor_name,
+                issue_date=grn_data.get('received_date', str(date.today())),
+                grand_total=total_amount,
+                status='Pending',
+                notes=f'Auto-generated from GRN {grn_code} for PO {po_code}',
+            )
+
+            logger.info(f"AP Bill {bill_number} auto-created from GRN")
 
             event_bus.publish('vendor_bill.created', {
                 'bill_number': bill_number,
-                'vendor_name': po_data.get('vendor_name'),
+                'vendor_name': vendor_name,
                 'amount': total_amount,
-                'grn_code': grn_data.get('grn_code'),
+                'grn_code': grn_code,
             }, source='integration_service.grn_to_vendor_bill')
 
             return bill_number
@@ -52,68 +59,47 @@ class IntegrationService:
 
     @staticmethod
     def training_payment_to_journal_entry(payment_data, user):
-        """When a training payment/installment is recorded, auto-create a journal entry."""
         try:
             amount = float(payment_data.get('amount', 0))
             student_name = payment_data.get('student_name', 'Unknown')
             course_name = payment_data.get('course_name', 'Unknown')
             entry_code = f"JE-TRN-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-            accounts = {}
-            try:
-                for doc in db.collection('fin_chart_of_accounts').stream():
-                    a = doc.to_dict()
-                    accounts[a.get('name', '').lower()] = {'id': doc.id, 'name': a.get('name', '')}
-            except Exception:
-                pass
-
-            cash_acct = None
-            ar_acct = None
-            for key, val in accounts.items():
-                if 'cash' in key:
-                    cash_acct = val
-                if 'accounts receivable' in key:
-                    ar_acct = val
+            cash_acct = ChartOfAccount.objects.filter(account_code='11100').first()
+            ar_acct = ChartOfAccount.objects.filter(account_code='11200').first()
 
             lines = []
             if cash_acct:
-                lines.append({
-                    'account_id': cash_acct['id'],
-                    'account_name': cash_acct['name'],
-                    'debit_amount': amount,
-                    'credit_amount': 0.0,
-                })
+                lines.append({'account_id': str(cash_acct.pk), 'debit_amount': amount, 'credit_amount': 0.0})
             if ar_acct:
-                lines.append({
-                    'account_id': ar_acct['id'],
-                    'account_name': ar_acct['name'],
-                    'debit_amount': 0.0,
-                    'credit_amount': amount,
-                })
+                lines.append({'account_id': str(ar_acct.pk), 'debit_amount': 0.0, 'credit_amount': amount})
 
             if not lines:
                 logger.warning("No COA accounts found for training payment journal entry")
                 return None
 
-            je_data = {
-                'entry_code': entry_code,
-                'posting_date': payment_data.get('payment_date', datetime.now().strftime('%Y-%m-%d')),
-                'reference_document': f"TRN-{payment_data.get('student_id', '')}",
-                'narration': f'Training fee payment - {student_name} ({course_name})',
-                'status': 'Posted',
-                'created_by': 'System',
-                'approved_by': user.username,
-                'lines': lines,
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            }
-            fs_create('fin_journal_entries', je_data)
+            je = JournalEntry.objects.create(
+                entry_code=entry_code,
+                posting_date=payment_data.get('payment_date', str(date.today())),
+                reference_document=f"TRN-{payment_data.get('student_id', '')}",
+                narration=f'Training fee payment - {student_name} ({course_name})',
+                status='Posted',
+                created_by_name='System',
+                approved_by_name=user.username if user else 'System',
+            )
+            for line_data in lines:
+                account = ChartOfAccount.objects.filter(pk=line_data['account_id']).first()
+                JournalEntryLine.objects.create(
+                    journal_entry=je, account=account,
+                    debit_amount=line_data['debit_amount'], credit_amount=line_data['credit_amount'],
+                )
             logger.info(f"Journal entry {entry_code} auto-created for training payment")
 
             event_bus.publish('journal_entry.created', {
                 'entry_code': entry_code,
                 'reference': f"TRN-{payment_data.get('student_id', '')}",
                 'amount': amount,
-                'narration': je_data['narration'],
+                'narration': je.narration,
             }, source='integration_service.training_payment_to_journal_entry')
 
             return entry_code
@@ -123,67 +109,46 @@ class IntegrationService:
 
     @staticmethod
     def investment_loan_to_journal_entry(loan_data, user):
-        """When an investment loan is disbursed, auto-create a journal entry."""
         try:
             amount = float(loan_data.get('principal_amount', 0))
             investor_name = loan_data.get('investor_name', 'Unknown')
             entry_code = f"JE-INVST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-            accounts = {}
-            try:
-                for doc in db.collection('fin_chart_of_accounts').stream():
-                    a = doc.to_dict()
-                    accounts[a.get('name', '').lower()] = {'id': doc.id, 'name': a.get('name', '')}
-            except Exception:
-                pass
-
-            loan_acct = None
-            cash_acct = None
-            for key, val in accounts.items():
-                if 'loan' in key or 'investment' in key:
-                    loan_acct = val
-                if 'cash' in key:
-                    cash_acct = val
+            loan_acct = ChartOfAccount.objects.filter(account_code__startswith='2').first()
+            cash_acct = ChartOfAccount.objects.filter(account_code='11100').first()
 
             lines = []
             if cash_acct:
-                lines.append({
-                    'account_id': cash_acct['id'],
-                    'account_name': cash_acct['name'],
-                    'debit_amount': amount,
-                    'credit_amount': 0.0,
-                })
+                lines.append({'account_id': str(cash_acct.pk), 'debit_amount': amount, 'credit_amount': 0.0})
             if loan_acct:
-                lines.append({
-                    'account_id': loan_acct['id'],
-                    'account_name': loan_acct['name'],
-                    'debit_amount': 0.0,
-                    'credit_amount': amount,
-                })
+                lines.append({'account_id': str(loan_acct.pk), 'debit_amount': 0.0, 'credit_amount': amount})
 
             if not lines:
                 logger.warning("No COA accounts found for investment loan journal entry")
                 return None
 
-            je_data = {
-                'entry_code': entry_code,
-                'posting_date': loan_data.get('disbursement_date', datetime.now().strftime('%Y-%m-%d')),
-                'reference_document': f"LOAN-{loan_data.get('loan_id', '')}",
-                'narration': f'Loan disbursement - {investor_name}',
-                'status': 'Posted',
-                'created_by': 'System',
-                'approved_by': user.username,
-                'lines': lines,
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            }
-            fs_create('fin_journal_entries', je_data)
+            je = JournalEntry.objects.create(
+                entry_code=entry_code,
+                posting_date=loan_data.get('disbursement_date', str(date.today())),
+                reference_document=f"LOAN-{loan_data.get('loan_id', '')}",
+                narration=f'Loan disbursement - {investor_name}',
+                status='Posted',
+                created_by_name='System',
+                approved_by_name=user.username if user else 'System',
+            )
+            for line_data in lines:
+                account = ChartOfAccount.objects.filter(pk=line_data['account_id']).first()
+                JournalEntryLine.objects.create(
+                    journal_entry=je, account=account,
+                    debit_amount=line_data['debit_amount'], credit_amount=line_data['credit_amount'],
+                )
             logger.info(f"Journal entry {entry_code} auto-created for loan disbursement")
 
             event_bus.publish('journal_entry.created', {
                 'entry_code': entry_code,
                 'reference': f"LOAN-{loan_data.get('loan_id', '')}",
                 'amount': amount,
-                'narration': je_data['narration'],
+                'narration': je.narration,
             }, source='integration_service.investment_loan_to_journal_entry')
 
             return entry_code
@@ -193,43 +158,35 @@ class IntegrationService:
 
     @staticmethod
     def project_requisition_to_po(requisition_data, user):
-        """When a project requisition is approved, auto-create a Purchase Order."""
         try:
-            po_count = len(list(db.collection('inv_purchase_orders').stream()))
+            po_count = PurchaseOrder.objects.count()
             po_code = f"PO-{datetime.now().year}-{po_count + 1001}"
+
+            qty = float(requisition_data.get('quantity', 1))
+            est_cost = float(requisition_data.get('estimated_cost', 0))
+            unit_price = est_cost / qty if qty > 0 else 0
 
             items = [{
                 'product_name': requisition_data.get('item_name', 'Unknown'),
-                'quantity_ordered': float(requisition_data.get('quantity', 1)),
+                'quantity_ordered': qty,
                 'quantity_received': 0,
-                'unit_price': float(requisition_data.get('estimated_cost', 0) / max(float(requisition_data.get('quantity', 1)), 1)),
-                'line_total': float(requisition_data.get('estimated_cost', 0)),
+                'unit_price': unit_price,
+                'line_total': est_cost,
             }]
 
-            po_data = {
-                'po_code': po_code,
-                'vendor_id': '',
-                'vendor_name': 'To be assigned',
-                'requisition_id': requisition_data.get('id', ''),
-                'requisition_code': requisition_data.get('requisition_ref', ''),
-                'project_id': requisition_data.get('project_id', ''),
-                'project_name': requisition_data.get('project_name', ''),
-                'quotation_id': '',
-                'payment_terms': '',
-                'shipping_address': '',
-                'status': 'Draft',
-                'grand_total': float(requisition_data.get('estimated_cost', 0)),
-                'items': items,
-                'created_by': user.username,
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            }
-            fs_create('inv_purchase_orders', po_data)
+            po = PurchaseOrder.objects.create(
+                po_code=po_code,
+                status='Draft',
+                grand_total=est_cost,
+                items=items,
+            )
+
             logger.info(f"Purchase Order {po_code} auto-created from project requisition")
 
             event_bus.publish('purchase_order.created', {
                 'po_code': po_code,
                 'project_id': requisition_data.get('project_id', ''),
-                'amount': float(requisition_data.get('estimated_cost', 0)),
+                'amount': est_cost,
             }, source='integration_service.project_requisition_to_po')
 
             return po_code
@@ -239,7 +196,6 @@ class IntegrationService:
 
     @staticmethod
     def employee_to_user_registry(employee_data):
-        """Ensure employee has a Person record in the registry, optionally create auth User."""
         from registry.services import get_or_create_person
 
         email = employee_data.get('email', '')
@@ -258,16 +214,11 @@ class IntegrationService:
             logger.warning(f"Cannot create Person for employee {name}: no email provided")
             return None
 
-        employee_id = employee_data.get('id', '')
-        if employee_id:
-            person.firestore_employee_id = employee_id
-            person.save()
-
         if not person.auth_user and email:
             try:
                 from django.contrib.auth.models import User
+                import secrets
 
-                # Use provided username, or auto-generate from email prefix
                 raw_username = employee_data.get('username', '').strip()
                 if not raw_username:
                     raw_username = email.split('@')[0]
@@ -277,7 +228,6 @@ class IntegrationService:
                     raw_username = f"{base_username}{suffix}"
                     suffix += 1
 
-                import secrets, hashlib
                 raw_password = employee_data.get('password', '').strip()
                 if not raw_password:
                     raw_password = secrets.token_urlsafe(12)
@@ -296,17 +246,9 @@ class IntegrationService:
                     logger.info(f"Auth user {raw_username} created for employee {name} with provided password")
                 else:
                     logger.info(f"Auth user {raw_username} created for employee {name}")
-
-                # Sync to Firestore so employee can log in via FirestoreBackend
-                try:
-                    from accounts.auth_backend import _sync_user_to_firestore
-                    _sync_user_to_firestore(user)
-                except Exception:
-                    logger.warning(f"Could not sync user {raw_username} to Firestore")
             except Exception as e:
                 logger.error(f"Failed to create auth user for employee {name}: {e}")
 
-        # Update existing user credentials if provided, and ensure no hrm_access
         if person.auth_user:
             from django.contrib.auth.models import Group, User
             import secrets
@@ -335,17 +277,11 @@ class IntegrationService:
 
             if updated:
                 person.auth_user.save()
-                try:
-                    from accounts.auth_backend import _sync_user_to_firestore
-                    _sync_user_to_firestore(person.auth_user)
-                except Exception:
-                    logger.warning(f"Could not sync user {person.auth_user.username} to Firestore")
 
         return person
 
     @staticmethod
     def student_to_person_registry(student_data):
-        """Ensure student has a Person record in the registry."""
         from registry.services import get_or_create_person
 
         email = student_data.get('email', '')
@@ -359,15 +295,10 @@ class IntegrationService:
             phone=phone,
             roles=['student'],
         )
-        student_id = student_data.get('studentId', '') or student_data.get('id', '')
-        if student_id:
-            person.firestore_student_id = student_id
-            person.save()
         return person
 
     @staticmethod
     def investor_to_person_registry(investor_data):
-        """Ensure investor has a Person record in the registry."""
         from registry.services import get_or_create_person
 
         email = investor_data.get('email', '')
@@ -381,8 +312,4 @@ class IntegrationService:
             phone=phone,
             roles=['investor'],
         )
-        investor_id = investor_data.get('id', '')
-        if investor_id:
-            person.firestore_investor_id = investor_id
-            person.save()
         return person

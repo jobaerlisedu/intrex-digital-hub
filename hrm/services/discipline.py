@@ -1,35 +1,53 @@
-from datetime import datetime
-from config.firebase import db
-from google.cloud.firestore import SERVER_TIMESTAMP
+from datetime import datetime, date
+from ..models import (
+    DisciplinaryCase, DisciplinaryHearing, DisciplinaryAction,
+    DisciplinaryAppeal, Employee,
+)
 
 
 class DisciplineService:
-    COLLECTION = 'hrm_disciplinary_cases'
-    APPEALS_COLLECTION = 'hrm_disciplinary_appeals'
+    @staticmethod
+    def _resolve(doc_id, model_class):
+        if not doc_id:
+            return None
+        try:
+            return model_class.objects.get(pk=doc_id)
+        except (model_class.DoesNotExist, ValueError):
+            pass
+        return model_class.objects.filter(pk=doc_id).first()
 
     @staticmethod
-    def _next_case_number():
-        from google.cloud.firestore_v1 import transactional
-        counter_ref = db.collection('hrm_counters').document('disciplinary')
-
-        @transactional
-        def increment(transaction):
-            snap = list(transaction.get(counter_ref))[0]
-            if not snap.exists:
-                transaction.set(counter_ref, {'sequence': 1})
-                return f"DC-{datetime.now().year}-0001"
-            seq = snap.to_dict()['sequence'] + 1
-            transaction.update(counter_ref, {'sequence': seq})
-            return f"DC-{datetime.now().year}-{seq:04d}"
-
-        return increment(db.transaction())
+    def _resolve_employee(emp_ref):
+        if not emp_ref:
+            return None
+        try:
+            return Employee.objects.get(pk=emp_ref)
+        except (Employee.DoesNotExist, ValueError):
+            pass
+        return Employee.objects.filter(name=emp_ref).first()
 
     @staticmethod
     def add_case(data, user):
         doc_id = data.get('doc_id')
-        now = datetime.now().isoformat()
+        emp = DisciplineService._resolve_employee(data.get('employee'))
+
+        if doc_id:
+            case = DisciplineService._resolve(doc_id, DisciplinaryCase)
+            if case:
+                case.employee = emp or case.employee
+                case.incident_date = data.get('incident_date', case.incident_date)
+                case.nature_of_offense = data.get('nature_of_offense', case.nature_of_offense)
+                case.severity = data.get('severity', case.severity)
+                case.description = data.get('description', '')
+                case.status = data.get('status', case.status)
+                case.resolution = data.get('resolution', '')
+                case.resolved_date = data.get('resolved_date') or None
+                case.updated_by = user
+                case.save()
+            return 'updated'
+
         payload = {
-            'employee': data.get('employee'),
+            'employee': emp,
             'incident_date': data.get('incident_date'),
             'nature_of_offense': data.get('nature_of_offense'),
             'severity': data.get('severity', 'Minor'),
@@ -37,175 +55,180 @@ class DisciplineService:
             'status': data.get('status', 'Open'),
             'resolution': data.get('resolution', ''),
             'resolved_date': data.get('resolved_date') or None,
-            'updated_at': now,
-            'updated_by': f'users/{user.id}',
+            'reported_by': user,
+            'created_by': user,
+            'updated_by': user,
         }
-        if doc_id:
-            db.collection(DisciplineService.COLLECTION).document(doc_id).update(payload)
-            return 'updated'
-        payload['case_number'] = DisciplineService._next_case_number()
-        payload['reported_by'] = f'users/{user.id}'
-        payload['hearings'] = []
-        payload['actions'] = []
-        payload['is_active'] = True
-        payload['created_at'] = now
-        payload['created_by'] = f'users/{user.id}'
-        doc_ref = db.collection(DisciplineService.COLLECTION).document()
-        doc_ref.set(payload)
+        case = DisciplinaryCase(**payload)
+        case.save()
         return 'created'
 
     @staticmethod
     def add_hearing(data, user):
         case_id = data.get('case_id')
-        if not case_id:
+        case = DisciplineService._resolve(case_id, DisciplinaryCase)
+        if not case:
             return None
-        import time
-        hearing = {
-            'id': f'h_{int(time.time())}',
-            'hearing_date': data.get('hearing_date'),
-            'panel_members': data.get('panel_members', ''),
-            'location': data.get('location', ''),
-            'notes': data.get('notes', ''),
-            'outcome': data.get('outcome', ''),
-            'status': data.get('status', 'Scheduled'),
-        }
-        case_ref = db.collection(DisciplineService.COLLECTION).document(case_id)
-        case = case_ref.get()
-        if not case.exists:
-            return None
-        existing = case.to_dict().get('hearings', [])
-        existing.append(hearing)
-        case_ref.update({
-            'hearings': existing,
-            'status': 'Hearing Scheduled',
-            'updated_at': datetime.now().isoformat(),
-            'updated_by': f'users/{user.id}',
-        })
-        return 'created'
+
+        hearing_id = data.get('doc_id')
+        if hearing_id:
+            hearing = DisciplineService._resolve(hearing_id, DisciplinaryHearing)
+            if hearing:
+                hearing.hearing_date = data.get('hearing_date', hearing.hearing_date)
+                hearing.panel_members = data.get('panel_members', '')
+                hearing.location = data.get('location', '')
+                hearing.notes = data.get('notes', '')
+                hearing.outcome = data.get('outcome', '')
+                hearing.status = data.get('status', hearing.status)
+                hearing.save()
+            return 'updated'
+        else:
+            DisciplinaryHearing.objects.create(
+                case=case,
+                hearing_date=data.get('hearing_date'),
+                panel_members=data.get('panel_members', ''),
+                location=data.get('location', ''),
+                notes=data.get('notes', ''),
+                outcome=data.get('outcome', ''),
+                status=data.get('status', 'Scheduled'),
+            )
+            if case.status not in ('Resolved', 'Dismissed'):
+                case.status = 'Hearing Scheduled'
+                case.save(update_fields=['status'])
+            return 'created'
 
     @staticmethod
     def add_action(data, user):
         case_id = data.get('case_id')
-        if not case_id:
+        case = DisciplineService._resolve(case_id, DisciplinaryCase)
+        if not case:
             return None
-        import time
-        action = {
-            'id': f'a_{int(time.time())}',
-            'action_type': data.get('action_type'),
-            'description': data.get('description', ''),
-            'issued_date': data.get('issued_date'),
-            'effective_date': data.get('effective_date'),
-            'expiry_date': data.get('expiry_date') or None,
-            'status': 'Pending',
-            'issued_by': f'users/{user.id}',
-            'supporting_document': data.get('supporting_document', ''),
-        }
-        case_ref = db.collection(DisciplineService.COLLECTION).document(case_id)
-        case = case_ref.get()
-        if not case.exists:
-            return None
-        existing = case.to_dict().get('actions', [])
-        existing.append(action)
-        case_ref.update({
-            'actions': existing,
-            'updated_at': datetime.now().isoformat(),
-            'updated_by': f'users/{user.id}',
-        })
-        return 'created'
+
+        action_id = data.get('doc_id')
+        if action_id:
+            action = DisciplineService._resolve(action_id, DisciplinaryAction)
+            if action:
+                action.action_type = data.get('action_type', action.action_type)
+                action.description = data.get('description', '')
+                action.issued_date = data.get('issued_date', action.issued_date)
+                action.effective_date = data.get('effective_date', action.effective_date)
+                action.expiry_date = data.get('expiry_date') or None
+                action.supporting_document = data.get('supporting_document', '')
+                action.issued_by = user
+                action.save()
+            return 'updated'
+        else:
+            DisciplinaryAction.objects.create(
+                case=case,
+                action_type=data.get('action_type'),
+                description=data.get('description', ''),
+                issued_date=data.get('issued_date'),
+                effective_date=data.get('effective_date'),
+                expiry_date=data.get('expiry_date') or None,
+                status='Pending',
+                issued_by=user,
+                supporting_document=data.get('supporting_document', ''),
+            )
+            return 'created'
 
     @staticmethod
     def add_appeal(data, user):
         action_id = data.get('action_id')
-        if not action_id:
+        action = DisciplineService._resolve(action_id, DisciplinaryAction)
+        if not action:
             return None
-        case_ref = db.collection(DisciplineService.COLLECTION).document(action_id)
-        case = case_ref.get()
-        if not case.exists:
-            return None
-        cdata = case.to_dict()
-        doc_ref = db.collection(DisciplineService.APPEALS_COLLECTION).document()
-        doc_ref.set({
-            'action_id': action_id,
-            'case_number': cdata.get('case_number', ''),
-            'employee_name': cdata.get('employee_name', ''),
-            'appeal_date': data.get('appeal_date'),
-            'grounds': data.get('grounds'),
-            'supporting_evidence': data.get('supporting_evidence', ''),
-            'status': 'Submitted',
-            'decision_date': None,
-            'decision_notes': '',
-            'decided_by': None,
-            'is_active': True,
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat(),
-        })
-        actions = cdata.get('actions', [])
-        for a in actions:
-            if a.get('id') and a['status'] not in ('Enforced', 'Overturned'):
-                a['status'] = 'Under Appeal'
-        case_ref.update({
-            'actions': actions,
-            'updated_at': datetime.now().isoformat(),
-        })
+
+        DisciplinaryAppeal.objects.create(
+            action=action,
+            appeal_date=data.get('appeal_date', date.today()),
+            grounds=data.get('grounds', ''),
+            supporting_evidence=data.get('supporting_evidence', ''),
+            status='Submitted',
+        )
+        action.status = 'Under Appeal'
+        action.save(update_fields=['status'])
         return 'created'
 
     @staticmethod
     def resolve_appeal(appeal_id, decision, data, user):
-        now = datetime.now().isoformat()
-        appeal_ref = db.collection(DisciplineService.APPEALS_COLLECTION).document(appeal_id)
-        appeal = appeal_ref.get()
-        if not appeal.exists:
+        appeal = DisciplineService._resolve(appeal_id, DisciplinaryAppeal)
+        if not appeal:
             return None
-        adata = appeal.to_dict()
-        adata['status'] = decision
-        adata['decision_date'] = data.get('decision_date', datetime.now().strftime('%Y-%m-%d'))
-        adata['decision_notes'] = data.get('decision_notes', '')
-        adata['decided_by'] = f'users/{user.id}'
-        adata['updated_at'] = now
-        appeal_ref.update(adata)
 
-        action_id = adata.get('action_id')
-        if action_id:
-            case_ref = db.collection(DisciplineService.COLLECTION).document(action_id)
-            case = case_ref.get()
-            if case.exists:
-                cdata = case.to_dict()
-                actions = cdata.get('actions', [])
-                for a in actions:
-                    if a.get('status') == 'Under Appeal':
-                        a['status'] = 'Enforced' if decision == 'Upheld' else 'Overturned'
-                case_ref.update({'actions': actions, 'updated_at': now})
+        appeal.status = decision
+        appeal.decision_date = data.get('decision_date', date.today())
+        appeal.decision_notes = data.get('decision_notes', '')
+        appeal.decided_by = user
+        appeal.save()
+
+        action = appeal.action
+        if action.status == 'Under Appeal':
+            action.status = 'Enforced' if decision == 'Upheld' else 'Overturned'
+            action.save(update_fields=['status'])
         return decision
 
     @staticmethod
     def close_case(case_id, resolution, resolved_date, user):
-        db.collection(DisciplineService.COLLECTION).document(case_id).update({
-            'status': 'Resolved',
-            'resolution': resolution or '',
-            'resolved_date': resolved_date or datetime.now().strftime('%Y-%m-%d'),
-            'updated_at': datetime.now().isoformat(),
-            'updated_by': f'users/{user.id}',
-        })
+        case = DisciplineService._resolve(case_id, DisciplinaryCase)
+        if case:
+            case.status = 'Resolved'
+            case.resolution = resolution or ''
+            case.resolved_date = resolved_date or date.today()
+            case.updated_by = user
+            case.save(update_fields=['status', 'resolution', 'resolved_date', 'updated_by'])
 
     @staticmethod
     def get_case_context():
-        cases = sorted(
-            [{'id': d.id, **d.to_dict()} for d in db.collection(DisciplineService.COLLECTION).stream()
-             if d.to_dict().get('is_active')],
-            key=lambda c: c.get('created_at', '') or '',
-            reverse=True,
-        )
-        appeals = sorted(
-            [{'id': d.id, **d.to_dict()} for d in db.collection(DisciplineService.APPEALS_COLLECTION).stream()
-             if d.to_dict().get('is_active')],
-            key=lambda a: a.get('appeal_date', '') or '',
-            reverse=True,
-        )
+        cases = list(DisciplinaryCase.objects.filter(is_active=True).select_related('employee', 'reported_by').order_by('-created_at'))
+        case_data = []
+        for c in cases:
+            hearings = list(c.hearings.filter(is_active=True).values(
+                'pk', 'hearing_date', 'panel_members', 'location', 'notes', 'outcome', 'status',
+            ))
+            for h in hearings:
+                h['id'] = h.pop('pk') or ''
+
+            actions = list(c.actions.filter(is_active=True).values(
+                'pk', 'action_type', 'description', 'issued_date', 'effective_date',
+                'expiry_date', 'status', 'supporting_document',
+            ))
+            for a in actions:
+                a['id'] = a.pop('pk') or ''
+
+            appeal_list = []
+            for a in c.actions.filter(is_active=True):
+                for app in a.appeals.filter(is_active=True):
+                    appeal_list.append({
+                        'id': str(app.pk),
+                        'action_id': str(a.pk),
+                        'action_type': a.action_type,
+                        'appeal_date': str(app.appeal_date),
+                        'grounds': app.grounds,
+                        'status': app.status,
+                        'decision_date': str(app.decision_date) if app.decision_date else '',
+                        'decision_notes': app.decision_notes,
+                    })
+
+            case_data.append({
+                'id': str(c.pk),
+                'case_number': c.case_number,
+                'employee': c.employee.name if c.employee else '',
+                'employee_name': c.employee.name if c.employee else '',
+                'incident_date': str(c.incident_date) if c.incident_date else '',
+                'nature_of_offense': c.nature_of_offense,
+                'severity': c.severity,
+                'description': c.description,
+                'status': c.status,
+                'resolution': c.resolution,
+                'resolved_date': str(c.resolved_date) if c.resolved_date else '',
+                'hearings': hearings,
+                'actions': actions,
+                'appeals': appeal_list,
+                'created_at': str(c.created_at) if c.created_at else '',
+            })
+
         return {
-            'cases': cases,
-            'hearings': [h for c in cases for h in c.get('hearings', [])],
-            'actions': [a for c in cases for a in c.get('actions', [])],
-            'appeals': appeals,
+            'cases': case_data,
             'severity_choices': ['Minor', 'Major', 'Gross'],
             'case_status_choices': ['Open', 'Under Investigation', 'Hearing Scheduled', 'Resolved', 'Dismissed'],
             'action_type_choices': [

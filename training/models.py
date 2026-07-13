@@ -5,7 +5,6 @@ from django.conf import settings
 
 class Course(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     title = models.CharField(max_length=255)
     code = models.CharField(max_length=50, blank=True, null=True)
     target = models.CharField(max_length=255, blank=True, default='')
@@ -39,7 +38,6 @@ class Batch(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     batch_id = models.CharField(max_length=100, unique=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='batches')
     schedule = models.CharField(max_length=255, blank=True, null=True)
@@ -68,7 +66,6 @@ class Batch(models.Model):
 
 class Registration(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     student_id = models.CharField(max_length=100, unique=True)
     full_name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255)
@@ -114,7 +111,6 @@ class Payment(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     registration = models.OneToOneField(Registration, on_delete=models.CASCADE, related_name='payment')
     student_id = models.CharField(max_length=100)
     student_name = models.CharField(max_length=255)
@@ -173,7 +169,6 @@ class PaymentInstallment(models.Model):
 
 class Expense(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     category = models.CharField(max_length=255)
     sub_category = models.CharField(max_length=255, blank=True, default='')
     description = models.TextField(blank=True, default='')
@@ -210,7 +205,6 @@ class Inquiry(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     inquiry_key = models.CharField(max_length=100, unique=True)
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255)
@@ -245,7 +239,6 @@ class Institute(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     contact_person = models.CharField(max_length=255, blank=True, null=True)
     email = models.EmailField(max_length=255, blank=True, null=True)
@@ -272,7 +265,6 @@ class Institute(models.Model):
 
 class Ambassador(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     name = models.CharField(max_length=255)
     email = models.EmailField(max_length=255)
     phone = models.CharField(max_length=50)
@@ -302,7 +294,6 @@ class Commission(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     agent = models.ForeignKey(Ambassador, on_delete=models.CASCADE, related_name='commissions')
     agent_name = models.CharField(max_length=255)
     month = models.CharField(max_length=20)
@@ -346,7 +337,6 @@ class Assessment(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     registration = models.OneToOneField(Registration, on_delete=models.CASCADE, related_name='assessment')
     student_id = models.CharField(max_length=100)
     student_name = models.CharField(max_length=255)
@@ -375,7 +365,6 @@ class Assessment(models.Model):
 
 class Certificate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     certificate_id = models.CharField(max_length=100, unique=True)
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE, related_name='certificates')
     student_id = models.CharField(max_length=100)
@@ -409,7 +398,6 @@ class JobPlacement(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     registration = models.ForeignKey(Registration, on_delete=models.CASCADE, related_name='job_placements')
     student_id = models.CharField(max_length=100)
     student_name = models.CharField(max_length=255)
@@ -436,7 +424,6 @@ class JobPlacement(models.Model):
 
 class ClassSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    firestore_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     class_title = models.CharField(max_length=255)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='class_sessions')
     date = models.DateField()

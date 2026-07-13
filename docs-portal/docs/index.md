@@ -25,7 +25,7 @@ For server administrators, security auditors, and database compliance teams.
 
 *   [Access Control (RBAC)](admin-runbooks/access-control.md): Configuring roles, Django user group permissions, and active session revocations.
 *   [Audit & Compliance](admin-runbooks/audit-compliance.md): Reviewing cryptographic logs, checking hash integrity, and diagnosing security anomalies.
-*   [Disaster Recovery](admin-runbooks/disaster-recovery.md): Handling daily SQLite online backups, Firestore cloud exports, database restorations, and key replacement.
+*   [Disaster Recovery](admin-runbooks/disaster-recovery.md): Handling daily MySQL backups, database restorations, and key replacement.
 *   [System Configuration](admin-runbooks/system-config.md): Global environment parameters, secret keys, and database connections.
 *   [Modules & Sections](admin-runbooks/modules-sections.md): Layout catalog of all application pages and corresponding permissions scopes.
 
@@ -34,8 +34,8 @@ For server administrators, security auditors, and database compliance teams.
 For engineering staff extending business logic, writing custom scripts, or deploying instances.
 
 *   [Architecture & Logic](developer/architecture.md): Module topology, event flows, state machine lifecycles, and code hook triggers.
-*   [Database Schema](developer/database-schema.md): Firestore NoSQL collection structures, SQLite system schemas, and entity-relationship models.
-*   [API Reference](developer/api-reference.md): Public JSON endpoints for web inquiries, registrations, and internal Firebase querying parameters.
+*   [Database Schema](developer/database-schema.md): MySQL relational schema, SQLite system schemas, and entity-relationship models.
+*   [API Reference](developer/api-reference.md): Public JSON endpoints for web inquiries, registrations, and internal query parameters.
 *   [Local Setup Guide](developer/local-setup.md): Cloning repositories, virtual environments, configuration files, and running unit tests.
 
 ---
@@ -48,8 +48,8 @@ The Intrex ERP platform uses a **hybrid database model** designed to balance sec
 graph TD
     User([Operator / Client]) -->|HTTPS Request| Django[Django Web Server]
     Django -->|SQLite Adapter| AuthDB[(Local Auth & Audit DB<br/>SQLite)]
-    Django -->|Admin SDK Client| CloudDB[(Core ERP Ledger<br/>Google Firestore)]
+    Django -->|Django ORM| MySQL[(Core ERP Ledger<br/>MySQL Database)]
 ```
 
 *   **SQLite3 Database (`db.sqlite3`)**: Runs locally on the app node. Restricts authentication checks, active sessions, and logs to an isolated local file. This keeps core access logs lightweight and immune to database latency.
-*   **Google Firestore Database (NoSQL Cloud)**: Hosts all multi-tenant operational data (such as project scoping, training classes, invoice receipts, and employee records). Allows database schemas to adapt dynamically to new business requirements.
+*   **MySQL Database**: Hosts all multi-tenant operational data (such as project scoping, training classes, invoice receipts, and employee records).

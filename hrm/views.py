@@ -1,20 +1,19 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib import messages
-from config.firebase import db
 from django.contrib.auth.decorators import login_required
+from django.db import models as orm_models
 from accounts.decorators import module_access
 from config.workflow_integration import ensure_workflow, try_transition, LEAVE_TRIGGER_MAP
 from config.logger import hrm_logger
-from .views_helpers import get_collection_data, get_cached_collection, invalidate_cache
+from datetime import datetime, date
+from django.utils import timezone
 from .validators import (
     validate_employee_data, validate_attendance_data, validate_leave_data,
     validate_candidate_data, validate_department_data, validate_position_data,
     validate_advance_data, validate_expense_data, validate_shift_data,
     validate_document_data, validate_asset_data, validate_holiday_data,
 )
-from .audit import enrich_with_audit
-from django.utils import timezone
 from .services import (
     RecruitmentService, DepartmentService, EmployeeService,
     AttendanceService, LeaveService, PayrollService, RosterService,
@@ -30,93 +29,93 @@ from .services.compliance_calendar import ComplianceCalendarService
 from .services.talent_review import TalentReviewService
 from .services.settings import HRMSettingsService
 
+from .models import (
+    Employee, Department, Position, Attendance, Leave, Holiday, AdvanceSalary,
+    Payroll, PayrollEmployee, EmployeeShift, OnboardingTask, ExitClearance,
+    ExpenseClaim, Document, Asset, DisciplinaryCase, DisciplinaryHearing,
+    DisciplinaryAction, DisciplinaryAppeal, ReviewCycle, KPI, PerformanceReview,
+    PerformanceImprovementPlan, Notification, NotificationPreference,
+    KeyPosition, SuccessorCandidate, SuccessionPlan, EmployeeEducation,
+    EmployeeExperience, EmployeeSkill, Competency, CompetencyRating,
+    FeedbackQuestion, FeedbackRequest, FeedbackResponse, EngagementSurvey,
+    SurveyQuestion, SurveyResponse, ComplianceReminder, TalentReviewMeeting,
+    NineBoxCell, HRMSetting, LeavePolicy, RatingTemplate, RatingScale,
+)
+
+months_map = {
+    'January': '01', 'February': '02', 'March': '03', 'April': '04',
+    'May': '05', 'June': '06', 'July': '07', 'August': '08',
+    'September': '09', 'October': '10', 'November': '11', 'December': '12',
+}
+MONTH_CHOICES = list(months_map.keys())
+YEAR_CHOICES = [str(y) for y in range(2020, 2035)]
+
+
+def _emp_list():
+    return [{'id': str(e.pk), 'first_name': e.first_name, 'last_name': e.last_name, 'name': e.name}
+            for e in Employee.objects.filter(is_active=True)]
+
+
+def _emp_dict_list():
+    return [{'name': e.name, 'id': str(e.pk)} for e in Employee.objects.filter(is_active=True)]
+
+
+# ── Index / Dashboard ────────────────────────────────────────────────
+
 @module_access('hrm')
 def index(request):
-    # HR Overview / Dashboard
     try:
-        employees = list(db.collection('hrm_employees').stream())
-        positions = list(db.collection('org_positions').stream())
+        total_emp = Employee.objects.count()
+        active_emp = Employee.objects.filter(status='Active').count()
+        leave_emp = Employee.objects.filter(status='On Leave').count()
+        open_positions = Position.objects.filter(status='Active').count()
 
-        total_emp = len(employees)
-        active_emp = len([e for e in employees if (e.to_dict() or {}).get('status') == 'Active'])
-        leave_emp = len([e for e in employees if (e.to_dict() or {}).get('status') == 'On Leave'])
-        open_positions = len(positions)
-        
-        # Calculate pending approvals
-        pending_leaves = len(list(db.collection('hrm_leaves').where('status', '==', 'Pending').stream()))
-        pending_advances = len(list(db.collection('hrm_advances').where('status', '==', 'Pending').stream()))
-        pending_claims = len(list(db.collection('hrm_expense_claims').where('status', '==', 'Pending').stream()))
+        pending_leaves = Leave.objects.filter(status='Pending').count()
+        pending_advances = AdvanceSalary.objects.filter(status='Pending').count()
+        pending_claims = ExpenseClaim.objects.filter(status='Pending').count()
         pending_approvals = pending_leaves + pending_advances + pending_claims
 
-        # Calculate absenteeism rate
-        from datetime import datetime
-        today_str = datetime.now().strftime('%Y-%m-%d')
-        today_att = [a.to_dict() or {} for a in db.collection('hrm_attendance').where('date', '==', today_str).stream()]
-        absent_count = sum(1 for a in today_att if a.get('status') == 'Absent')
-        total_att = len(today_att)
+        today_att = Attendance.objects.filter(date=date.today())
+        total_att = today_att.count()
+        absent_count = today_att.filter(status='Absent').count()
         absenteeism_rate = round((absent_count / total_att * 100), 1) if total_att > 0 else 0.0
-        
-        # Disciplinary KPIs
-        try:
-            all_cases = [d.to_dict() for d in db.collection('hrm_disciplinary_cases').where('is_active', '==', True).stream()]
-            open_cases = sum(1 for c in all_cases if c.get('status') not in ('Resolved', 'Dismissed'))
-            upcoming_hearings = sum(
-                1 for c in all_cases
-                for h in c.get('hearings', [])
-                if h.get('status') == 'Scheduled'
-            )
-            all_cases.sort(key=lambda c: c.get('created_at', ''), reverse=True)
-            recent_cases = [
-                {
-                    'case_number': c.get('case_number', ''),
-                    'employee__name': c.get('employee_name', c.get('employee', '')),
-                    'nature_of_offense': c.get('nature_of_offense', ''),
-                    'severity': c.get('severity', ''),
-                    'status': c.get('status', ''),
-                }
-                for c in all_cases[:5]
-            ]
-        except Exception:
-            open_cases = 0
-            upcoming_hearings = 0
-            recent_cases = []
 
-        recent_activities = [
-            f"Employee database check completed.",
-            f"Dashboard metrics refreshed.",
-        ]
+        open_cases = DisciplinaryCase.objects.filter(is_active=True).exclude(status__in=('Resolved', 'Dismissed')).count()
+        upcoming_hearings = DisciplinaryHearing.objects.filter(status='Scheduled', case__is_active=True).count()
+        recent_cases = list(DisciplinaryCase.objects.filter(is_active=True).order_by('-created_at').values(
+            'case_number', 'employee__first_name', 'nature_of_offense', 'severity', 'status'
+        )[:5])
+
+        recent_activities = ["Employee database check completed.", "Dashboard metrics refreshed."]
         if pending_approvals > 0:
             recent_activities.append(f"There are {pending_approvals} requests pending manager approval.")
         if open_cases > 0:
             recent_activities.append(f"{open_cases} open disciplinary case(s) require attention.")
     except Exception as e:
         hrm_logger.error(f"Error loading dashboard: {e}")
-        total_emp, active_emp, leave_emp, open_positions = 0, 0, 0, 0
-        pending_approvals = 0
-        absenteeism_rate = 0.0
-        open_cases = 0
-        upcoming_hearings = 0
+        total_emp = active_emp = leave_emp = open_positions = 0
+        pending_approvals = absenteeism_rate = 0
+        open_cases = upcoming_hearings = 0
         recent_cases = []
         recent_activities = []
 
     context = {
-        'total_employees': total_emp,
-        'active_employees': active_emp,
-        'employees_on_leave': leave_emp,
-        'open_positions': open_positions,
-        'pending_approvals': pending_approvals,
-        'absenteeism_rate': absenteeism_rate,
-        'open_cases': open_cases,
-        'upcoming_hearings': upcoming_hearings,
-        'recent_cases': recent_cases,
-        'recent_activities': recent_activities
+        'total_employees': total_emp, 'active_employees': active_emp,
+        'employees_on_leave': leave_emp, 'open_positions': open_positions,
+        'pending_approvals': pending_approvals, 'absenteeism_rate': absenteeism_rate,
+        'open_cases': open_cases, 'upcoming_hearings': upcoming_hearings,
+        'recent_cases': recent_cases, 'recent_activities': recent_activities,
     }
     return render(request, 'hrm/overview.html', context)
+
+
+# ── Recruitment ──────────────────────────────────────────────────────
 
 @module_access('hrm')
 def recruitment(request):
     if request.method == 'POST':
         action = request.POST.get('action')
+        doc_id = request.POST.get('doc_id')
 
         if action == 'add_candidate':
             errors = validate_candidate_data(request.POST)
@@ -125,72 +124,77 @@ def recruitment(request):
                     messages.error(request, e)
                 return redirect('hrm:recruitment')
             try:
-                result = RecruitmentService.add_candidate(request.POST, request.user)
-                msg = 'updated' if result == 'updated' else 'registered'
-                messages.success(request, f"Candidate profile {msg} successfully.")
+                RecruitmentService.add_candidate(request.POST, request.user)
+                messages.success(request, "Candidate added successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error adding candidate: {e}")
 
         elif action == 'add_shortlist':
             try:
                 result = RecruitmentService.add_shortlist(request.POST, request.user)
-                if result == 'updated':
-                    messages.success(request, "Shortlist details updated successfully.")
-                elif result == 'created':
-                    messages.success(request, "Candidate added to shortlist successfully.")
+                if result:
+                    messages.success(request, "Candidate shortlisted successfully.")
             except Exception as e:
-                hrm_logger.error(f"Error adding shortlist candidate: {e}")
+                hrm_logger.error(f"Error shortlisting: {e}")
 
-        elif action == 'add_interview':
+        elif action == 'update_stage':
+            if doc_id:
+                new_stage = request.POST.get('new_stage')
+                try:
+                    RecruitmentService.update_stage(doc_id, new_stage, request.user)
+                    messages.success(request, "Candidate stage updated.")
+                except Exception as e:
+                    hrm_logger.error(f"Error updating stage: {e}")
+
+        elif action == 'delete_candidate':
+            if doc_id:
+                try:
+                    RecruitmentService.delete(doc_id)
+                    messages.success(request, "Candidate record deleted.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting candidate: {e}")
+
+        elif action == 'schedule_interview':
             try:
-                result = RecruitmentService.add_interview(request.POST, request.user)
-                if result == 'updated':
-                    messages.success(request, "Interview schedule updated successfully.")
-                elif result == 'created':
+                result = RecruitmentService.schedule_interview(request.POST, request.user)
+                if result:
                     messages.success(request, "Interview scheduled successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error scheduling interview: {e}")
 
+        elif action == 'delete_interview':
+            if doc_id:
+                try:
+                    RecruitmentService.delete_interview(doc_id)
+                    messages.success(request, "Interview record deleted.")
+                except Exception as e:
+                    hrm_logger.error(f"Error deleting interview: {e}")
+
         elif action == 'add_selection':
             try:
-                result = RecruitmentService.add_selection(request.POST, request.user)
-                if result == 'updated':
-                    messages.success(request, "Selection details updated successfully.")
-                elif result == 'created':
-                    messages.success(request, "Selection decision logged successfully.")
+                RecruitmentService.add_selection(request.POST, request.user)
+                messages.success(request, "Candidate selected and offer recorded.")
             except Exception as e:
-                hrm_logger.error(f"Error saving selection: {e}")
+                hrm_logger.error(f"Error adding selection: {e}")
 
-        elif action.startswith('delete_'):
-            doc_id = request.POST.get('doc_id')
-            try:
-                RecruitmentService.delete_record(action, doc_id)
-                messages.success(request, "Record deleted successfully.")
-            except Exception as e:
-                hrm_logger.error(f"Error deleting: {e}")
-
-        elif action == 'update_status':
-            doc_id = request.POST.get('doc_id')
-            new_status = request.POST.get('status')
-            if doc_id and new_status:
+        elif action == 'delete_selection':
+            if doc_id:
                 try:
-                    RecruitmentService.update_status(doc_id, new_status, request.user)
-                    messages.success(request, f"Candidate status updated to {new_status}.")
+                    RecruitmentService.delete_selection(doc_id)
+                    messages.success(request, "Selection record deleted.")
                 except Exception as e:
-                    hrm_logger.error(f"Error updating status: {e}")
+                    hrm_logger.error(f"Error deleting selection: {e}")
 
         return redirect('hrm:recruitment')
 
-    candidates, shortlists, interviews, selections, positions, departments, sub_departments = RecruitmentService.get_candidates()
+    candidates, shortlists, interviews, selections = RecruitmentService.get_candidates()
     return render(request, 'hrm/recruitment.html', {
-        'candidates': candidates,
-        'shortlists': shortlists,
-        'interviews': interviews,
-        'selections': selections,
-        'positions': positions,
-        'departments': departments,
-        'sub_departments': sub_departments
+        'candidates': candidates, 'shortlists': shortlists,
+        'interviews': interviews, 'selections': selections,
     })
+
+
+# ── Department & Positions ───────────────────────────────────────────
 
 @module_access('hrm')
 def department(request):
@@ -205,18 +209,21 @@ def department(request):
                 return redirect('hrm:department')
             try:
                 result = DepartmentService.add_department(request.POST, request.user)
-                msg = 'updated' if result == 'updated' else 'added'
+                msg = 'updated' if result == 'updated' else 'created'
                 messages.success(request, f"Department {msg} successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error adding department: {e}")
 
         elif action == 'add_sub_department':
+            errors = validate_department_data(request.POST)
+            if errors:
+                for e in errors:
+                    messages.error(request, e)
+                return redirect('hrm:department')
             try:
                 result = DepartmentService.add_sub_department(request.POST, request.user)
-                if result == 'updated':
-                    messages.success(request, "Sub-department updated successfully.")
-                elif result == 'created':
-                    messages.success(request, "Sub-department added successfully.")
+                msg = 'updated' if result == 'updated' else 'created'
+                messages.success(request, f"Sub-department {msg} successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error adding sub department: {e}")
 
@@ -243,12 +250,11 @@ def department(request):
             except Exception as e:
                 hrm_logger.error(f"Error deleting: {e}")
 
-        invalidate_cache('org_departments')
-        invalidate_cache('org_departments_sub')
-        invalidate_cache('org_positions')
         return redirect('hrm:department')
 
-    departments = get_cached_collection('org_departments')
+    departments = list(Department.objects.filter(parent__isnull=True, is_active=True).values(
+        'id', 'name', 'module_linking', 'notes', 'status', 'is_active',
+    ))
     for d in departments:
         linking = d.get('module_linking', [])
         if isinstance(linking, str):
@@ -256,14 +262,21 @@ def department(request):
         elif not isinstance(linking, list):
             d['module_linking'] = []
 
-    sub_departments = get_cached_collection('org_departments_sub')
-    positions = get_cached_collection('org_positions')
+    sub_departments = list(Department.objects.filter(parent__isnull=False, is_active=True).values(
+        'id', 'name', 'parent__name', 'module_linking', 'notes', 'status', 'is_active',
+    ))
+    positions = list(Position.objects.filter(is_active=True).select_related('department', 'sub_department').values(
+        'id', 'title', 'department__name', 'sub_department__name', 'status', 'is_active',
+    ))
 
     return render(request, 'hrm/departments.html', {
         'departments': departments,
         'sub_departments': sub_departments,
-        'positions': positions
+        'positions': positions,
     })
+
+
+# ── Employee Database ────────────────────────────────────────────────
 
 @module_access('hrm')
 def employee_database(request):
@@ -298,8 +311,11 @@ def employee_database(request):
         'employees': employees,
         'departments': departments,
         'sub_departments': sub_departments,
-        'positions': positions
+        'positions': positions,
     })
+
+
+# ── Attendance ───────────────────────────────────────────────────────
 
 @module_access('hrm')
 def attendance(request):
@@ -348,8 +364,11 @@ def attendance(request):
     return render(request, 'hrm/attendance.html', {
         'logs': logs,
         'employees': employees,
-        'missing_logs': missing_logs
+        'missing_logs': missing_logs,
     })
+
+
+# ── Leave & Holidays ─────────────────────────────────────────────────
 
 @module_access('hrm')
 def leave(request):
@@ -427,6 +446,9 @@ def leave(request):
         'emp_balances': emp_balances,
     })
 
+
+# ── Payroll & Advances ───────────────────────────────────────────────
+
 @module_access('hrm')
 def payroll(request):
     if request.method == 'POST':
@@ -483,12 +505,12 @@ def payroll(request):
 
     advances, payrolls, employees, months, years = PayrollService.get_payroll_context()
     return render(request, 'hrm/payroll.html', {
-        'advances': advances,
-        'payrolls': payrolls,
-        'employees': employees,
-        'months': months,
-        'years': years
+        'advances': advances, 'payrolls': payrolls,
+        'employees': employees, 'months': months, 'years': years,
     })
+
+
+# ── Payslip AJAX ─────────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -496,62 +518,45 @@ def get_payslip(request):
     emp_name = request.GET.get('employee')
     month_name = request.GET.get('month')
     year = request.GET.get('year')
-    
+
     if not emp_name or not month_name or not year:
         return JsonResponse({'error': 'Missing parameters'}, status=400)
-        
-    months_map = {
-        'January': '01', 'February': '02', 'March': '03', 'April': '04',
-        'May': '05', 'June': '06', 'July': '07', 'August': '08',
-        'September': '09', 'October': '10', 'November': '11', 'December': '12'
-    }
+
     month_num = months_map.get(month_name)
     if not month_num:
         return JsonResponse({'error': 'Invalid month'}, status=400)
-        
+
     target_period = f"{year}-{month_num}"
-    
+
     try:
-        # 1. Fetch employee
-        emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
-        if not emp_query:
+        emp = Employee.objects.filter(name=emp_name, is_active=True).first()
+        if not emp:
             return JsonResponse({'error': 'Employee not found'}, status=404)
-        emp_data = emp_query[0].to_dict()
-        
-        basic_salary = float(emp_data.get('basic_salary', 0))
-        house_rent = float(emp_data.get('house_rent', 0))
-        medical_allowance = float(emp_data.get('medical_allowance', 0))
-        gross_salary = float(emp_data.get('gross_salary', 0))
-        
-        # 2. Count absent days from hrm_attendance
-        absent_count = 0
-        att_docs = db.collection('hrm_attendance').where('name', '==', emp_name).stream()
-        for doc in att_docs:
-            data = doc.to_dict()
-            att_date = data.get('date', '')
-            status = data.get('status', '')
-            if att_date.startswith(target_period) and status == 'Absent':
-                absent_count += 1
-                
-        # Calculate absent deduction: (basic_salary / 30) * absent_count
+
+        basic_salary = float(emp.basic_salary or 0)
+        house_rent = float(emp.house_rent or 0)
+        medical_allowance = float(emp.medical_allowance or 0)
+        gross_salary = float(emp.gross_salary or 0)
+
+        absent_count = Attendance.objects.filter(
+            employee=emp, date__startswith=target_period, status='Absent'
+        ).count()
+
         daily_rate = basic_salary / 30.0 if basic_salary > 0 else 0.0
         absent_deduction = round(daily_rate * absent_count, 2)
-        
-        # 3. Fetch advances for this month
-        advance_deduction = 0.0
-        adv_docs = db.collection('hrm_advances').where('employee', '==', emp_name).where('deduct_month', '==', target_period).stream()
-        for doc in adv_docs:
-            data = doc.to_dict()
-            advance_deduction += float(data.get('amount', 0))
-            
-        # Tax deduction (5% of basic salary)
+
+        advance_deduction = float(
+            AdvanceSalary.objects.filter(
+                employee=emp, deduct_month=target_period, is_active=True
+            ).exclude(status='Deducted').aggregate(total=orm_models.Sum('amount'))['total'] or 0
+        )
+
         tax_deduction = round(basic_salary * 0.05, 2)
-        
-        # Net Pay calculation
+
         net_pay = round(gross_salary - absent_deduction - advance_deduction - tax_deduction, 2)
         if net_pay < 0:
             net_pay = 0.0
-            
+
         return JsonResponse({
             'employee': emp_name,
             'period': f"{month_name} {year}",
@@ -562,118 +567,104 @@ def get_payslip(request):
             'absent_deduction': absent_deduction,
             'advance_deduction': advance_deduction,
             'tax_deduction': tax_deduction,
-            'net_pay': net_pay
+            'net_pay': net_pay,
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
 
+# ── Reports ──────────────────────────────────────────────────────────
+
 @module_access('hrm')
 def reports(request):
     try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
+        employees = [{'name': e.name} for e in Employee.objects.filter(is_active=True) if e.name]
     except Exception:
         employees = []
 
-    context = {
-        'employees': employees,
-        'report_data': None,
-        'report_type': None
-    }
+    context = {'employees': employees, 'report_data': None, 'report_type': None}
 
     if request.method == 'POST':
         report_type = request.POST.get('report_type')
         employee_filter = request.POST.get('employee_filter')
         start_date = request.POST.get('start_date')
         end_date = request.POST.get('end_date')
-
         context['report_type'] = report_type
 
         try:
             if report_type == 'Attendance Summary':
-                att_docs = db.collection('hrm_attendance').stream()
-                att_records = [d.to_dict() for d in att_docs]
-
+                qs = Attendance.objects.filter(is_active=True).select_related('employee')
                 summary = {}
-                for r in att_records:
-                    # Field stored during attendance recording is 'name', not 'employee'
-                    emp_name = r.get('name', '')
-                    if not emp_name: continue
-                    if employee_filter != 'All Employees' and emp_name != employee_filter: continue
+                for r in qs:
+                    emp_name = r.employee.name
+                    if not emp_name:
+                        continue
+                    if employee_filter != 'All Employees' and emp_name != employee_filter:
+                        continue
+                    r_date = str(r.date)
+                    if start_date and r_date < start_date:
+                        continue
+                    if end_date and r_date > end_date:
+                        continue
+                    summary.setdefault(emp_name, {'Present': 0, 'Absent': 0, 'Late': 0, 'Half Day': 0})
+                    if r.status in summary[emp_name]:
+                        summary[emp_name][r.status] += 1
 
-                    r_date = r.get('date', '')
-                    if start_date and r_date < start_date: continue
-                    if end_date and r_date > end_date: continue
-
-                    if emp_name not in summary:
-                        summary[emp_name] = {'Present': 0, 'Absent': 0, 'Late': 0, 'Half Day': 0}
-
-                    status = r.get('status', '')
-                    if status in summary[emp_name]:
-                        summary[emp_name][status] += 1
-
-                rows = [[name, data['Present'], data['Absent'], data['Late'], data['Half Day']] for name, data in summary.items()]
-
+                rows = [[name, data['Present'], data['Absent'], data['Late'], data['Half Day']]
+                        for name, data in summary.items()]
                 context['report_data'] = {
                     'headers': ['Employee', 'Total Present', 'Total Absent', 'Total Late', 'Total Half Day'],
-                    'rows': rows
+                    'rows': rows,
                 }
 
             elif report_type == 'Payroll Summary':
                 emp_data = {}
-                for e in db.collection('hrm_employees').stream():
-                    dt = e.to_dict()
-                    name = dt.get('name')
+                for e in Employee.objects.filter(is_active=True):
+                    name = e.name
                     if name:
-                        # Fallback to a default 0 if basic_salary not found
-                        emp_data[name] = float(dt.get('basic_salary', 0))
+                        emp_data[name] = float(e.basic_salary or 0)
 
-                adv_docs = db.collection('hrm_advances').stream()
                 advances = {}
-                for doc in adv_docs:
-                    d = doc.to_dict()
-                    if d.get('status') == 'Deducted': continue
-                    emp_name = d.get('employee')
-                    advances[emp_name] = advances.get(emp_name, 0) + float(d.get('amount', 0))
+                adv_qs = AdvanceSalary.objects.filter(is_active=True)
+                for a in adv_qs:
+                    if a.status == 'Deducted':
+                        continue
+                    emp_name = a.employee.name
+                    advances[emp_name] = advances.get(emp_name, 0) + float(a.amount or 0)
 
                 rows = []
                 for name, b_pay in emp_data.items():
-                    if employee_filter != 'All Employees' and name != employee_filter: continue
+                    if employee_filter != 'All Employees' and name != employee_filter:
+                        continue
                     adv = advances.get(name, 0)
                     net = b_pay - adv
                     rows.append([name, f"${b_pay:,.2f}", f"${adv:,.2f}", f"${net:,.2f}"])
 
                 context['report_data'] = {
                     'headers': ['Employee', 'Basic Pay', 'Pending Advances', 'Estimated Net Pay'],
-                    'rows': rows
+                    'rows': rows,
                 }
 
             elif report_type == 'Leave History':
-                leave_docs = db.collection('hrm_leaves').stream()
+                leave_qs = Leave.objects.filter(is_active=True).select_related('employee')
                 rows = []
-                for doc in leave_docs:
-                    d = doc.to_dict()
-                    emp_name = d.get('name', '')
-                    if not emp_name: continue
-                    if employee_filter != 'All Employees' and emp_name != employee_filter: continue
-
-                    l_from = d.get('from_date', '')
-                    l_to = d.get('to_date', '')
-                    
-                    if start_date and l_to < start_date: continue
-                    if end_date and l_from > end_date: continue
-
-                    rows.append([
-                        emp_name, 
-                        d.get('type', ''), 
-                        d.get('duration', ''), 
-                        d.get('status', 'Pending')
-                    ])
+                for d in leave_qs:
+                    emp_name = d.employee.name
+                    if not emp_name:
+                        continue
+                    if employee_filter != 'All Employees' and emp_name != employee_filter:
+                        continue
+                    l_from = str(d.from_date)
+                    l_to = str(d.to_date)
+                    if start_date and l_to < start_date:
+                        continue
+                    if end_date and l_from > end_date:
+                        continue
+                    rows.append([emp_name, d.leave_type, d.duration or '', d.status])
 
                 context['report_data'] = {
                     'headers': ['Employee', 'Leave Type', 'Duration', 'Status'],
-                    'rows': rows
+                    'rows': rows,
                 }
 
         except Exception as e:
@@ -681,6 +672,8 @@ def reports(request):
 
     return render(request, 'hrm/reports.html', context)
 
+
+# ── Onboarding & Offboarding ─────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -716,11 +709,10 @@ def onboarding_offboarding(request):
             try:
                 emp_name = request.POST.get('employee')
                 OnboardingService.add_exit_clearance(request.POST, request.user)
-                emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
-                if emp_query:
-                    emp_query[0].reference.update(
-                        enrich_with_audit({'status': 'Resigned'}, request.user, is_update=True)
-                    )
+                emp = Employee.objects.filter(name=emp_name).first()
+                if emp:
+                    emp.status = 'Resigned'
+                    emp.save(update_fields=['status'])
                 messages.success(request, "Exit clearance workflow triggered successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error triggering exit: {e}")
@@ -729,40 +721,37 @@ def onboarding_offboarding(request):
             if doc_id:
                 try:
                     field = request.POST.get('clearance_field')
-                    status = request.POST.get('clearance_status')
-                    OnboardingService.update_clearance(doc_id, field, status, request.user)
+                    status_val = request.POST.get('clearance_status')
+                    OnboardingService.update_clearance(doc_id, field, status_val, request.user)
 
-                    doc_snap = db.collection('hrm_exit_clearance').document(doc_id).get().to_dict()
-                    if doc_snap and all(doc_snap.get(f) == 'Cleared' for f in ('it_clearance', 'finance_clearance', 'hr_clearance')):
-                        db.collection('hrm_exit_clearance').document(doc_id).update(
-                            enrich_with_audit({'status': 'Cleared'}, request.user, is_update=True)
-                        )
-                        emp_name = doc_snap.get('employee')
-                        emp_query = list(db.collection('hrm_employees').where('name', '==', emp_name).stream())
-                        if emp_query:
-                            emp_query[0].reference.update(
-                                enrich_with_audit({'status': 'Inactive'}, request.user, is_update=True)
-                            )
+                    clearance = ExitClearance.objects.filter(pk=doc_id, is_active=True).first()
+                    if clearance:
+                        if all(getattr(clearance, f, '') == 'Cleared' for f in ('it_clearance', 'finance_clearance', 'hr_clearance')):
+                            clearance.status = 'Cleared'
+                            clearance.save(update_fields=['status'])
+                            emp = clearance.employee
+                            emp.status = 'Inactive'
+                            emp.save(update_fields=['status'])
                     messages.success(request, "Exit clearance status updated successfully.")
                 except Exception as e:
                     hrm_logger.error(f"Error updating clearance: {e}")
 
         return redirect('hrm:onboarding_offboarding')
 
-    tasks = get_collection_data('hrm_onboarding_tasks', [])
-    exits = get_collection_data('hrm_exit_clearance', [])
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    tasks = list(OnboardingTask.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'task_name', 'due_date', 'status', 'is_active',
+    ))
+    exits = list(ExitClearance.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'exit_date', 'reason', 'it_clearance', 'finance_clearance', 'hr_clearance', 'status',
+    ))
+    employees = _emp_list()
 
     return render(request, 'hrm/onboarding_offboarding.html', {
-        'tasks': tasks,
-        'exits': exits,
-        'employees': employees
+        'tasks': tasks, 'exits': exits, 'employees': employees,
     })
 
+
+# ── Roster / Shift Management ────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -793,18 +782,17 @@ def roster_management(request):
 
         return redirect('hrm:roster_management')
 
-    shifts = get_collection_data('hrm_employee_shifts', [])
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    shifts = list(EmployeeShift.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'shift_name', 'start_date', 'end_date', 'is_active',
+    ))
+    employees = _emp_list()
 
     return render(request, 'hrm/roster_management.html', {
-        'shifts': shifts,
-        'employees': employees
+        'shifts': shifts, 'employees': employees,
     })
 
+
+# ── Expense Claims ───────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -851,18 +839,17 @@ def expense_claims(request):
 
         return redirect('hrm:expense_claims')
 
-    claims = get_collection_data('hrm_expense_claims', [])
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    claims = list(ExpenseClaim.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'category', 'amount', 'description', 'status', 'created_at',
+    ))
+    employees = _emp_list()
 
     return render(request, 'hrm/expense_claims.html', {
-        'claims': claims,
-        'employees': employees
+        'claims': claims, 'employees': employees,
     })
 
+
+# ── Document & Asset Vault ───────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -914,27 +901,27 @@ def document_asset_vault(request):
         elif action == 'delete_asset':
             if doc_id:
                 try:
-                    db.collection('hrm_assets').document(doc_id).delete()
+                    Asset.objects.filter(pk=doc_id).update(is_active=False)
                     messages.success(request, "Asset record deleted successfully.")
                 except Exception as e:
                     hrm_logger.error(f"Error deleting asset: {e}")
 
         return redirect('hrm:document_asset_vault')
 
-    documents = get_collection_data('hrm_documents', [])
-    assets = get_collection_data('hrm_assets', [])
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    documents = list(Document.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'document_type', 'document_number', 'expiry_date', 'file',
+    ))
+    assets = list(Asset.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'asset_name', 'asset_tag', 'serial_number', 'status',
+    ))
+    employees = _emp_list()
 
     return render(request, 'hrm/document_asset_vault.html', {
-        'documents': documents,
-        'assets': assets,
-        'employees': employees
+        'documents': documents, 'assets': assets, 'employees': employees,
     })
 
+
+# ── Performance Management ───────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1008,15 +995,19 @@ def performance(request):
 
         return redirect('hrm:performance')
 
-    review_cycles = get_collection_data('hrm_review_cycles', [])
-    kpis = get_collection_data('hrm_kpis', [])
-    reviews = get_collection_data('hrm_performance_reviews', [])
-    pips = get_collection_data('hrm_pips', [])
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', '')} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    review_cycles = list(ReviewCycle.objects.filter(is_active=True).values(
+        'id', 'name', 'start_date', 'end_date', 'review_type', 'status',
+    ))
+    kpis = list(KPI.objects.filter(is_active=True).values(
+        'id', 'name', 'description', 'unit', 'target_value', 'default_weight',
+    ))
+    reviews = list(PerformanceReview.objects.filter(is_active=True).select_related('employee', 'reviewer', 'review_cycle').values(
+        'id', 'employee__name', 'reviewer__first_name', 'review_cycle__name', 'overall_score', 'status',
+    ))
+    pips = list(PerformanceImprovementPlan.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'issue_description', 'start_date', 'end_date', 'status',
+    ))
+    employees = _emp_list()
 
     return render(request, 'hrm/performance.html', {
         'review_cycles': review_cycles, 'kpis': kpis,
@@ -1051,7 +1042,7 @@ def disciplinary(request):
             doc_id = request.POST.get('doc_id')
             if doc_id:
                 try:
-                    db.collection('hrm_disciplinary_cases').document(doc_id).update({'is_active': False})
+                    DisciplinaryCase.objects.filter(pk=doc_id).update(is_active=False)
                     messages.success(request, "Disciplinary case removed.")
                 except Exception as e:
                     hrm_logger.error(f"Error deleting case: {e}")
@@ -1073,18 +1064,7 @@ def disciplinary(request):
             hearing_id = request.POST.get('doc_id')
             if hearing_id:
                 try:
-                    docs = db.collection('hrm_disciplinary_cases').where('is_active', '==', True).stream()
-                    now = datetime.now().isoformat()
-                    for case_doc in docs:
-                        hearings = case_doc.to_dict().get('hearings', [])
-                        for i, h in enumerate(hearings):
-                            if str(h.get('id', '')) == str(hearing_id):
-                                hearings.pop(i)
-                                db.collection('hrm_disciplinary_cases').document(case_doc.id).update({
-                                    'hearings': hearings,
-                                    'updated_at': now,
-                                })
-                                break
+                    DisciplinaryHearing.objects.filter(pk=hearing_id).update(is_active=False)
                     messages.success(request, "Hearing removed.")
                 except Exception as e:
                     hrm_logger.error(f"Error deleting hearing: {e}")
@@ -1138,18 +1118,36 @@ def disciplinary(request):
 
         return redirect('hrm:disciplinary')
 
-    context = DisciplineService.get_case_context()
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', ''), 'id': d.id} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
+    cases = list(DisciplinaryCase.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'case_number', 'incident_date', 'nature_of_offense',
+        'severity', 'status', 'resolution', 'resolved_date',
+    ))
+    for c in cases:
+        c_id = c.pop('id', None)
+        if c_id:
+            c['hearings'] = list(DisciplinaryHearing.objects.filter(case_id=c_id, is_active=True).values(
+                'id', 'hearing_date', 'panel_members', 'location', 'status', 'outcome',
+            ))
+            c['actions'] = list(DisciplinaryAction.objects.filter(case_id=c_id, is_active=True).values(
+                'id', 'action_type', 'description', 'issued_date', 'status',
+            ))
+            appeals = []
+            for a in DisciplinaryAction.objects.filter(case_id=c_id, is_active=True):
+                appeals.extend(
+                    DisciplinaryAppeal.objects.filter(action=a, is_active=True).values(
+                        'id', 'action__action_type', 'appeal_date', 'grounds', 'status',
+                    )
+                )
+            c['appeals'] = appeals
 
-    context['employees'] = employees
-    return render(request, 'hrm/discipline.html', context)
+    employees = _emp_dict_list()
+
+    return render(request, 'hrm/discipline.html', {
+        'cases': cases, 'employees': employees,
+    })
 
 
-# ── Notification Center (Admin) ───────────────────────────────────────
+# ── Notification Center ──────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1171,25 +1169,16 @@ def notification_center(request):
 
     notifications = NotifService.get_notifications(request.user)
     unread_count = NotifService.get_unread_count(request.user)
-    pref_docs = list(db.collection('hrm_notification_preferences')
-                    .where('user', '==', f'users/{request.user.id}')
-                    .limit(1).stream())
-    if pref_docs:
-        pref = pref_docs[0].to_dict()
-        pref['id'] = pref_docs[0].id
-    else:
-        now = datetime.now().isoformat()
-        _, pref_ref = db.collection('hrm_notification_preferences').add({
-            'user': f'users/{request.user.id}',
+
+    pref, _ = NotificationPreference.objects.get_or_create(
+        user=request.user,
+        defaults={
             'notify_in_app': True,
             'notify_email': True,
             'notify_push': False,
             'digest_frequency': 'instant',
-            'created_at': now,
-            'updated_at': now,
-        })
-        pref = pref_ref.get().to_dict()
-        pref['id'] = pref_ref.id
+        }
+    )
 
     return render(request, 'hrm/notifications.html', {
         'notifications': notifications,
@@ -1198,7 +1187,7 @@ def notification_center(request):
     })
 
 
-# ── Succession Planning (Admin) ───────────────────────────────────────
+# ── Succession Planning ──────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1208,7 +1197,7 @@ def succession_planning(request):
 
         if action == 'add_key_position':
             try:
-                result = SuccessionService.add_key_position(request.POST)
+                SuccessionService.add_key_position(request.POST)
                 messages.success(request, "Key position added successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error adding key position: {e}")
@@ -1216,7 +1205,7 @@ def succession_planning(request):
 
         elif action == 'update_key_position':
             try:
-                result = SuccessionService.add_key_position(request.POST)
+                SuccessionService.add_key_position(request.POST)
                 messages.success(request, "Key position updated successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error updating key position: {e}")
@@ -1231,7 +1220,7 @@ def succession_planning(request):
 
         elif action == 'update_successor':
             try:
-                result = SuccessionService.add_successor(request.POST)
+                SuccessionService.add_successor(request.POST)
                 messages.success(request, "Successor candidate updated.")
             except Exception as e:
                 hrm_logger.error(f"Error updating successor: {e}")
@@ -1239,12 +1228,12 @@ def succession_planning(request):
         elif action == 'delete_successor':
             doc_id = request.POST.get('doc_id')
             if doc_id:
-                db.collection('hrm_successor_candidates').document(doc_id).update({'is_active': False})
+                SuccessorCandidate.objects.filter(pk=doc_id).update(is_active=False)
                 messages.success(request, "Successor candidate removed.")
 
         elif action == 'create_plan':
             try:
-                result = SuccessionService.add_plan(request.POST)
+                SuccessionService.add_plan(request.POST)
                 messages.success(request, "Succession plan created successfully.")
             except Exception as e:
                 hrm_logger.error(f"Error creating succession plan: {e}")
@@ -1252,32 +1241,33 @@ def succession_planning(request):
         elif action == 'delete_position':
             doc_id = request.POST.get('doc_id')
             if doc_id:
-                db.collection('hrm_key_positions').document(doc_id).update({'is_active': False})
+                KeyPosition.objects.filter(pk=doc_id).update(is_active=False)
                 messages.success(request, "Key position removed.")
 
         return redirect('hrm:succession_planning')
 
-    key_positions = get_collection_data('hrm_key_positions', [])
-    successors = get_collection_data('hrm_successor_candidates', [])
-    plans = get_collection_data('hrm_succession_plans', [])
+    key_positions = list(KeyPosition.objects.filter(is_active=True).select_related('position', 'department', 'incumbent').values(
+        'id', 'position_title', 'position__title', 'department__name', 'incumbent__name', 'risk_of_vacancy', 'status',
+    ))
+    successors = list(SuccessorCandidate.objects.filter(is_active=True).select_related('key_position', 'employee').values(
+        'id', 'key_position__position_title', 'employee__name', 'readiness', 'is_primary', 'notes',
+    ))
+    plans = list(SuccessionPlan.objects.filter(is_active=True).select_related('department').values(
+        'id', 'title', 'description', 'department__name', 'review_date', 'status',
+    ))
+    employees = _emp_dict_list()
 
-    try:
-        emp_docs = db.collection('hrm_employees').stream()
-        employees = [{'name': (d.to_dict() or {}).get('name', ''), 'id': d.id} for d in emp_docs if (d.to_dict() or {}).get('name')]
-    except Exception:
-        employees = []
-
-    positions = get_cached_collection('org_positions')
-    departments = get_cached_collection('org_departments')
+    positions_list = list(Position.objects.filter(is_active=True).values('id', 'title'))
+    departments_list = list(Department.objects.filter(is_active=True).values('id', 'name'))
 
     return render(request, 'hrm/succession.html', {
         'key_positions': key_positions, 'successors': successors,
         'plans': plans, 'employees': employees,
-        'positions': positions, 'departments': departments,
+        'positions': positions_list, 'departments': departments_list,
     })
 
 
-# ── Unread Count (AJAX) ───────────────────────────────────────────────
+# ── Unread Count (AJAX) ──────────────────────────────────────────────
 
 @login_required
 def get_unread_notification_count(request):
@@ -1285,7 +1275,7 @@ def get_unread_notification_count(request):
     return JsonResponse({'count': count})
 
 
-# ── Phase 5: Skills Inventory ──────────────────────────────────────
+# ── Skills Inventory ──────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1310,12 +1300,20 @@ def skills_inventory(request):
             messages.error(request, f"Error: {e}")
         return redirect('hrm:skills_inventory')
 
-    employees = get_collection_data('hrm_employees', [])
-    education = get_collection_data('hrm_employee_education', [])
-    experiences = get_collection_data('hrm_employee_experience', [])
-    skills = get_collection_data('hrm_employee_skills', [])
-    competencies = get_collection_data('hrm_competencies', [])
-    competency_ratings = get_collection_data('hrm_competency_ratings', [])
+    employees = _emp_list()
+    education = list(EmployeeEducation.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'degree', 'institution', 'field_of_study', 'start_year', 'end_year', 'grade',
+    ))
+    experiences = list(EmployeeExperience.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'company', 'job_title', 'start_date', 'end_date', 'is_current', 'description',
+    ))
+    skills = list(EmployeeSkill.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'skill_name', 'proficiency', 'years_of_experience',
+    ))
+    competencies = list(Competency.objects.filter(is_active=True).values('id', 'name', 'category', 'description'))
+    competency_ratings = list(CompetencyRating.objects.filter(is_active=True).select_related('employee', 'competency').values(
+        'id', 'employee__name', 'competency__name', 'rating', 'assessment_date', 'notes',
+    ))
 
     return render(request, 'hrm/skills_inventory.html', {
         'employees': employees, 'education': education, 'experiences': experiences,
@@ -1323,7 +1321,7 @@ def skills_inventory(request):
     })
 
 
-# ── Phase 5: 360 Feedback ──────────────────────────────────────────
+# ── 360 Feedback ──────────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1342,11 +1340,17 @@ def feedback_360(request):
             messages.error(request, f"Error: {e}")
         return redirect('hrm:feedback_360')
 
-    questions = get_collection_data('hrm_feedback_questions', [])
-    requests = get_collection_data('hrm_feedback_requests', [])
-    responses = get_collection_data('hrm_feedback_responses', [])
-    employees = get_collection_data('hrm_employees', [])
-    cycles = get_collection_data('hrm_review_cycles', [])
+    questions = list(FeedbackQuestion.objects.filter(is_active=True).values(
+        'id', 'category', 'question_text', 'is_required', 'order',
+    ))
+    requests = list(FeedbackRequest.objects.filter(is_active=True).select_related('reviewee', 'review_cycle').values(
+        'id', 'reviewer', 'reviewee__name', 'review_cycle__name', 'relationship', 'status', 'due_date',
+    ))
+    responses = list(FeedbackResponse.objects.select_related('request', 'question').values(
+        'id', 'request__id', 'question__question_text', 'rating', 'response_text',
+    ))
+    employees = _emp_list()
+    cycles = list(ReviewCycle.objects.filter(is_active=True).values('id', 'name'))
 
     return render(request, 'hrm/feedback_360.html', {
         'questions': questions, 'requests': requests, 'responses': responses,
@@ -1354,7 +1358,7 @@ def feedback_360(request):
     })
 
 
-# ── Phase 5: Engagement Surveys ────────────────────────────────────
+# ── Engagement Surveys ────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1367,26 +1371,33 @@ def engagement_surveys(request):
                 messages.success(request, "Survey created successfully.")
             elif action == 'add_question':
                 survey_id = request.POST.get('survey_id')
-                now = datetime.now().isoformat()
-                db.collection('hrm_survey_questions').add({
-                    'survey': f'hrm_engagement_surveys/{survey_id}',
-                    'question_text': request.POST['question_text'],
-                    'question_type': request.POST.get('question_type', 'text'),
-                    'is_required': request.POST.get('is_required') == 'on',
-                    'order': int(request.POST.get('order', 0)),
-                    'is_active': True,
-                    'created_at': now,
-                    'updated_at': now,
-                })
+                try:
+                    survey = EngagementSurvey.objects.get(pk=survey_id)
+                except EngagementSurvey.DoesNotExist:
+                    messages.error(request, "Survey not found.")
+                    return redirect('hrm:engagement_surveys')
+                SurveyQuestion.objects.create(
+                    survey=survey,
+                    question_text=request.POST['question_text'],
+                    question_type=request.POST.get('question_type', 'text'),
+                    is_required=request.POST.get('is_required') == 'on',
+                    order=int(request.POST.get('order', 0)),
+                )
                 messages.success(request, "Survey question added.")
         except Exception as e:
             hrm_logger.error(f"Survey error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:engagement_surveys')
 
-    surveys = get_collection_data('hrm_engagement_surveys', [])
-    survey_questions = get_collection_data('hrm_survey_questions', [])
-    survey_responses = get_collection_data('hrm_survey_responses', [])
+    surveys = list(EngagementSurvey.objects.filter(is_active=True).values(
+        'id', 'title', 'description', 'start_date', 'end_date', 'is_anonymous', 'status',
+    ))
+    survey_questions = list(SurveyQuestion.objects.filter(is_active=True).select_related('survey').values(
+        'id', 'survey__title', 'question_text', 'question_type', 'is_required', 'order',
+    ))
+    survey_responses = list(SurveyResponse.objects.select_related('survey', 'question', 'employee').values(
+        'id', 'survey__title', 'question__question_text', 'employee__name', 'response_text', 'response_value',
+    ))
 
     return render(request, 'hrm/engagement_surveys.html', {
         'surveys': surveys, 'survey_questions': survey_questions,
@@ -1394,7 +1405,7 @@ def engagement_surveys(request):
     })
 
 
-# ── Phase 5: Compliance Calendar ────────────────────────────────────
+# ── Compliance Calendar ──────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1412,25 +1423,25 @@ def compliance_calendar(request):
                 messages.success(request, "Compliance reminder added.")
             elif action == 'complete_reminder':
                 reminder_id = request.POST.get('reminder_id')
-                now = datetime.now().isoformat()
-                db.collection('hrm_compliance_reminders').document(reminder_id).update({
-                    'status': 'Completed',
-                    'completed_at': now,
-                    'updated_at': now,
-                })
+                now_date = timezone.now().date()
+                ComplianceReminder.objects.filter(pk=reminder_id).update(
+                    status='Completed', completed_date=now_date,
+                )
                 messages.success(request, "Reminder marked complete.")
             elif action == 'dismiss_reminder':
-                db.collection('hrm_compliance_reminders').document(
-                    request.POST.get('reminder_id')
-                ).update({'is_active': False})
+                ComplianceReminder.objects.filter(
+                    pk=request.POST.get('reminder_id')
+                ).update(is_active=False)
                 messages.success(request, "Reminder dismissed.")
         except Exception as e:
             hrm_logger.error(f"Compliance calendar error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:compliance_calendar')
 
-    reminders = get_collection_data('hrm_compliance_reminders', [])
-    employees = get_collection_data('hrm_employees', [])
+    reminders = list(ComplianceReminder.objects.filter(is_active=True).select_related('employee').values(
+        'id', 'employee__name', 'reminder_type', 'title', 'description', 'due_date', 'completed_date', 'status',
+    ))
+    employees = _emp_list()
     upcoming = [r for r in reminders if r.get('status') in ('Pending', 'Overdue')]
 
     return render(request, 'hrm/compliance_calendar.html', {
@@ -1438,7 +1449,7 @@ def compliance_calendar(request):
     })
 
 
-# ── Phase 5: Talent Review & 9-Box ──────────────────────────────────
+# ── Talent Review & 9-Box ────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1454,19 +1465,22 @@ def talent_review(request):
                 messages.success(request, "9-Box cell added.")
             elif action == 'complete_meeting':
                 meeting_id = request.POST.get('meeting_id')
-                db.collection('hrm_talent_review_meetings').document(meeting_id).update({
-                    'status': 'Completed',
-                    'updated_at': datetime.now().isoformat(),
-                })
+                TalentReviewMeeting.objects.filter(pk=meeting_id).update(
+                    status='Completed',
+                )
                 messages.success(request, "Meeting marked as completed.")
         except Exception as e:
             hrm_logger.error(f"Talent review error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:talent_review')
 
-    meetings = get_collection_data('hrm_talent_review_meetings', [])
-    cells = get_collection_data('hrm_nine_box_cells', [])
-    employees = get_collection_data('hrm_employees', [])
+    meetings = list(TalentReviewMeeting.objects.filter(is_active=True).values(
+        'id', 'title', 'meeting_date', 'notes', 'status',
+    ))
+    cells = list(NineBoxCell.objects.filter(is_active=True).select_related('employee', 'talent_review').values(
+        'id', 'talent_review__title', 'employee__name', 'performance', 'potential', 'notes',
+    ))
+    employees = _emp_list()
 
     nine_box_levels = ['High', 'Medium', 'Low']
     return render(request, 'hrm/talent_review.html', {
@@ -1475,7 +1489,7 @@ def talent_review(request):
     })
 
 
-# ── Configuration UI ───────────────────────────────────────────────
+# ── Configuration UI ─────────────────────────────────────────────────
 
 @login_required
 @module_access('hrm')
@@ -1485,43 +1499,47 @@ def hrm_settings(request):
         try:
             if action == 'update_setting':
                 HRMSettingsService.save_setting(request.POST.get('key'), request.POST.get('value', ''))
-                messages.success(request, f"Setting updated.")
+                messages.success(request, "Setting updated.")
             elif action == 'add_setting':
                 HRMSettingsService.save_setting(request.POST.get('key'), request.POST.get('value', ''))
                 messages.success(request, "Setting created.")
             elif action == 'delete_setting':
-                db.collection('hrm_settings').document(request.POST.get('setting_id')).update({'is_active': False})
+                HRMSetting.objects.filter(pk=request.POST.get('setting_id')).update(is_active=False)
                 messages.success(request, "Setting removed.")
             elif action == 'add_leave_policy':
                 HRMSettingsService.add_leave_policy(request.POST)
                 messages.success(request, "Leave policy added.")
             elif action == 'delete_leave_policy':
-                db.collection('hrm_leave_policies').document(request.POST.get('policy_id')).update({'is_active': False})
+                LeavePolicy.objects.filter(pk=request.POST.get('policy_id')).update(is_active=False)
                 messages.success(request, "Leave policy removed.")
             elif action == 'add_rating_template':
                 HRMSettingsService.add_rating_template(request.POST)
                 messages.success(request, "Rating template created.")
             elif action == 'add_rating_scale':
-                now = datetime.now().isoformat()
-                db.collection('hrm_rating_scales').add({
-                    'template': f'hrm_rating_templates/{request.POST.get("template_id")}',
-                    'label': request.POST['label'],
-                    'value': request.POST['value'],
-                    'definition': request.POST.get('definition', ''),
-                    'order': int(request.POST.get('order', 0)),
-                    'is_active': True,
-                    'created_at': now,
-                    'updated_at': now,
-                })
+                template_id = request.POST.get('template_id')
+                try:
+                    template = RatingTemplate.objects.get(pk=template_id)
+                except RatingTemplate.DoesNotExist:
+                    messages.error(request, "Rating template not found.")
+                    return redirect('hrm:hrm_settings')
+                RatingScale.objects.create(
+                    template=template,
+                    label=request.POST['label'],
+                    value=request.POST['value'],
+                    definition=request.POST.get('definition', ''),
+                    order=int(request.POST.get('order', 0)),
+                )
                 messages.success(request, "Rating scale value added.")
         except Exception as e:
             hrm_logger.error(f"Settings error: {e}")
             messages.error(request, f"Error: {e}")
         return redirect('hrm:hrm_settings')
 
-    settings = get_collection_data('hrm_settings', [])
-    leave_policies = get_collection_data('hrm_leave_policies', [])
-    templates = get_collection_data('hrm_rating_templates', [])
+    settings = list(HRMSetting.objects.filter(is_active=True).values('id', 'key', 'value'))
+    leave_policies = list(LeavePolicy.objects.filter(is_active=True).values(
+        'id', 'employee_type', 'leave_type', 'entitled_days', 'carry_forward_days',
+    ))
+    templates = list(RatingTemplate.objects.filter(is_active=True).values('id', 'name', 'description'))
 
     return render(request, 'hrm/hrm_settings.html', {
         'settings': settings,
@@ -1529,43 +1547,31 @@ def hrm_settings(request):
         'templates': templates,
     })
 
+
+# ── Employee Cases JSON (AJAX) ───────────────────────────────────────
+
 def employee_cases_json(request, emp_id):
     try:
-        employee_docs = list(db.collection('hrm_employees')
-                            .where('emp_id', '==', emp_id)
-                            .where('is_active', '==', True)
-                            .limit(1).stream())
-        if not employee_docs:
+        emp = Employee.objects.filter(emp_id=emp_id, is_active=True).first()
+        if not emp:
             return JsonResponse({'cases': [], 'error': None})
-        employee_ref = f'hrm_employees/{employee_docs[0].id}'
-        cases = [
-            {'id': d.id, **d.to_dict()}
-            for d in db.collection('hrm_disciplinary_cases')
-            .where('employee', '==', employee_ref)
-            .where('is_active', '==', True)
-            .order_by('created_at', direction='DESCENDING')
-            .stream()
-        ]
+
+        cases = DisciplinaryCase.objects.filter(employee=emp, is_active=True).order_by('-created_at')
         data = []
         for c in cases:
+            hearings = list(c.hearings.filter(is_active=True).values('hearing_date', 'status', 'outcome'))
+            actions = list(c.actions.filter(is_active=True).values('action_type', 'issued_date', 'status'))
             data.append({
-                'case_number': c.get('case_number', ''),
-                'nature_of_offense': c.get('nature_of_offense', ''),
-                'severity': c.get('severity', ''),
-                'status': c.get('status', ''),
-                'incident_date': c.get('incident_date'),
-                'resolution': c.get('resolution', ''),
-                'hearings': [
-                    {'hearing_date': h.get('hearing_date'), 'status': h.get('status'), 'outcome': h.get('outcome')}
-                    for h in c.get('hearings', [])
-                ],
-                'actions': [
-                    {'action_type': a.get('action_type'), 'issued_date': a.get('issued_date'), 'status': a.get('status')}
-                    for a in c.get('actions', [])
-                ],
+                'case_number': c.case_number,
+                'nature_of_offense': c.nature_of_offense,
+                'severity': c.severity,
+                'status': c.status,
+                'incident_date': str(c.incident_date) if c.incident_date else None,
+                'resolution': c.resolution or '',
+                'hearings': list(hearings),
+                'actions': list(actions),
             })
         return JsonResponse({'cases': data, 'error': None})
     except Exception as e:
         hrm_logger.error(f"Error fetching employee cases: {e}")
         return JsonResponse({'cases': [], 'error': str(e)})
-

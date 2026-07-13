@@ -17,16 +17,14 @@ from reportlab.platypus import (
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 
+from investment.models import (
+    Investor, Transaction, InvestorHolding,
+    NavHistory, FeeAccrual, Loan,
+)
 from investment.services import (
-    FirestoreService as fs,
     PerformanceService,
     ComplianceService,
     NavService,
-    COLL_INVESTORS,
-    COLL_INVESTOR_HOLDINGS,
-    COLL_TRANSACTIONS,
-    COLL_NAV_HISTORY,
-    COLL_FEE_ACCRUALS,
     money_to_float,
     money_to_str,
 )
@@ -52,34 +50,29 @@ styles.add(ParagraphStyle('KpiValue', parent=styles['Normal'], fontSize=14, text
 styles.add(ParagraphStyle('KpiLabel', parent=styles['Normal'], fontSize=7, textColor=GRAY, spaceAfter=8))
 
 
-def _build_statement_doc(investor: dict, period: str) -> list:
+def _build_statement_doc(investor: Investor, period: str) -> list:
     """Build the story (list of flowables) for an investor statement."""
-    inv_id = investor['id']
-    inv_name = investor.get('name', 'Investor')
-    inv_code = investor.get('investor_code', '')
+    inv_id = str(investor.id)
+    inv_name = investor.name
+    inv_code = investor.investor_code or ''
 
-    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', inv_id)])
+    holdings = InvestorHolding.objects.filter(investor=investor, is_active=True)
 
     year, month = map(int, period.split('-'))
     _, last_day = calendar.monthrange(year, month)
-    period_start = f"{period}-01"
-    period_end = f"{period}-{last_day:02d}"
+    period_start = date(year, month, 1)
+    period_end = date(year, month, last_day)
 
-    transactions = fs.get_collection(COLL_TRANSACTIONS, [
-        ('investor_id', '==', inv_id),
-        ('status', '==', 'Cleared'),
-        ('value_date', '>=', period_start),
-        ('value_date', '<=', period_end),
-    ])
-    transactions.sort(key=lambda t: t.get('value_date', ''))
+    transactions = Transaction.objects.filter(
+        investor=investor, status='Cleared', is_active=True,
+        value_date__gte=period_start, value_date__lte=period_end,
+    ).order_by('value_date')
 
-    nav_history = fs.get_collection(COLL_NAV_HISTORY)
-    nav_history.sort(key=lambda r: r.get('nav_date', ''))
-
-    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS, [
-        ('accrual_date', '>=', period_start),
-        ('accrual_date', '<=', period_end),
-    ])
+    nav_history = list(NavHistory.objects.filter(is_active=True).order_by('nav_date'))
+    fee_accruals = FeeAccrual.objects.filter(
+        is_active=True,
+        accrual_date__gte=period_start, accrual_date__lte=period_end,
+    )
 
     elements = []
 
@@ -107,9 +100,9 @@ def _build_statement_doc(investor: dict, period: str) -> list:
 
     # Portfolio Summary
     elements.append(Paragraph('1. Portfolio Summary', styles['SectionHead']))
-    total_invested = sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings)
-    total_value = sum(money_to_float(h.get('current_value', '0.00')) for h in holdings)
-    total_pl = sum(money_to_float(h.get('unrealized_pl', '0.00')) for h in holdings)
+    total_invested = sum(float(h.total_invested) for h in holdings)
+    total_value = sum(float(h.current_value) for h in holdings)
+    total_pl = sum(float(h.unrealized_pl) for h in holdings)
     return_pct = round((total_pl / total_invested) * 100, 2) if total_invested > 0 else 0.0
 
     summary_data = [
@@ -127,7 +120,7 @@ def _build_statement_doc(investor: dict, period: str) -> list:
     elements.append(Spacer(1, 12))
 
     # Holdings Detail
-    if holdings:
+    if holdings.exists():
         elements.append(Paragraph('2. Holdings Detail', styles['SectionHead']))
         hdr = [Paragraph('Units Held', styles['CellCenter']), Paragraph('Avg Cost', styles['CellCenter']),
                Paragraph('Invested', styles['CellCenter']), Paragraph('Current Value', styles['CellCenter']),
@@ -135,11 +128,11 @@ def _build_statement_doc(investor: dict, period: str) -> list:
         rows = [hdr]
         for h in holdings:
             rows.append([
-                Paragraph(h.get('units_held', '0.0000'), styles['CellCenter']),
-                Paragraph(f'BDT {money_to_float(h.get("avg_cost_per_unit", "0.0000")):,.4f}', styles['CellRight']),
-                Paragraph(f'BDT {money_to_float(h.get("total_invested", "0.00")):,.2f}', styles['CellRight']),
-                Paragraph(f'BDT {money_to_float(h.get("current_value", "0.00")):,.2f}', styles['CellRight']),
-                Paragraph(f'BDT {money_to_float(h.get("unrealized_pl", "0.00")):,.2f}', styles['CellRight']),
+                Paragraph(str(h.units_held), styles['CellCenter']),
+                Paragraph(f'BDT {float(h.avg_cost_per_unit):,.4f}', styles['CellRight']),
+                Paragraph(f'BDT {float(h.total_invested):,.2f}', styles['CellRight']),
+                Paragraph(f'BDT {float(h.current_value):,.2f}', styles['CellRight']),
+                Paragraph(f'BDT {float(h.unrealized_pl):,.2f}', styles['CellRight']),
             ])
         h_table = Table(rows, colWidths=[80, 90, 110, 110, 110])
         h_table.setStyle(TableStyle([
@@ -153,17 +146,17 @@ def _build_statement_doc(investor: dict, period: str) -> list:
         elements.append(Spacer(1, 12))
 
     # Transaction History
-    if transactions:
+    if transactions.exists():
         elements.append(Paragraph(f'3. Transaction History — {period}', styles['SectionHead']))
         tx_hdr = [Paragraph('Date', styles['CellCenter']), Paragraph('Type', styles['CellCenter']),
                   Paragraph('Amount', styles['CellCenter']), Paragraph('Method', styles['CellCenter'])]
         tx_rows = [tx_hdr]
         for t in transactions:
             tx_rows.append([
-                Paragraph(t.get('value_date', ''), styles['CellCenter']),
-                Paragraph(t.get('transaction_type', ''), styles['CellCenter']),
-                Paragraph(f'BDT {money_to_float(t.get("amount", "0.00")):,.2f}', styles['CellRight']),
-                Paragraph(t.get('payment_method', ''), styles['CellCenter']),
+                Paragraph(t.value_date.isoformat() if t.value_date else '', styles['CellCenter']),
+                Paragraph(t.transaction_type, styles['CellCenter']),
+                Paragraph(f'BDT {float(t.amount):,.2f}', styles['CellRight']),
+                Paragraph(t.payment_method, styles['CellCenter']),
             ])
         tx_table = Table(tx_rows, colWidths=[90, 150, 150, 150])
         tx_table.setStyle(TableStyle([
@@ -177,17 +170,17 @@ def _build_statement_doc(investor: dict, period: str) -> list:
         elements.append(Spacer(1, 12))
 
     # Fee Summary
-    if fee_accruals:
+    if fee_accruals.exists():
         elements.append(Paragraph('4. Fee Summary', styles['SectionHead']))
         fee_hdr = [Paragraph('Date', styles['CellCenter']), Paragraph('Type', styles['CellCenter']),
                    Paragraph('Amount', styles['CellCenter']), Paragraph('Status', styles['CellCenter'])]
         fee_rows = [fee_hdr]
         for f in fee_accruals:
             fee_rows.append([
-                Paragraph(f.get('accrual_date', ''), styles['CellCenter']),
-                Paragraph(f.get('fee_type', '').capitalize(), styles['CellCenter']),
-                Paragraph(f'BDT {money_to_float(f.get("amount", "0.00")):,.2f}', styles['CellRight']),
-                Paragraph('Settled' if f.get('is_settled') else 'Pending', styles['CellCenter']),
+                Paragraph(f.accrual_date.isoformat() if f.accrual_date else '', styles['CellCenter']),
+                Paragraph(f.fee_type.capitalize(), styles['CellCenter']),
+                Paragraph(f'BDT {float(f.amount):,.2f}', styles['CellRight']),
+                Paragraph('Settled' if f.is_settled else 'Pending', styles['CellCenter']),
             ])
         fee_table = Table(fee_rows, colWidths=[100, 120, 160, 160])
         fee_table.setStyle(TableStyle([
@@ -204,19 +197,23 @@ def _build_statement_doc(investor: dict, period: str) -> list:
     elements.append(Paragraph('5. Performance Metrics (Since Inception)', styles['SectionHead']))
     returns = []
     for i in range(1, len(nav_history)):
-        prev_nav = money_to_float(nav_history[i - 1].get('nav_per_unit', '0.0000'))
-        curr_nav = money_to_float(nav_history[i].get('nav_per_unit', '0.0000'))
+        prev_nav = float(nav_history[i - 1].nav_per_unit)
+        curr_nav = float(nav_history[i].nav_per_unit)
         if prev_nav > 0:
             returns.append((curr_nav - prev_nav) / prev_nav)
+
+    def nav_to_dict(n):
+        return {'nav_per_unit': str(n.nav_per_unit), 'nav_date': n.nav_date.isoformat() if n.nav_date else ''}
+    nav_dicts = [nav_to_dict(n) for n in nav_history]
 
     perf_data = [
         [Paragraph('Metric', styles['CellNormal']), Paragraph('Value', styles['CellNormal'])],
         [Paragraph('TWRR (Since Inception)', styles['CellNormal']),
-         Paragraph(f'{round(PerformanceService.time_weighted_return(nav_history) * 100, 4)}%', styles['CellRight'])],
+         Paragraph(f'{round(PerformanceService.time_weighted_return(nav_dicts) * 100, 4)}%', styles['CellRight'])],
         [Paragraph('Sharpe Ratio', styles['CellNormal']),
          Paragraph(f'{PerformanceService.sharpe_ratio(returns)}', styles['CellRight']) if returns else Paragraph('N/A', styles['CellRight'])],
         [Paragraph('Max Drawdown', styles['CellNormal']),
-         Paragraph(f'{PerformanceService.max_drawdown(nav_history)["max_drawdown_pct"]}%', styles['CellRight'])],
+         Paragraph(f'{PerformanceService.max_drawdown(nav_dicts)["max_drawdown_pct"]}%', styles['CellRight'])],
         [Paragraph('Volatility (Annualized)', styles['CellNormal']),
          Paragraph(f'{round(PerformanceService.volatility(returns) * 100, 4)}%', styles['CellRight']) if len(returns) >= 2 else Paragraph('N/A', styles['CellRight'])],
     ]
@@ -250,8 +247,9 @@ class PdfStatementService:
     @staticmethod
     def generate_investor_statement(investor_id: str, period: str) -> bytes:
         """Generate a PDF statement for an investor for a given period (YYYY-MM)."""
-        investor = fs.get_document(COLL_INVESTORS, investor_id)
-        if not investor:
+        try:
+            investor = Investor.objects.get(pk=investor_id)
+        except Investor.DoesNotExist:
             raise ValueError(f'Investor {investor_id} not found')
 
         buf = BytesIO()
@@ -268,9 +266,8 @@ class PdfStatementService:
     @staticmethod
     def generate_portfolio_report(period: str) -> bytes:
         """Generate a firm-wide portfolio report for a given period."""
-        investors = fs.get_collection(COLL_INVESTORS)
-        nav_history = fs.get_collection(COLL_NAV_HISTORY)
-        nav_history.sort(key=lambda r: r.get('nav_date', ''))
+        investors = Investor.objects.filter(is_active=True)
+        nav_history = list(NavHistory.objects.filter(is_active=True).order_by('nav_date'))
 
         buf = BytesIO()
         doc = SimpleDocTemplate(
@@ -286,9 +283,9 @@ class PdfStatementService:
         elements.append(Spacer(1, 12))
 
         elements.append(Paragraph('1. Portfolio Summary', styles['SectionHead']))
-        total_aum = money_to_float(nav_history[-1].get('total_aum', '0.00')) if nav_history else 0.0
-        total_investors = len(investors)
-        total_holdings = len(fs.get_collection(COLL_INVESTOR_HOLDINGS))
+        total_aum = float(nav_history[-1].total_aum) if nav_history else 0.0
+        total_investors = investors.count()
+        total_holdings = InvestorHolding.objects.filter(is_active=True).count()
 
         summary_data = [
             [Paragraph('Metric', styles['CellNormal']), Paragraph('Value', styles['CellNormal'])],
@@ -297,8 +294,12 @@ class PdfStatementService:
             [Paragraph('Total Holdings', styles['CellNormal']), Paragraph(str(total_holdings), styles['CellRight'])],
         ]
 
+        def nav_to_dict(n):
+            return {'nav_per_unit': str(n.nav_per_unit), 'nav_date': n.nav_date.isoformat() if n.nav_date else ''}
+        nav_dicts = [nav_to_dict(n) for n in nav_history]
+
         if len(nav_history) >= 2:
-            twrr = PerformanceService.time_weighted_return(nav_history)
+            twrr = PerformanceService.time_weighted_return(nav_dicts)
             summary_data.append([
                 Paragraph('Portfolio TWRR', styles['CellNormal']),
                 Paragraph(f'{round(twrr * 100, 4)}%', styles['CellRight']),
@@ -317,7 +318,6 @@ class PdfStatementService:
 
         elements.append(Paragraph('2. Concentration Analysis', styles['SectionHead']))
         concentrations = ComplianceService.all_investor_concentrations()
-        sectors = ComplianceService.sector_concentration()
 
         conc_hdr = [Paragraph('Investor', styles['CellCenter']), Paragraph('Holding Value', styles['CellCenter']),
                     Paragraph('Concentration %', styles['CellCenter']), Paragraph('Status', styles['CellCenter'])]

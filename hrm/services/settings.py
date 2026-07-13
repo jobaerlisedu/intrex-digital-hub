@@ -1,50 +1,60 @@
-from config.firebase import db
-from datetime import datetime
+from ..models import HRMSetting, LeavePolicy, RatingTemplate
 
 
 class HRMSettingsService:
     @staticmethod
     def save_setting(key, value):
-        docs = list(db.collection('hrm_settings').where('key', '==', key).limit(1).stream())
-        payload = {'value': value, 'is_active': True, 'updated_at': datetime.now().isoformat()}
-        if docs:
-            db.collection('hrm_settings').document(docs[0].id).update(payload)
-        else:
-            payload['key'] = key
-            payload['created_at'] = datetime.now().isoformat()
-            db.collection('hrm_settings').add(payload)
+        setting, _ = HRMSetting.objects.get_or_create(key=key)
+        setting.value = value
+        setting.is_active = True
+        setting.save(update_fields=['value', 'is_active'])
 
     @staticmethod
     def add_leave_policy(data):
         doc_id = data.get('doc_id')
-        payload = {
-            'employee_type': data.get('employee_type'),
-            'leave_type': data.get('leave_type'),
-            'entitled_days': float(data.get('entitled_days', 0)),
-            'carry_forward_days': float(data.get('carry_forward_days', 0)),
-            'is_active': True,
-            'updated_at': datetime.now().isoformat(),
-        }
         if doc_id:
-            db.collection('hrm_leave_policies').document(doc_id).update(payload)
+            policy = LeavePolicy.objects.filter(pk=doc_id).first()
+            if not policy:
+                try:
+                    policy = LeavePolicy.objects.get(pk=doc_id)
+                except (LeavePolicy.DoesNotExist, ValueError):
+                    pass
+            if policy:
+                policy.employee_type = data.get('employee_type', policy.employee_type)
+                policy.leave_type = data.get('leave_type', policy.leave_type)
+                policy.entitled_days = float(data.get('entitled_days', 0))
+                policy.carry_forward_days = float(data.get('carry_forward_days', 0))
+                policy.save()
             return 'updated'
-        payload['created_at'] = datetime.now().isoformat()
-        db.collection('hrm_leave_policies').add(payload)
-        return 'created'
+        else:
+            LeavePolicy.objects.get_or_create(
+                employee_type=data.get('employee_type'),
+                leave_type=data.get('leave_type'),
+                defaults={
+                    'entitled_days': float(data.get('entitled_days', 0)),
+                    'carry_forward_days': float(data.get('carry_forward_days', 0)),
+                },
+            )
+            return 'created'
 
     @staticmethod
     def add_rating_template(data):
         doc_id = data.get('doc_id')
-        payload = {
-            'name': data.get('name'),
-            'description': data.get('description', ''),
-            'is_active': True,
-            'updated_at': datetime.now().isoformat(),
-        }
         if doc_id:
-            db.collection('hrm_rating_templates').document(doc_id).update(payload)
+            template = RatingTemplate.objects.filter(pk=doc_id).first()
+            if not template:
+                try:
+                    template = RatingTemplate.objects.get(pk=doc_id)
+                except (RatingTemplate.DoesNotExist, ValueError):
+                    pass
+            if template:
+                template.name = data.get('name', template.name)
+                template.description = data.get('description', '')
+                template.save()
             return 'updated'
-        payload['scales'] = []
-        payload['created_at'] = datetime.now().isoformat()
-        db.collection('hrm_rating_templates').add(payload)
-        return 'created'
+        else:
+            RatingTemplate.objects.create(
+                name=data.get('name'),
+                description=data.get('description', ''),
+            )
+            return 'created'

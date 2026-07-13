@@ -1,148 +1,229 @@
-from config.firebase import db
+from decimal import Decimal
+from datetime import datetime
+from django.db.models import Sum
+from .base import ORMService
+from ..models import AdvanceSalary, Payroll, PayrollEmployee, Employee, Attendance
 from config.logger import hrm_logger
-from ..audit import enrich_with_audit
-from ..validators import validate_advance_data
-from ..views_helpers import get_collection_data
-from .base import FirestoreService
+
+MONTHS_MAP = {
+    'January': '01', 'February': '02', 'March': '03', 'April': '04',
+    'May': '05', 'June': '06', 'July': '07', 'August': '08',
+    'September': '09', 'October': '10', 'November': '11', 'December': '12',
+}
+MONTHS = list(MONTHS_MAP.keys())
+CURRENT_YEAR = datetime.now().year
+YEARS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1]
 
 
-class PayrollService(FirestoreService):
-    collection_name = 'hrm_payrolls'
+class PayrollService(ORMService):
+    model = Payroll
+
+    @classmethod
+    def _resolve(cls, doc_id, model_class=None):
+        if not doc_id:
+            return None
+        mc = model_class or cls.model
+        try:
+            return mc.objects.get(pk=doc_id)
+        except (mc.DoesNotExist, ValueError):
+            pass
+        return mc.objects.filter(pk=doc_id).first()
 
     @classmethod
     def add_advance(cls, data, user):
         doc_id = data.get('doc_id')
-        base_data = {
-            'employee': data.get('employee'),
-            'amount': float(data.get('amount', 0)),
-            'deduct_month': data.get('deduct_month'),
-            'reason': data.get('reason', ''),
-            'status': 'Pending',
-        }
+        emp_name = data.get('employee', '')
+        emp = Employee.objects.filter(name=emp_name).first()
+
         if doc_id:
-            db.collection('hrm_advances').document(doc_id).update(
-                enrich_with_audit(base_data, user, is_update=True)
-            )
+            instance = cls._resolve(doc_id, AdvanceSalary)
+            if instance:
+                instance.employee = emp or instance.employee
+                instance.amount = float(data.get('amount', 0))
+                instance.deduct_month = data.get('deduct_month', instance.deduct_month)
+                instance.reason = data.get('reason', '')
+                instance.updated_by = user
+                instance.save()
             return 'updated'
         else:
-            db.collection('hrm_advances').add(
-                enrich_with_audit(base_data, user, is_update=False)
+            AdvanceSalary.objects.create(
+                employee=emp,
+                amount=float(data.get('amount', 0)),
+                deduct_month=data.get('deduct_month', ''),
+                reason=data.get('reason', ''),
+                status='Pending',
+                created_by=user,
+                updated_by=user,
             )
             return 'created'
 
     @classmethod
     def delete_advance(cls, doc_id):
-        db.collection('hrm_advances').document(doc_id).delete()
+        instance = cls._resolve(doc_id, AdvanceSalary)
+        if instance:
+            instance.is_active = False
+            instance.save(update_fields=['is_active'])
 
     @classmethod
     def generate_salary(cls, data, user):
         month = data.get('month')
         year = data.get('year')
         period = f"{month} {year}"
-
-        months_map = {
-            'January': '01', 'February': '02', 'March': '03', 'April': '04',
-            'May': '05', 'June': '06', 'July': '07', 'August': '08',
-            'September': '09', 'October': '10', 'November': '11', 'December': '12'
-        }
-        month_num = months_map.get(month, '01')
+        month_num = MONTHS_MAP.get(month, '01')
         target_period = f"{year}-{month_num}"
 
-        emp_docs = list(db.collection('hrm_employees').stream())
-        active_employees = [e.to_dict() for e in emp_docs if e.to_dict().get('status') == 'Active']
-        employee_count = len(active_employees)
+        active_employees = Employee.objects.filter(status='Active', is_active=True)
+        employee_count = active_employees.count()
 
-        total_net_pay = 0.0
+        total_net_pay = Decimal('0.00')
+        payroll_entries = []
+
         for emp in active_employees:
-            emp_name = emp.get('name')
-            basic_salary = float(emp.get('basic_salary', 0))
-            gross_salary = float(emp.get('gross_salary', 0))
+            basic = Decimal(str(emp.basic_salary or 0))
+            house_rent = Decimal(str(emp.house_rent or 0))
+            medical = Decimal(str(emp.medical_allowance or 0))
+            conveyance = Decimal(str(emp.conveyance_allowance or 0))
+            util = Decimal(str(emp.utility or 0))
+            mobile = Decimal(str(emp.mobile_bill or 0))
+            gross = basic + house_rent + medical + conveyance + util + mobile
 
-            absent_count = 0
-            att_docs = db.collection('hrm_attendance').where('name', '==', emp_name).stream()
-            for doc in att_docs:
-                d = doc.to_dict()
-                if d.get('date', '').startswith(target_period) and d.get('status') == 'Absent':
-                    absent_count += 1
+            absent_count = Attendance.objects.filter(
+                employee=emp, date__startswith=target_period, status='Absent'
+            ).count()
 
-            daily_rate = basic_salary / 30.0 if basic_salary > 0 else 0.0
-            absent_deduction = round(daily_rate * absent_count, 2)
+            daily_rate = basic / Decimal('30') if basic else Decimal('0')
+            absent_deduction = (daily_rate * Decimal(str(absent_count))).quantize(Decimal('0.01'))
 
-            advance_deduction = 0.0
-            adv_docs = db.collection('hrm_advances').where('employee', '==', emp_name).where('deduct_month', '==', target_period).stream()
-            for doc in adv_docs:
-                advance_deduction += float(doc.to_dict().get('amount', 0))
+            advance_total = AdvanceSalary.objects.filter(
+                employee=emp, deduct_month=target_period, is_active=True
+            ).exclude(status='Deducted').aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-            tax_deduction = round(basic_salary * 0.05, 2)
-            net_pay = round(gross_salary - absent_deduction - advance_deduction - tax_deduction, 2)
-            if net_pay < 0:
-                net_pay = 0.0
-            total_net_pay += net_pay
+            tax_deduction = (basic * Decimal('0.05')).quantize(Decimal('0.01'))
 
-        total_net_pay = round(total_net_pay, 2)
+            total_deductions = absent_deduction + advance_total + tax_deduction
+            net = (gross - total_deductions).quantize(Decimal('0.01'))
+            if net < 0:
+                net = Decimal('0.00')
+
+            total_net_pay += net
+            payroll_entries.append({
+                'employee': emp,
+                'basic_salary': basic,
+                'house_rent': house_rent,
+                'medical_allowance': medical,
+                'conveyance_allowance': conveyance,
+                'utility': util,
+                'mobile_bill': mobile,
+                'gross_pay': gross,
+                'deductions': total_deductions,
+                'net_pay': net,
+            })
+
+        total_net_pay = total_net_pay.quantize(Decimal('0.01'))
 
         doc_id = data.get('doc_id')
-        payload = {
-            'period': period,
-            'employee_count': employee_count,
-            'total_net_pay': total_net_pay,
-            'status': 'Generated',
-        }
-
         if doc_id:
-            cls.update(doc_id, payload, user)
-            return 'updated'
+            payroll = cls._resolve(doc_id)
+            if payroll:
+                payroll.period = period
+                payroll.employee_count = employee_count
+                payroll.total_net_pay = float(total_net_pay)
+                payroll.updated_by = user
+                payroll.save()
+                PayrollEmployee.objects.filter(payroll=payroll).delete()
         else:
-            cls.create(payload, user)
-            return 'created'
+            payroll = Payroll.objects.create(
+                period=period,
+                employee_count=employee_count,
+                total_net_pay=float(total_net_pay),
+                status='Generated',
+                created_by=user,
+                updated_by=user,
+            )
+        for entry in payroll_entries:
+            PayrollEmployee.objects.create(payroll=payroll, **entry)
+
+        for entry in payroll_entries:
+            AdvanceSalary.objects.filter(
+                employee=entry['employee'], deduct_month=target_period, status='Pending'
+            ).update(status='Deducted')
+
+        return 'updated' if doc_id else 'created'
 
     @classmethod
     def disburse_payroll(cls, doc_id, user):
-        from datetime import datetime
-        pr_ref = db.collection('hrm_payrolls').document(doc_id)
-        pr_data = pr_ref.get().to_dict()
-        if not pr_data or pr_data.get('status') == 'Disbursed':
+        payroll = cls._resolve(doc_id)
+        if not payroll or payroll.status == 'Disbursed':
             return None
 
-        pr_ref.update(enrich_with_audit({'status': 'Disbursed'}, user, is_update=True))
+        payroll.status = 'Disbursed'
+        payroll.updated_by = user
+        payroll.save(update_fields=['status', 'updated_by'])
 
-        total_net_pay = float(pr_data.get('total_net_pay', 0.0))
-        period = pr_data.get('period', '')
+        total_net_pay = float(payroll.total_net_pay or 0)
+        period = payroll.period or ''
 
-        coa_exp = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '51000').stream())
-        coa_cash = list(db.collection('fin_chart_of_accounts').where('account_code', '==', '11100').stream())
-        exp_id = coa_exp[0].id if coa_exp else '51000_fallback'
-        cash_id = coa_cash[0].id if coa_cash else '11100_fallback'
+        try:
+            from django.db import connections
+            with connections['default'].cursor() as cursor:
+                cursor.execute("SELECT id FROM fin_chart_of_accounts WHERE account_code = '51000' LIMIT 1")
+                exp_row = cursor.fetchone()
+                exp_id = str(exp_row[0]) if exp_row else '51000_fallback'
+
+                cursor.execute("SELECT id FROM fin_chart_of_accounts WHERE account_code = '11100' LIMIT 1")
+                cash_row = cursor.fetchone()
+                cash_id = str(cash_row[0]) if cash_row else '11100_fallback'
+        except Exception:
+            exp_id = '51000_fallback'
+            cash_id = '11100_fallback'
 
         lines = [
             {'account_id': exp_id, 'debit_amount': total_net_pay, 'credit_amount': 0.0},
             {'account_id': cash_id, 'debit_amount': 0.0, 'credit_amount': total_net_pay},
         ]
 
-        je_data = {
-            'entry_code': f"AUTO-PAYROLL-{datetime.now().strftime('%Y%m%d')}",
-            'posting_date': datetime.now().strftime('%Y-%m-%d'),
-            'reference_document': f"Payroll {period}",
-            'narration': f"Automated posting of net pay for period {period}",
-            'status': 'Posted',
-            'created_by': 'System',
-            'approved_by': user.username if user else 'System',
-            'lines': lines,
-        }
-        db.collection('fin_journal_entries').add(enrich_with_audit(je_data, user, is_update=False))
+        try:
+            from django.db import connections
+            with connections['default'].cursor() as cursor:
+                entry_code = f"AUTO-PAYROLL-{datetime.now().strftime('%Y%m%d')}"
+                cursor.execute(
+                    "INSERT INTO fin_journal_entries "
+                    "(entry_code, posting_date, reference_document, narration, status, created_by, approved_by, lines, created_at, updated_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())",
+                    [entry_code, datetime.now().strftime('%Y-%m-%d'),
+                     f"Payroll {period}", f"Automated posting of net pay for period {period}",
+                     'Posted', 'System', user.username if user else 'System', str(lines)]
+                )
+        except Exception as e:
+            hrm_logger.error(f"Error posting journal entry: {e}")
+
         return 'disbursed'
 
     @classmethod
+    def delete(cls, doc_id):
+        instance = cls._resolve(doc_id)
+        if instance:
+            instance.is_active = False
+            instance.save(update_fields=['is_active'])
+
+    @classmethod
     def get_payroll_context(cls):
-        advances = get_collection_data('hrm_advances', [])
-        payrolls = get_collection_data('hrm_payrolls', [])
+        advances = list(AdvanceSalary.objects.filter(is_active=True).select_related('employee').order_by('-created_at').values(
+            'pk', 'employee__name', 'amount', 'deduct_month', 'reason', 'status',
+        ))
+        for a in advances:
+            a['id'] = a.pop('pk') or ''
+            a['employee'] = a.pop('employee__name', '')
+
+        payrolls = list(Payroll.objects.filter(is_active=True).order_by('-created_at').values(
+            'pk', 'period', 'employee_count', 'total_net_pay', 'status',
+        ))
+        for p in payrolls:
+            p['id'] = p.pop('pk') or ''
+
         try:
-            emp_docs = db.collection('hrm_employees').stream()
-            employees = [{'name': d.to_dict().get('name', '')} for d in emp_docs if d.to_dict().get('name')]
+            employees = [{'name': e.name} for e in Employee.objects.filter(is_active=True) if e.name]
         except Exception:
             employees = []
-        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-        from datetime import datetime
-        current_year = datetime.now().year
-        years = [current_year - 1, current_year, current_year + 1]
-        return advances, payrolls, employees, months, years
+
+        return advances, payrolls, employees, MONTHS, YEARS

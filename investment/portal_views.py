@@ -11,15 +11,11 @@ from django.http import HttpResponse, JsonResponse
 from datetime import date, datetime
 from collections import defaultdict
 
+from investment.models import (
+    Investor, Transaction, NavHistory,
+    InvestorHolding, FeeAccrual,
+)
 from investment.services import (
-    FirestoreService as fs,
-    COLL_INVESTORS,
-    COLL_TRANSACTIONS,
-    COLL_LOANS,
-    COLL_LOAN_SCHEDULES,
-    COLL_NAV_HISTORY,
-    COLL_INVESTOR_HOLDINGS,
-    COLL_FEE_ACCRUALS,
     money_to_float,
     money_to_str,
 )
@@ -34,11 +30,9 @@ def portal_login(request):
             messages.error(request, 'Investor code and password are required.')
             return redirect('investment:portal_login')
 
-        # Session-based rate limiting: max 5 attempts per 15 minutes
         attempts = request.session.get('portal_login_attempts', 0)
         block_until = request.session.get('portal_login_blocked_until')
         if block_until:
-            from datetime import datetime
             try:
                 blocked_dt = datetime.fromisoformat(block_until)
                 if datetime.now() < blocked_dt:
@@ -50,20 +44,23 @@ def portal_login(request):
             except (ValueError, TypeError):
                 pass
 
-        investors = fs.get_collection(COLL_INVESTORS, [('investor_code', '==', code)])
-        match = investors[0] if investors else None
+        try:
+            match = Investor.objects.get(investor_code=code, is_active=True)
+        except Investor.DoesNotExist:
+            match = None
+
         if match:
-            stored_hash = match.get('password_hash', '')
+            stored_hash = getattr(match, 'password_hash', '')
             if stored_hash and check_password(password, stored_hash):
                 request.session.pop('portal_login_attempts', None)
                 request.session.pop('portal_login_blocked_until', None)
-                request.session['portal_investor_id'] = match['id']
-                request.session['portal_investor_name'] = match.get('name', 'Investor')
+                request.session['portal_investor_id'] = str(match.id)
+                request.session['portal_investor_name'] = match.name
                 return redirect('investment:portal_dashboard')
 
         request.session['portal_login_attempts'] = attempts + 1
         if attempts + 1 >= 5:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
             request.session['portal_login_blocked_until'] = (datetime.now() + timedelta(minutes=15)).isoformat()
             messages.error(request, 'Too many login attempts. Blocked for 15 minutes.')
         else:
@@ -78,34 +75,47 @@ def portal_logout(request):
 
 
 def _get_portal_investor(request):
-    """Get the currently logged-in portal investor from session."""
     inv_id = request.session.get('portal_investor_id')
     if not inv_id:
         return None
-    return fs.get_document(COLL_INVESTORS, inv_id)
+    try:
+        return Investor.objects.get(pk=inv_id)
+    except Investor.DoesNotExist:
+        return None
 
 
 def portal_dashboard(request):
-    """Investor dashboard: holdings, value, recent transactions, NAV."""
     inv = _get_portal_investor(request)
     if not inv:
         return redirect('investment:portal_login')
 
-    inv_id = inv['id']
-    holdings = fs.get_collection(COLL_INVESTOR_HOLDINGS, [('investor_id', '==', inv_id)])
-    transactions = fs.get_collection(COLL_TRANSACTIONS, [('investor_id', '==', inv_id), ('status', '==', 'Cleared')])
-    transactions.sort(key=lambda t: t.get('value_date', ''), reverse=True)
+    inv_id = str(inv.id)
+    holdings = InvestorHolding.objects.filter(investor=inv, is_active=True)
+    transactions = Transaction.objects.filter(investor=inv, status='Cleared', is_active=True).order_by('-value_date')
 
-    nav_history = fs.get_collection(COLL_NAV_HISTORY)
-    nav_history.sort(key=lambda r: r.get('nav_date', ''))
-    current_nav = nav_history[-1] if nav_history else None
+    nav_records = NavHistory.objects.filter(is_active=True).order_by('nav_date')
+    current_nav = nav_records.last()
 
-    total_invested = sum(money_to_float(h.get('total_invested', '0.00')) for h in holdings)
-    total_value = sum(money_to_float(h.get('current_value', '0.00')) for h in holdings)
-    total_pl = sum(money_to_float(h.get('unrealized_pl', '0.00')) for h in holdings)
+    total_invested = sum(float(h.total_invested) for h in holdings)
+    total_value = sum(float(h.current_value) for h in holdings)
+    total_pl = sum(float(h.unrealized_pl) for h in holdings)
     return_pct = round((total_pl / total_invested) * 100, 2) if total_invested > 0 else 0.0
 
     import json
+
+    def serialize(obj):
+        if isinstance(obj, (date, datetime)):
+            return obj.isoformat()
+        return str(obj)
+
+    nav_history_list = []
+    for n in nav_records:
+        d = {}
+        for f in n._meta.fields:
+            val = getattr(n, f.attname)
+            d[f.attname] = serialize(val) if isinstance(val, (date, datetime)) else val
+        nav_history_list.append(d)
+
     context = {
         'investor': inv,
         'holdings': holdings,
@@ -115,29 +125,26 @@ def portal_dashboard(request):
         'total_pl': total_pl,
         'return_pct': return_pct,
         'current_nav': current_nav,
-        'nav_history_json': json.dumps(nav_history, default=str),
+        'nav_history_json': json.dumps(nav_history_list, default=str),
     }
     return render(request, 'investment/portal/dashboard.html', context)
 
 
 def portal_statements(request):
-    """Statement selection and download page."""
     inv = _get_portal_investor(request)
     if not inv:
         return redirect('investment:portal_login')
 
-    transactions = fs.get_collection(COLL_TRANSACTIONS, [('investor_id', '==', inv['id']), ('status', '==', 'Cleared')])
-    fee_accruals = fs.get_collection(COLL_FEE_ACCRUALS)
+    transactions = Transaction.objects.filter(investor=inv, status='Cleared', is_active=True)
+    fee_accruals = FeeAccrual.objects.filter(is_active=True)
 
     periods = set()
     for t in transactions:
-        vd = t.get('value_date', '')
-        if vd and len(vd) >= 7:
-            periods.add(vd[:7])
+        if t.value_date:
+            periods.add(t.value_date.strftime('%Y-%m'))
     for f in fee_accruals:
-        ad = f.get('accrual_date', '')
-        if ad and len(ad) >= 7:
-            periods.add(ad[:7])
+        if f.accrual_date:
+            periods.add(f.accrual_date.strftime('%Y-%m'))
 
     context = {
         'investor': inv,
@@ -147,7 +154,6 @@ def portal_statements(request):
 
 
 def portal_profile(request):
-    """Investor profile: view/update contact info, upload KYC."""
     inv = _get_portal_investor(request)
     if not inv:
         return redirect('investment:portal_login')
@@ -156,30 +162,22 @@ def portal_profile(request):
         action = request.POST.get('action')
 
         if action == 'update_profile':
-            update_data = {
-                'email': request.POST.get('email', inv.get('email', '')),
-                'phone': request.POST.get('phone', inv.get('phone', '')),
-                'bank_account_name': request.POST.get('bank_account_name', inv.get('bank_account_name', '')),
-                'bank_account_number': request.POST.get('bank_account_number', inv.get('bank_account_number', '')),
-                'bank_routing_code': request.POST.get('bank_routing_code', inv.get('bank_routing_code', '')),
-            }
-            fs.update_document(COLL_INVESTORS, inv['id'], update_data)
+            inv.email = request.POST.get('email', inv.email or '')
+            inv.phone = request.POST.get('phone', inv.phone or '')
+            inv.bank_account_name = request.POST.get('bank_account_name', inv.bank_account_name or '')
+            inv.bank_account_number = request.POST.get('bank_account_number', inv.bank_account_number or '')
+            inv.bank_routing_code = request.POST.get('bank_routing_code', inv.bank_routing_code or '')
+            inv.save()
             messages.success(request, 'Profile updated successfully.')
             return redirect('investment:portal_profile')
 
         elif action == 'upload_kyc':
             kyc_file = request.FILES.get('kyc_document')
             if kyc_file:
-                from config.firebase import bucket
-                from datetime import timedelta
                 try:
-                    blob = bucket.blob(f'kyc/{inv["id"]}/{kyc_file.name}')
-                    blob.upload_from_file(kyc_file)
-                    signed_url = blob.generate_signed_url(expiration=timedelta(hours=1))
-                    fs.update_document(COLL_INVESTORS, inv['id'], {
-                        'kyc_document_url': signed_url,
-                        'kyc_status': 'Pending',
-                    })
+                    inv.kyc_document = kyc_file
+                    inv.kyc_status = 'Pending'
+                    inv.save()
                     messages.success(request, 'KYC document uploaded successfully.')
                 except Exception as e:
                     messages.error(request, f'Upload failed: {e}')
@@ -187,17 +185,14 @@ def portal_profile(request):
                 messages.error(request, 'No file selected.')
             return redirect('investment:portal_profile')
 
-        inv = fs.get_document(COLL_INVESTORS, inv['id'])
-
     context = {'investor': inv}
     return render(request, 'investment/portal/profile.html', context)
 
 
 def statement_download(request, investor_id, period):
-    """Download a PDF statement for an investor."""
     from investment.pdf_service import PdfStatementService
     inv = _get_portal_investor(request)
-    if not inv or inv['id'] != investor_id:
+    if not inv or str(inv.id) != investor_id:
         return redirect('investment:portal_login')
 
     try:

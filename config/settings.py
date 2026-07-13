@@ -49,26 +49,23 @@ LOGGING = {
     },
 }
 
-# Superuser credentials for Firestore admin bootstrap.
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
-if not ADMIN_PASSWORD:
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@intrex.com')
+# Superuser credentials for admin bootstrap.
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
 # ─── Security Key Validation ─────────────────────────────────────────────
-_insecure_fallback = 'django-insecure-rl*%45#gc&#p8i+#+qjkc91)5kz8s^7yj7ls7pw0p9xha#vs8n'
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _insecure_fallback)
-if SECRET_KEY == _insecure_fallback:
-    if DEBUG:
-        import warnings
-        warnings.warn('Using insecure fallback DJANGO_SECRET_KEY. Set DJANGO_SECRET_KEY env var for production.')
-    else:
-        from django.core.management.utils import get_random_secret_key
-        SECRET_KEY = get_random_secret_key()
-        print('WARNING: DJANGO_SECRET_KEY not set. Generated temporary key (sessions will reset on restart).')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    from django.core.management.utils import get_random_secret_key
+    SECRET_KEY = get_random_secret_key()
+    import warnings
+    msg = 'DJANGO_SECRET_KEY not set. Using auto-generated key (sessions will reset on restart). Set DJANGO_SECRET_KEY env var for production.'
+    warnings.warn(msg)
+    if not DEBUG:
+        print(f'WARNING: {msg}')
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 if not ALLOWED_HOSTS:
@@ -92,6 +89,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'django_cryptography',
+    'django_celery_beat',
 
     # Core
     'config',
@@ -104,7 +102,7 @@ INSTALLED_APPS = [
     'investment',
     'solutions',
     'training',
-    'portal',
+    
     'accounts',
 
     # Cross-Module Linking
@@ -154,7 +152,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
-# To switch to MySQL, set these env vars:
+# Defaults to SQLite for development. Set these env vars for MySQL:
 #   DB_ENGINE=django.db.backends.mysql
 #   DB_NAME=intrex_digital_hub
 #   DB_USER=intrex_app
@@ -220,9 +218,14 @@ USE_TZ = True
 # Session & CSRF cookie security
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # Must be False for DRF SessionAuthentication + AJAX
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_AGE = 86400  # 24 hours
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'same-origin'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 
 
 # Static files
@@ -232,7 +235,14 @@ _static_dist = BASE_DIR / 'static/dist'
 if _static_dist.exists():
     STATICFILES_DIRS.append(_static_dist)
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Used by collectstatic for deployment
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
 
 
 # Media files (uploaded attachments)
@@ -248,7 +258,6 @@ LOGIN_REDIRECT_URL = 'erp_dashboard'
 LOGOUT_REDIRECT_URL = 'frontend:index'
 
 AUTHENTICATION_BACKENDS = [
-    'accounts.auth_backend.FirestoreBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
 
@@ -263,11 +272,14 @@ CSRF_TRUSTED_ORIGINS = [
 for host in ALLOWED_HOSTS:
     if host and host != '*' and not host.startswith(('http://', 'https://')):
         CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
-        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+        if DEBUG:
+            CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [origin for origin in CSRF_TRUSTED_ORIGINS if origin]
+CORS_ALLOWED_ORIGINS = [o for o in CSRF_TRUSTED_ORIGINS if o]
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = [o for o in CORS_ALLOWED_ORIGINS if o.startswith('https://')]
 if DEBUG:
     CORS_ALLOWED_ORIGINS.extend([
         "http://localhost:5173",
@@ -295,7 +307,8 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.openapi.AutoSchema',
+    'EXCEPTION_HANDLER': 'config.drf_exception_handler.custom_exception_handler',
 }
 
 # ─── JWT Authentication (SimpleJWT) ────────────────────────────────────
@@ -313,7 +326,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    'TOKEN_OBTAIN_SERIALIZER': 'accounts.auth.serializers.FirestoreTokenObtainPairSerializer',
+    'TOKEN_OBTAIN_SERIALIZER': 'accounts.auth.serializers.CustomTokenObtainPairSerializer',
     'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
 }
 
@@ -399,7 +412,7 @@ if _sentry_dsn:
         from sentry_sdk.integrations.django import DjangoIntegration
         from sentry_sdk.integrations.celery import CeleryIntegration
         sentry_sdk.init(
-            dsn=_sentrY_DSN,
+            dsn=_sentry_dsn,
             integrations=[DjangoIntegration(), CeleryIntegration()],
             traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
             send_default_pii=False,
@@ -418,4 +431,4 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_BROWSER_XSS_FILTER = True
+
