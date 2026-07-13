@@ -1,0 +1,131 @@
+services:
+  - type: web
+    name: intrex-digital-hub
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt && npm ci && npm run build && python manage.py collectstatic --no-input --clear
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120 --access-logfile - --error-logfile -
+    preDeployCommand: python manage.py bootstrap
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://intrex-digital-hub.onrender.com"
+      - key: RENDER_EXTERNAL_URL
+        value: "https://intrex-digital-hub.onrender.com"
+      - key: DB_ENGINE
+        value: django.db.backends.mysql
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        value: "admin@yourdomain.com"
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: worker
+    name: intrex-celery-worker
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A config worker --loglevel=info
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          type: web
+          name: intrex-digital-hub
+          property: envVars.DJANGO_SECRET_KEY
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DB_ENGINE
+        value: django.db.backends.mysql
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+
+  - type: worker
+    name: intrex-celery-beat
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          type: web
+          name: intrex-digital-hub
+          property: envVars.DJANGO_SECRET_KEY
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DB_ENGINE
+        value: django.db.backends.mysql
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: intrex-redis
+          property: connectionString
+
+  - type: redis
+    name: intrex-redis
+    plan: starter
+    ipAllowList: []

@@ -1,0 +1,19 @@
+RewriteEngine On
+
+# ---- Static files ----
+# If the request is for /static/... and the file exists, serve it directly
+RewriteCond %{REQUEST_URI} ^/static/
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ---- Media files (user uploads) ----
+RewriteCond %{REQUEST_URI} ^/media/
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ---- Everything else to Passenger ----
+RewriteCond %{REQUEST_URI} !^/static/
+RewriteCond %{REQUEST_URI} !^/media/
+RewriteRule ^(.*)$ /passenger_wsgi.py/$1 [QSA,L]

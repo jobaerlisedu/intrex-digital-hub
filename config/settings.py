@@ -69,7 +69,7 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if host.strip()]
 if not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['.onrender.com', '.tech-enablement.info', 'localhost', '127.0.0.1']
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -151,6 +151,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
+# PyMySQL fallback for environments without mysqlclient (e.g. cPanel)
+import importlib.util as _import_util
+if not _import_util.find_spec('MySQLdb') and _import_util.find_spec('pymysql'):
+    import pymysql
+    pymysql.install_as_MySQLdb()
+
 # Database
 # Defaults to SQLite for development. Set these env vars for MySQL:
 #   DB_ENGINE=django.db.backends.mysql
@@ -176,19 +182,24 @@ DATABASES = {
 
 # Cache — Redis for multi-worker production, LocMem fallback
 _redis_url = os.environ.get('REDIS_URL', os.environ.get('CELERY_BROKER_URL', ''))
-if _redis_url:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': f'{_redis_url}/1',
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'IGNORE_EXCEPTIONS': True,
-            },
-            'KEY_PREFIX': 'erp',
+_use_redis = bool(_redis_url)
+if _use_redis:
+    try:
+        import django_redis
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': f'{_redis_url}/1',
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'IGNORE_EXCEPTIONS': True,
+                },
+                'KEY_PREFIX': 'erp',
+            }
         }
-    }
-else:
+    except ImportError:
+        _use_redis = False
+if not _use_redis:
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -331,9 +342,9 @@ SIMPLE_JWT = {
 }
 
 
-# Celery Configuration
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+# Celery Configuration (optional — set CELERY_BROKER_URL to enable)
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', '')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', '')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -389,16 +400,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# Detect Render Environment
-render_url = os.environ.get('RENDER_EXTERNAL_URL')
-if render_url:
-    CSRF_TRUSTED_ORIGINS.append(render_url)
-    hostname = render_url.replace('https://', '').replace('http://', '')
-    if hostname:
-        CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
-        CSRF_TRUSTED_ORIGINS.append(f"http://{hostname}")
-
-# Vite dev server
+# Vite dev server (development only)
 if DEBUG:
     CSRF_TRUSTED_ORIGINS.extend([
         "http://localhost:5173",
@@ -423,12 +425,16 @@ if _sentry_dsn:
 
 # ─── Production Security Settings ────────────────────────────────────────
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+    # Set DISABLE_SSL_REDIRECT=True when behind a reverse proxy that handles SSL
+    # (e.g. cPanel Apache, Cloudflare, Nginx reverse proxy)
+    _disable_ssl = os.environ.get('DISABLE_SSL_REDIRECT', 'False').lower() == 'true'
+    if not _disable_ssl:
+        SECURE_SSL_REDIRECT = True
+        SECURE_HSTS_SECONDS = 31536000  # 1 year
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_CONTENT_TYPE_NOSNIFF = True
 

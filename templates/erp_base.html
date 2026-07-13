@@ -81,8 +81,8 @@
             to { transform: translateX(0); opacity: 1; }
         }
     </style>
-    <link rel="preload" href="{{ vite_css_url }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ vite_css_url }}"></noscript>
+    {% if vite_css_url %}<link rel="preload" href="{{ vite_css_url }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ vite_css_url }}"></noscript>{% endif %}
     {% block extra_css %}{% endblock %}
 
     {% if use_vite_dev %}
@@ -90,7 +90,7 @@
     <script type="module" src="{{ vite_js_url }}"></script>
     {% else %}
     {% if vite_css_url %}<link rel="stylesheet" href="{{ vite_css_url }}">{% endif %}
-    <script type="module" src="{{ vite_js_url }}"></script>
+    {% if vite_js_url %}<script type="module" src="{{ vite_js_url }}"></script>{% endif %}
     {% endif %}
 </head>
 <body>
